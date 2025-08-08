@@ -269,8 +269,8 @@ export default function LoginPage() {
                   }}
                   onFocus={(e) => {
                     if (!passwordError) {
-                      e.target.style.borderColor = colors.primary
-                      e.target.style.boxShadow = `0 0 0 3px ${colors.primary}15`
+                      e.target.style.borderColor = colors.accent
+                      e.target.style.boxShadow = `0 0 0 3px ${colors.accent}15`
                     }
                   }}
                   onBlur={(e) => {
@@ -307,7 +307,7 @@ export default function LoginPage() {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-4 h-4 rounded"
                   style={{ 
-                    accentColor: colors.primary
+                    accentColor: colors.accent
                   }}
                   disabled={loading}
                 />
@@ -317,8 +317,8 @@ export default function LoginPage() {
               </label>
               <button
                 type="button"
-                className="text-sm font-medium transition-colors hover:text-purple-700"
-                style={{ color: colors.primary }}
+                className="text-sm font-medium transition-colors hover:text-pink-700"
+                style={{ color: colors.accent }}
                 disabled={loading}
               >
                 Forgot password?
@@ -333,8 +333,8 @@ export default function LoginPage() {
               style={{
                 background: loginSuccess 
                   ? colors.success
-                  : `linear-gradient(135deg, ${colors.primary}, ${colors.primaryDark})`,
-                boxShadow: loading ? 'none' : '0 4px 12px rgba(91, 58, 142, 0.15)'
+                  : `linear-gradient(135deg, ${colors.accent}, #D62D52)`,
+                boxShadow: loading ? 'none' : '0 4px 12px rgba(233, 75, 109, 0.25)'
               }}
             >
               {loading ? (
@@ -417,8 +417,8 @@ export default function LoginPage() {
           <p className="text-sm" style={{ color: colors.gray600 }}>
             Don't have an account?{' '}
             <button 
-              className="font-semibold transition-colors hover:text-purple-700" 
-              style={{ color: colors.primary }}
+              className="font-semibold transition-colors hover:text-pink-700" 
+              style={{ color: colors.accent }}
               disabled={loading}
             >
               Request demo
