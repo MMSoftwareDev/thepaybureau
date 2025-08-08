@@ -10,9 +10,7 @@ import {
   HelpCircle,
   ChevronDown,
   LogOut,
-  Settings,
-  Sun,
-  Moon
+  Settings
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -20,11 +18,13 @@ interface NavbarProps {
   user?: any
 }
 
-// Brand Colors matching dashboard
+// Brand Colors with Pink as Primary Accent
 const colors = {
   primary: '#5B3A8E',
   primaryDark: '#472D70',
-  accent: '#E94B6D',
+  accent: '#E94B6D',       // Pink as main accent
+  accentDark: '#D62D52',   // Darker pink
+  accentLight: '#FF6B8A',  // Light pink
   
   success: '#10B981',
   warning: '#F59E0B',
@@ -47,7 +47,6 @@ const colors = {
 
 export default function Navbar({ user }: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [notifications, setNotifications] = useState([
     { id: 1, type: 'client', message: 'New client onboarding completed', time: '5m ago', unread: true },
     { id: 2, type: 'payroll', message: 'Payroll run requires attention', time: '1h ago', unread: true },
@@ -61,19 +60,7 @@ export default function Navbar({ user }: NavbarProps) {
 
   useEffect(() => {
     setMounted(true)
-    // Load theme from localStorage
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
-    if (savedTheme) {
-      setTheme(savedTheme)
-    }
   }, [])
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light'
-    setTheme(newTheme)
-    localStorage.setItem('theme', newTheme)
-    // You can add document class manipulation here if needed
-  }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -156,8 +143,8 @@ export default function Navbar({ user }: NavbarProps) {
                 color: colors.gray900
               }}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = colors.primary
-                e.currentTarget.style.boxShadow = `0 0 0 3px ${colors.primary}15`
+                e.currentTarget.style.borderColor = colors.accent
+                e.currentTarget.style.boxShadow = `0 0 0 3px ${colors.accent}15`
               }}
               onBlur={(e) => {
                 e.currentTarget.style.borderColor = colors.border
@@ -170,29 +157,22 @@ export default function Navbar({ user }: NavbarProps) {
         {/* Right Section */}
         <div className="flex items-center gap-3 ml-6">
           
-          {/* Theme Toggle */}
+          {/* Help Button */}
           <button
-            onClick={toggleTheme}
-            className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:bg-gray-50"
+            className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:bg-pink-50"
             style={{ 
               border: `1px solid ${colors.border}`,
               color: colors.gray600
             }}
-            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-          >
-            {theme === 'dark' ? (
-              <Sun className="w-5 h-5" />
-            ) : (
-              <Moon className="w-5 h-5" />
-            )}
-          </button>
-          
-          {/* Help Button */}
-          <button
-            className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:bg-gray-50"
-            style={{ 
-              border: `1px solid ${colors.border}`,
-              color: colors.gray600
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = colors.accent
+              e.currentTarget.style.color = colors.accent
+              e.currentTarget.style.backgroundColor = `${colors.accent}10`
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = colors.border
+              e.currentTarget.style.color = colors.gray600
+              e.currentTarget.style.backgroundColor = 'transparent'
             }}
           >
             <HelpCircle className="w-5 h-5" />
@@ -202,19 +182,30 @@ export default function Navbar({ user }: NavbarProps) {
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:bg-gray-50 relative"
+              className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:bg-pink-50 relative"
               style={{ 
                 border: `1px solid ${colors.border}`,
                 color: colors.gray600
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = colors.accent
+                e.currentTarget.style.color = colors.accent
+                e.currentTarget.style.backgroundColor = `${colors.accent}10`
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = colors.border
+                e.currentTarget.style.color = colors.gray600
+                e.currentTarget.style.backgroundColor = 'transparent'
               }}
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
                 <span 
-                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center text-white font-semibold"
+                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center text-white font-semibold animate-pulse"
                   style={{ 
                     backgroundColor: colors.accent,
-                    border: `2px solid ${colors.surface}`
+                    border: `2px solid ${colors.surface}`,
+                    boxShadow: '0 2px 8px rgba(233, 75, 109, 0.3)'
                   }}
                 >
                   {unreadCount}
@@ -256,15 +247,15 @@ export default function Navbar({ user }: NavbarProps) {
                     <button
                       key={notification.id}
                       onClick={() => markNotificationAsRead(notification.id)}
-                      className="w-full p-4 text-left transition-colors hover:bg-gray-50 border-b"
+                      className="w-full p-4 text-left transition-colors hover:bg-pink-50 border-b"
                       style={{
                         borderColor: colors.borderLight,
-                        backgroundColor: notification.unread ? colors.gray50 : 'transparent'
+                        backgroundColor: notification.unread ? `${colors.accent}05` : 'transparent'
                       }}
                     >
                       <div className="flex items-start gap-3">
                         <div 
-                          className={`w-2 h-2 rounded-full mt-2 ${notification.unread ? '' : 'opacity-30'}`}
+                          className={`w-2 h-2 rounded-full mt-2 ${notification.unread ? 'animate-pulse' : 'opacity-30'}`}
                           style={{ 
                             backgroundColor: notification.unread ? colors.accent : colors.gray400
                           }}
@@ -284,10 +275,16 @@ export default function Navbar({ user }: NavbarProps) {
                 
                 <div className="p-3">
                   <button 
-                    className="w-full py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-50"
+                    className="w-full py-2 rounded-lg text-sm font-medium transition-colors"
                     style={{ 
-                      color: colors.primary,
-                      backgroundColor: `${colors.primary}10`
+                      color: colors.accent,
+                      backgroundColor: `${colors.accent}10`
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = `${colors.accent}20`
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = `${colors.accent}10`
                     }}
                   >
                     View All Notifications
@@ -311,12 +308,13 @@ export default function Navbar({ user }: NavbarProps) {
             <div className="relative">
               <button 
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 p-1 rounded-lg transition-colors hover:bg-gray-50"
+                className="flex items-center gap-2 p-1 rounded-lg transition-colors hover:bg-pink-50"
               >
                 <div 
                   className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm font-semibold"
                   style={{ 
-                    background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryDark})`
+                    background: `linear-gradient(135deg, ${colors.accent}, ${colors.accentDark})`,
+                    boxShadow: '0 4px 12px rgba(233, 75, 109, 0.2)'
                   }}
                 >
                   {getUserInitial()}
@@ -350,16 +348,32 @@ export default function Navbar({ user }: NavbarProps) {
                   
                   <div className="p-2">
                     <button 
-                      className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors hover:bg-gray-50"
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors hover:bg-pink-50"
                       style={{ color: colors.gray700 }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = colors.accent
+                        e.currentTarget.style.backgroundColor = `${colors.accent}10`
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = colors.gray700
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      }}
                     >
                       <User className="w-4 h-4" />
                       Profile Settings
                     </button>
                     
                     <button 
-                      className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors hover:bg-gray-50"
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors hover:bg-pink-50"
                       style={{ color: colors.gray700 }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = colors.accent
+                        e.currentTarget.style.backgroundColor = `${colors.accent}10`
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = colors.gray700
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      }}
                     >
                       <Settings className="w-4 h-4" />
                       Account Settings
