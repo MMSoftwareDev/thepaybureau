@@ -3,10 +3,6 @@
 
 import { useState, useEffect } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { 
   Search,
   Bell,
@@ -24,63 +20,60 @@ interface NavbarProps {
   user?: any
 }
 
-// Theme Toggle Component
-function ThemeToggle() {
-  const { isDark, toggleTheme } = useTheme()
-  const colors = getThemeColors(isDark)
-
-  return (
-    <Button
-      onClick={toggleTheme}
-      variant="ghost"
-      size="sm"
-      className="p-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.05] group"
-      style={{
-        background: colors.glass.surfaceActive,
-        backdropFilter: 'blur(15px)',
-        border: `1px solid ${colors.borderElevated}`
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = colors.glass.surfaceHover
-        e.currentTarget.style.transform = 'scale(1.05)'
-        e.currentTarget.style.boxShadow = isDark 
-          ? `0 8px 25px ${colors.shadow.medium}` 
-          : `0 8px 25px ${colors.shadow.light}`
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = colors.glass.surfaceActive
-        e.currentTarget.style.transform = 'scale(1)'
-        e.currentTarget.style.boxShadow = 'none'
-      }}
-      title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-    >
-      {isDark ? (
-        <Sun className="w-5 h-5 text-yellow-400 transition-transform duration-300 group-hover:rotate-12" />
-      ) : (
-        <Moon className="w-5 h-5 transition-transform duration-300 group-hover:rotate-12" style={{ color: colors.text.muted }} />
-      )}
-    </Button>
-  )
+// Brand Colors matching dashboard
+const colors = {
+  primary: '#5B3A8E',
+  primaryDark: '#472D70',
+  accent: '#E94B6D',
+  
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  
+  gray50: '#FAFAFA',
+  gray100: '#F4F4F5',
+  gray200: '#E4E4E7',
+  gray400: '#A1A1AA',
+  gray500: '#71717A',
+  gray600: '#52525B',
+  gray700: '#3F3F46',
+  gray900: '#18181B',
+  
+  background: '#FAFBFC',
+  surface: '#FFFFFF',
+  border: '#E5E7EB',
+  borderLight: '#F3F4F6'
 }
 
 export default function Navbar({ user }: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [notifications, setNotifications] = useState([
     { id: 1, type: 'client', message: 'New client onboarding completed', time: '5m ago', unread: true },
     { id: 2, type: 'payroll', message: 'Payroll run requires attention', time: '1h ago', unread: true },
     { id: 3, type: 'system', message: 'System maintenance scheduled', time: '2h ago', unread: false }
   ])
   const [showNotifications, setShowNotifications] = useState(false)
-  const [mounted, setMounted] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
   const supabase = createClientSupabaseClient()
-  const { isDark } = useTheme()
-  const colors = getThemeColors(isDark)
 
   useEffect(() => {
     setMounted(true)
+    // Load theme from localStorage
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
+    if (savedTheme) {
+      setTheme(savedTheme)
+    }
   }, [])
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light'
+    setTheme(newTheme)
+    localStorage.setItem('theme', newTheme)
+    // You can add document class manipulation here if needed
+  }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -121,15 +114,13 @@ export default function Navbar({ user }: NavbarProps) {
   // Prevent hydration mismatch
   if (!mounted) {
     return (
-      <nav className="h-16 border-b bg-white animate-pulse">
-        <div className="max-w-full mx-auto px-6">
-          <div className="flex items-center justify-between h-16">
-            <div className="w-96 h-10 bg-gray-200 rounded-xl"></div>
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gray-200 rounded-xl"></div>
-              <div className="w-10 h-10 bg-gray-200 rounded-xl"></div>
-              <div className="w-12 h-12 bg-gray-200 rounded-2xl"></div>
-            </div>
+      <nav className="h-16 border-b bg-white">
+        <div className="h-full px-6 flex items-center justify-between">
+          <div className="w-96 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
+            <div className="w-10 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
+            <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
           </div>
         </div>
       </nav>
@@ -138,392 +129,264 @@ export default function Navbar({ user }: NavbarProps) {
 
   return (
     <nav 
-      className="border-b shadow-2xl relative z-50 transition-all duration-300"
+      className="h-16 border-b"
       style={{
-        background: colors.glass.navbar || colors.glass.background,
-        backdropFilter: 'blur(25px)',
-        borderBottom: `1px solid ${colors.borderElevated}`,
-        boxShadow: isDark 
-          ? `0 4px 20px ${colors.shadow.medium}` 
-          : `0 4px 20px ${colors.shadow.light}`
+        backgroundColor: colors.surface,
+        borderColor: colors.border
       }}
     >
-      <div className="max-w-full mx-auto px-6 relative z-10">
-        <div className="flex items-center justify-between h-16">
-          
-          {/* Left Section - Search Bar (Keep Exactly As-Is) */}
-          <div className="flex items-center flex-1 max-w-lg">
-            <form onSubmit={handleSearch} className="relative w-full">
-              <Search 
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors duration-300" 
-                style={{ color: colors.text.muted }} 
-              />
-              <Input
-                type="text"
-                placeholder="Search clients, contracts, invoices..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 h-12 text-sm border-0 shadow-lg transition-all duration-300 focus:shadow-2xl rounded-xl font-medium"
-                style={{
-                  background: colors.glass.surface,
-                  backdropFilter: 'blur(15px)',
-                  color: colors.text.primary,
-                  fontSize: '14px',
-                  border: `1px solid ${colors.borderElevated}`,
-                  boxShadow: isDark 
-                    ? `0 4px 20px ${colors.shadow.light}` 
-                    : `0 4px 15px ${colors.shadow.light}`
-                }}
-                onFocus={(e) => {
-                  e.target.style.background = colors.glass.surfaceHover
-                  e.target.style.boxShadow = isDark
-                    ? `0 12px 35px ${colors.shadow.medium}, 0 0 0 1px ${colors.primary}40`
-                    : `0 8px 25px ${colors.primary}25, 0 0 0 1px ${colors.primary}30`
-                  e.target.style.borderColor = `${colors.primary}60`
-                }}
-                onBlur={(e) => {
-                  e.target.style.background = colors.glass.surface
-                  e.target.style.boxShadow = isDark 
-                    ? `0 4px 20px ${colors.shadow.light}` 
-                    : `0 4px 15px ${colors.shadow.light}`
-                  e.target.style.borderColor = colors.borderElevated
-                }}
-              />
-            </form>
-          </div>
-
-          {/* Right Section - Enhanced Icons */}
-          <div className="flex items-center space-x-3">
-            
-            {/* Theme Toggle */}
-            <ThemeToggle />
-            
-            {/* Help Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="p-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.05] group"
+      <div className="h-full px-6 flex items-center justify-between">
+        
+        {/* Search Bar */}
+        <div className="flex-1 max-w-xl">
+          <form onSubmit={handleSearch} className="relative">
+            <Search 
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" 
+              style={{ color: colors.gray400 }} 
+            />
+            <input
+              type="text"
+              placeholder="Search clients, contracts, invoices..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-2.5 rounded-lg text-sm outline-none transition-all"
               style={{
-                background: colors.glass.surfaceActive,
-                backdropFilter: 'blur(15px)',
-                border: `1px solid ${colors.borderElevated}`
+                backgroundColor: colors.gray50,
+                border: `1px solid ${colors.border}`,
+                color: colors.gray900
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = colors.glass.surfaceHover
-                e.currentTarget.style.transform = 'scale(1.05)'
-                e.currentTarget.style.boxShadow = isDark 
-                  ? `0 8px 25px ${colors.shadow.medium}` 
-                  : `0 8px 25px ${colors.shadow.light}`
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = colors.primary
+                e.currentTarget.style.boxShadow = `0 0 0 3px ${colors.primary}15`
               }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = colors.glass.surfaceActive
-                e.currentTarget.style.transform = 'scale(1)'
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = colors.border
                 e.currentTarget.style.boxShadow = 'none'
               }}
+            />
+          </form>
+        </div>
+
+        {/* Right Section */}
+        <div className="flex items-center gap-3 ml-6">
+          
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:bg-gray-50"
+            style={{ 
+              border: `1px solid ${colors.border}`,
+              color: colors.gray600
+            }}
+            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-5 h-5" />
+            ) : (
+              <Moon className="w-5 h-5" />
+            )}
+          </button>
+          
+          {/* Help Button */}
+          <button
+            className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:bg-gray-50"
+            style={{ 
+              border: `1px solid ${colors.border}`,
+              color: colors.gray600
+            }}
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
+
+          {/* Notifications */}
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:bg-gray-50 relative"
+              style={{ 
+                border: `1px solid ${colors.border}`,
+                color: colors.gray600
+              }}
             >
-              <HelpCircle 
-                className="w-5 h-5 transition-all duration-300 group-hover:rotate-12" 
-                style={{ color: colors.text.muted }} 
-              />
-            </Button>
-
-            {/* Notifications */}
-            <div className="relative">
-              <Button
-                onClick={() => setShowNotifications(!showNotifications)}
-                variant="ghost"
-                size="sm"
-                className="relative p-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.05] group"
-                style={{
-                  background: colors.glass.surfaceActive,
-                  backdropFilter: 'blur(15px)',
-                  border: `1px solid ${colors.borderElevated}`
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = colors.glass.surfaceHover
-                  e.currentTarget.style.transform = 'scale(1.05)'
-                  e.currentTarget.style.boxShadow = isDark 
-                    ? `0 8px 25px ${colors.shadow.medium}` 
-                    : `0 8px 25px ${colors.shadow.light}`
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = colors.glass.surfaceActive
-                  e.currentTarget.style.transform = 'scale(1)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
-              >
-                <Bell 
-                  className="w-5 h-5 transition-all duration-300 group-hover:rotate-12" 
-                  style={{ color: colors.text.muted }} 
-                />
-                {unreadCount > 0 && (
-                  <Badge 
-                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full text-xs flex items-center justify-center text-white border-2 font-bold shadow-xl animate-pulse transition-all duration-300"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${colors.secondary} 0%, ${colors.accent} 100%)`,
-                      boxShadow: isDark
-                        ? `0 8px 20px ${colors.secondary}60, 0 0 20px ${colors.secondary}40`
-                        : `0 8px 20px ${colors.secondary}40`,
-                      borderColor: colors.surface
-                    }}
-                  >
-                    {unreadCount}
-                  </Badge>
-                )}
-              </Button>
-
-              {/* Notifications Dropdown */}
-              {showNotifications && (
-                <div 
-                  className="absolute right-0 top-full mt-3 w-80 rounded-2xl shadow-2xl z-50 overflow-hidden transition-all duration-300"
-                  style={{
-                    background: colors.glass.card,
-                    backdropFilter: 'blur(25px)',
-                    border: `1px solid ${colors.borderElevated}`,
-                    boxShadow: isDark 
-                      ? `0 25px 50px ${colors.shadow.heavy}, 0 0 40px ${colors.shadow.medium}` 
-                      : `0 20px 40px ${colors.primary}20`
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span 
+                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center text-white font-semibold"
+                  style={{ 
+                    backgroundColor: colors.accent,
+                    border: `2px solid ${colors.surface}`
                   }}
                 >
-                  <div className="p-5 border-b transition-colors duration-300" style={{ borderColor: colors.borderElevated }}>
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-bold transition-colors duration-300" style={{ color: colors.text.primary }}>
-                        Notifications
-                      </h3>
-                      <Badge 
-                        className="text-white text-xs px-3 py-1 font-bold transition-all duration-300 shadow-lg"
-                        style={{ 
-                          background: `linear-gradient(135deg, ${colors.secondary} 0%, ${colors.accent} 100%)`,
-                          boxShadow: `0 4px 15px ${colors.secondary}30`
-                        }}
-                      >
-                        {unreadCount} new
-                      </Badge>
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* Notifications Dropdown */}
+            {showNotifications && (
+              <div 
+                className="absolute right-0 top-full mt-2 w-80 rounded-xl shadow-lg z-50 overflow-hidden"
+                style={{
+                  backgroundColor: colors.surface,
+                  border: `1px solid ${colors.border}`
+                }}
+              >
+                <div 
+                  className="p-4 border-b flex items-center justify-between"
+                  style={{ borderColor: colors.borderLight }}
+                >
+                  <h3 className="font-semibold" style={{ color: colors.gray900 }}>
+                    Notifications
+                  </h3>
+                  {unreadCount > 0 && (
+                    <span 
+                      className="px-2 py-0.5 rounded-full text-xs font-medium"
+                      style={{ 
+                        backgroundColor: `${colors.accent}15`,
+                        color: colors.accent
+                      }}
+                    >
+                      {unreadCount} new
+                    </span>
+                  )}
+                </div>
+                
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.map((notification) => (
+                    <button
+                      key={notification.id}
+                      onClick={() => markNotificationAsRead(notification.id)}
+                      className="w-full p-4 text-left transition-colors hover:bg-gray-50 border-b"
+                      style={{
+                        borderColor: colors.borderLight,
+                        backgroundColor: notification.unread ? colors.gray50 : 'transparent'
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div 
+                          className={`w-2 h-2 rounded-full mt-2 ${notification.unread ? '' : 'opacity-30'}`}
+                          style={{ 
+                            backgroundColor: notification.unread ? colors.accent : colors.gray400
+                          }}
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium" style={{ color: colors.gray900 }}>
+                            {notification.message}
+                          </p>
+                          <p className="text-xs mt-1" style={{ color: colors.gray500 }}>
+                            {notification.time}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                
+                <div className="p-3">
+                  <button 
+                    className="w-full py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-50"
+                    style={{ 
+                      color: colors.primary,
+                      backgroundColor: `${colors.primary}10`
+                    }}
+                  >
+                    View All Notifications
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* User Profile */}
+          <div className="flex items-center gap-3 pl-3 ml-3 border-l" style={{ borderColor: colors.border }}>
+            <div className="text-right hidden md:block">
+              <div className="text-sm font-semibold" style={{ color: colors.gray900 }}>
+                {getUserName()}
+              </div>
+              <div className="text-xs" style={{ color: colors.gray500 }}>
+                Administrator
+              </div>
+            </div>
+            
+            <div className="relative">
+              <button 
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 p-1 rounded-lg transition-colors hover:bg-gray-50"
+              >
+                <div 
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm font-semibold"
+                  style={{ 
+                    background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryDark})`
+                  }}
+                >
+                  {getUserInitial()}
+                </div>
+                <ChevronDown 
+                  className={`w-4 h-4 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
+                  style={{ color: colors.gray500 }}
+                />
+              </button>
+
+              {/* User Dropdown Menu */}
+              {showUserMenu && (
+                <div 
+                  className="absolute right-0 top-full mt-2 w-56 rounded-xl shadow-lg z-50 overflow-hidden"
+                  style={{
+                    backgroundColor: colors.surface,
+                    border: `1px solid ${colors.border}`
+                  }}
+                >
+                  <div 
+                    className="p-4 border-b"
+                    style={{ borderColor: colors.borderLight }}
+                  >
+                    <div className="font-semibold" style={{ color: colors.gray900 }}>
+                      {getUserName()}
+                    </div>
+                    <div className="text-sm mt-0.5" style={{ color: colors.gray500 }}>
+                      {user?.email}
                     </div>
                   </div>
                   
-                  <div className="max-h-80 overflow-y-auto">
-                    {notifications.map((notification) => (
-                      <button
-                        key={notification.id}
-                        onClick={() => markNotificationAsRead(notification.id)}
-                        className={`w-full p-4 text-left transition-all duration-300 border-b group hover:scale-[1.01] ${
-                          notification.unread 
-                            ? isDark ? 'bg-white/3' : 'bg-white/40' 
-                            : ''
-                        }`}
-                        style={{
-                          borderColor: colors.borderElevated
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = colors.glass.surfaceHover
-                          e.currentTarget.style.transform = 'scale(1.01)'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = notification.unread 
-                            ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.4)')
-                            : 'transparent'
-                          e.currentTarget.style.transform = 'scale(1)'
-                        }}
-                      >
-                        <div className="flex items-start space-x-3">
-                          <div 
-                            className={`w-3 h-3 rounded-full mt-2 shadow-lg transition-all duration-300 ${
-                              notification.unread ? 'animate-pulse scale-110' : 'opacity-30'
-                            }`}
-                            style={{ 
-                              backgroundColor: colors.secondary,
-                              boxShadow: notification.unread 
-                                ? `0 0 15px ${colors.secondary}60` 
-                                : 'none'
-                            }}
-                          />
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold transition-colors duration-300 group-hover:scale-[1.01]" 
-                               style={{ color: colors.text.primary }}>
-                              {notification.message}
-                            </p>
-                            <p className="text-xs mt-1 font-medium transition-colors duration-300" 
-                               style={{ color: colors.text.muted }}>
-                              {notification.time}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  
-                  <div className="p-4 border-t transition-colors duration-300" style={{ borderColor: colors.borderElevated }}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="w-full text-sm font-semibold transition-all duration-300 hover:scale-[1.02] rounded-xl py-2"
+                  <div className="p-2">
+                    <button 
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors hover:bg-gray-50"
+                      style={{ color: colors.gray700 }}
+                    >
+                      <User className="w-4 h-4" />
+                      Profile Settings
+                    </button>
+                    
+                    <button 
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors hover:bg-gray-50"
+                      style={{ color: colors.gray700 }}
+                    >
+                      <Settings className="w-4 h-4" />
+                      Account Settings
+                    </button>
+                    
+                    <div className="my-2 border-t" style={{ borderColor: colors.borderLight }}></div>
+                    
+                    <button 
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors"
                       style={{ 
-                        color: colors.primary,
-                        background: `${colors.primary}10`,
-                        border: `1px solid ${colors.primary}20`
+                        color: colors.error,
+                        backgroundColor: `${colors.error}10`
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = `${colors.primary}20`
-                        e.currentTarget.style.transform = 'scale(1.02)'
+                        e.currentTarget.style.backgroundColor = `${colors.error}20`
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = `${colors.primary}10`
-                        e.currentTarget.style.transform = 'scale(1)'
+                        e.currentTarget.style.backgroundColor = `${colors.error}10`
                       }}
                     >
-                      View All Notifications
-                    </Button>
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* User Profile */}
-            <div className="flex items-center space-x-3 pl-4 ml-2 border-l transition-colors duration-300" 
-                 style={{ borderColor: colors.borderElevated }}>
-              <div className="text-right hidden md:block">
-                <div className="text-sm font-bold transition-colors duration-300" style={{ color: colors.text.primary }}>
-                  {getUserName()}
-                </div>
-                <div className="text-xs font-medium transition-colors duration-300" style={{ color: colors.text.muted }}>
-                  Administrator
-                </div>
-              </div>
-              
-              <div className="relative">
-                <button 
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-2 p-2 rounded-2xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02] group"
-                  style={{
-                    background: 'transparent',
-                    backdropFilter: 'none'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = colors.glass.surfaceHover
-                    e.currentTarget.style.transform = 'scale(1.02)'
-                    e.currentTarget.style.boxShadow = isDark 
-                      ? `0 12px 30px ${colors.shadow.medium}` 
-                      : `0 8px 25px ${colors.shadow.light}`
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent'
-                    e.currentTarget.style.transform = 'scale(1)'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
-                >
-                  <div 
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-xl relative overflow-hidden transition-all duration-300 group-hover:scale-110"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                      boxShadow: isDark
-                        ? `0 15px 35px ${colors.primary}40, 0 0 25px ${colors.secondary}30`
-                        : `0 10px 25px ${colors.primary}30`
-                    }}
-                  >
-                    {getUserInitial()}
-                    {/* Shine effect */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-white/10 to-transparent group-hover:from-white/30"></div>
-                  </div>
-                  <ChevronDown 
-                    className={`w-4 h-4 hidden md:block transition-all duration-300 ${showUserMenu ? 'rotate-180' : ''} group-hover:scale-110`}
-                    style={{ color: colors.text.muted }}
-                  />
-                </button>
-
-                {/* User Dropdown Menu */}
-                {showUserMenu && (
-                  <div 
-                    className="absolute right-0 top-full mt-3 w-64 rounded-2xl shadow-2xl z-50 overflow-hidden transition-all duration-300"
-                    style={{
-                      background: colors.glass.card,
-                      backdropFilter: 'blur(25px)',
-                      border: `1px solid ${colors.borderElevated}`,
-                      boxShadow: isDark 
-                        ? `0 25px 50px ${colors.shadow.heavy}, 0 0 40px ${colors.shadow.medium}` 
-                        : `0 20px 40px ${colors.primary}20`
-                    }}
-                  >
-                    <div className="p-5 border-b transition-colors duration-300" style={{ borderColor: colors.borderElevated }}>
-                      <div className="font-bold text-base transition-colors duration-300" style={{ color: colors.text.primary }}>
-                        {getUserName()}
-                      </div>
-                      <div className="text-sm mt-1 transition-colors duration-300" style={{ color: colors.text.muted }}>
-                        {user?.email}
-                      </div>
-                    </div>
-                    
-                    <div className="p-3">
-                      <button 
-                        className="w-full flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02] group"
-                        style={{ 
-                          color: colors.text.secondary,
-                          background: 'transparent'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = colors.glass.surfaceHover
-                          e.currentTarget.style.color = colors.text.primary
-                          e.currentTarget.style.transform = 'scale(1.02)'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent'
-                          e.currentTarget.style.color = colors.text.secondary
-                          e.currentTarget.style.transform = 'scale(1)'
-                        }}
-                      >
-                        <User className="w-5 h-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
-                        Profile Settings
-                      </button>
-                      
-                      <button 
-                        className="w-full flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02] group"
-                        style={{ 
-                          color: colors.text.secondary,
-                          background: 'transparent'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = colors.glass.surfaceHover
-                          e.currentTarget.style.color = colors.text.primary
-                          e.currentTarget.style.transform = 'scale(1.02)'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent'
-                          e.currentTarget.style.color = colors.text.secondary
-                          e.currentTarget.style.transform = 'scale(1)'
-                        }}
-                      >
-                        <Settings className="w-5 h-5 mr-3 transition-transform duration-300 group-hover:rotate-90" />
-                        Account Settings
-                      </button>
-                      
-                      <div className="my-3 border-t transition-colors duration-300" style={{ borderColor: colors.borderElevated }}></div>
-                      
-                      <button 
-                        onClick={handleLogout}
-                        className="w-full flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02] group"
-                        style={{ 
-                          color: colors.error,
-                          background: `${colors.error}10`,
-                          border: `1px solid ${colors.error}20`
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = `${colors.error}20`
-                          e.currentTarget.style.transform = 'scale(1.02)'
-                          e.currentTarget.style.boxShadow = `0 8px 25px ${colors.error}30`
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = `${colors.error}10`
-                          e.currentTarget.style.transform = 'scale(1)'
-                          e.currentTarget.style.boxShadow = 'none'
-                        }}
-                      >
-                        <LogOut className="w-5 h-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
-                        Sign Out
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
