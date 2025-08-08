@@ -27,13 +27,13 @@ interface SidebarProps {
   onToggle?: () => void
 }
 
-// Brand Colors matching dashboard
+// Brand Colors with Pink as Primary Accent
 const colors = {
   primary: '#5B3A8E',
   primaryDark: '#472D70',
-  primaryLight: '#7B5CAE',
-  accent: '#E94B6D',
-  accentLight: '#FF6B8A',
+  accent: '#E94B6D',       // Pink as main accent
+  accentDark: '#D62D52',   // Darker pink for hover
+  accentLight: '#FF6B8A',  // Light pink
   
   success: '#10B981',
   warning: '#F59E0B',
@@ -248,15 +248,15 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           <div 
             className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-lg relative"
             style={{ 
-              background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryDark})`,
-              boxShadow: '0 8px 16px rgba(91, 58, 142, 0.2)'
+              background: `linear-gradient(135deg, ${colors.accent}, ${colors.accentDark})`,
+              boxShadow: '0 8px 16px rgba(233, 75, 109, 0.25)'
             }}
           >
             PB
             <span 
               className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 animate-pulse"
               style={{ 
-                backgroundColor: colors.accent,
+                backgroundColor: colors.accentLight,
                 borderColor: colors.surface
               }}
             />
@@ -281,7 +281,16 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             onClick={() => router.push('/dashboard/clients/add')}
             className="w-full py-2.5 px-3 rounded-lg text-white font-semibold text-sm transition-all hover:shadow-lg flex items-center justify-center gap-2"
             style={{ 
-              background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryDark})`
+              background: `linear-gradient(135deg, ${colors.accent}, ${colors.accentDark})`,
+              boxShadow: '0 4px 12px rgba(233, 75, 109, 0.2)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1px)'
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(233, 75, 109, 0.3)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(233, 75, 109, 0.2)'
             }}
           >
             <Plus className="w-4 h-4" />
@@ -332,22 +341,31 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                           w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all relative group
                           ${collapsed ? 'justify-center' : ''}
                           ${isActive ? 'font-semibold' : ''}
-                          ${isDisabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-50'}
+                          ${isDisabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-pink-50'}
                         `}
                         style={{ 
-                          backgroundColor: isActive ? 'rgba(91, 58, 142, 0.08)' : 'transparent',
-                          color: isActive ? colors.primary : colors.gray700
+                          backgroundColor: isActive 
+                            ? `${colors.accent}10`
+                            : hoveredItem === item.name && !isDisabled 
+                              ? `${colors.accent}05`
+                              : 'transparent',
+                          color: isActive ? colors.accent : colors.gray700
                         }}
                       >
                         {/* Active indicator */}
                         {isActive && (
                           <div 
                             className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r"
-                            style={{ backgroundColor: colors.primary }}
+                            style={{ backgroundColor: colors.accent }}
                           />
                         )}
                         
-                        <Icon className="w-5 h-5 flex-shrink-0" />
+                        <Icon 
+                          className="w-5 h-5 flex-shrink-0 transition-colors" 
+                          style={{ 
+                            color: isActive ? colors.accent : hoveredItem === item.name && !isDisabled ? colors.accent : colors.gray600
+                          }}
+                        />
                         
                         {!collapsed && (
                           <>
@@ -363,8 +381,8 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                               <span 
                                 className="px-2 py-0.5 rounded-full text-xs font-medium"
                                 style={{ 
-                                  backgroundColor: item.badge === 'Soon' ? colors.gray100 : colors.accent,
-                                  color: item.badge === 'Soon' ? colors.gray500 : 'white'
+                                  backgroundColor: item.badge === 'Soon' ? colors.gray100 : `${colors.accent}20`,
+                                  color: item.badge === 'Soon' ? colors.gray500 : colors.accent
                                 }}
                               >
                                 {item.badge}
@@ -379,14 +397,15 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                         <div 
                           className="absolute left-full top-0 ml-3 px-3 py-2 rounded-lg shadow-lg z-50 whitespace-nowrap"
                           style={{
-                            backgroundColor: colors.gray900,
-                            color: 'white'
+                            backgroundColor: colors.accent,
+                            color: 'white',
+                            boxShadow: '0 8px 16px rgba(233, 75, 109, 0.2)'
                           }}
                         >
                           <div className="text-sm font-medium">{item.name}</div>
-                          <div className="text-xs opacity-80">{item.description}</div>
+                          <div className="text-xs opacity-90">{item.description}</div>
                           {item.badge && (
-                            <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-xs" 
+                            <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-xs font-medium" 
                                   style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
                               {item.badge}
                             </span>
@@ -397,7 +416,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                             style={{ 
                               borderTop: '4px solid transparent',
                               borderBottom: '4px solid transparent',
-                              borderRight: `4px solid ${colors.gray900}`
+                              borderRight: `4px solid ${colors.accent}`
                             }}
                           />
                         </div>
@@ -424,8 +443,8 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             </div>
             <span className="text-xs font-medium px-2 py-0.5 rounded" 
                   style={{ 
-                    backgroundColor: colors.gray100,
-                    color: colors.gray600
+                    backgroundColor: `${colors.accent}10`,
+                    color: colors.accent
                   }}>
               v2.1
             </span>
