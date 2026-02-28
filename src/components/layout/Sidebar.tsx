@@ -81,21 +81,18 @@ const navigationSections: NavigationSection[] = [
         name: 'Payroll Overview',
         href: '/dashboard/payroll-overview',
         icon: Calendar,
-        badge: 'Soon',
         description: 'Payroll tracking'
       },
       {
         name: 'Your Payrolls',
         href: '/dashboard/your-payrolls',
         icon: UserCheck,
-        badge: 'Soon',
         description: 'Your assigned payrolls'
       },
       {
         name: 'Time Tracking',
         href: '/dashboard/timesheet',
         icon: Clock,
-        badge: 'Soon',
         description: 'Track client time'
       }
     ]
@@ -107,14 +104,12 @@ const navigationSections: NavigationSection[] = [
         name: 'Contracts',
         href: '/dashboard/contracts',
         icon: FileText,
-        badge: 'Soon',
         description: 'Service agreements'
       },
       {
         name: 'Invoicing',
         href: '/dashboard/invoices',
         icon: DollarSign,
-        badge: 'Soon',
         description: 'Billing & payments'
       }
     ]
@@ -126,14 +121,12 @@ const navigationSections: NavigationSection[] = [
         name: 'HMRC Compliance',
         href: '/dashboard/compliance',
         icon: Shield,
-        badge: 'Soon',
         description: 'RTI & regulations'
       },
       {
         name: 'Pension Compliance',
         href: '/dashboard/pension-compliance',
         icon: Archive,
-        badge: 'Soon',
         description: 'Auto enrollment'
       }
     ]
@@ -145,14 +138,12 @@ const navigationSections: NavigationSection[] = [
         name: 'Reports',
         href: '/dashboard/reports',
         icon: BarChart3,
-        badge: 'Soon',
         description: 'Analytics & insights'
       },
       {
         name: 'Bureau Benchmarking',
         href: '/dashboard/benchmarking',
         icon: TrendingUp,
-        badge: 'Soon',
         description: 'Industry comparisons'
       }
     ]
