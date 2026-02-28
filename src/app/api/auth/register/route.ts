@@ -30,6 +30,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
+    // Build the callback URL from the request origin
+    const origin = request.headers.get('origin') || request.headers.get('referer')?.replace(/\/[^/]*$/, '') || ''
+
     // Create Supabase auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: validatedData.email,
@@ -39,7 +42,8 @@ export async function POST(request: NextRequest) {
           name: validatedData.adminName,
           company: validatedData.companyName,
           phone: validatedData.phone
-        }
+        },
+        emailRedirectTo: `${origin}/auth/callback`
       }
     })
     

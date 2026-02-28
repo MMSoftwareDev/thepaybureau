@@ -230,7 +230,7 @@ export default function LoginPage() {
             <p className="mt-2 font-[family-name:var(--font-body)] text-[0.95rem] text-[var(--login-text-3)]">
               Don&apos;t have an account?{' '}
               <Link
-                href="/register"
+                href="/signup"
                 className="font-semibold text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)]"
               >
                 Create one
