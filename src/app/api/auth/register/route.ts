@@ -71,7 +71,16 @@ export async function POST(request: NextRequest) {
         settings: {
           industry: 'payroll_bureau',
           company_domain: companyDomain,
-          setup_completed: false
+          setup_completed: false,
+          default_checklist: [
+            { name: 'Receive payroll changes', sort_order: 0 },
+            { name: 'Process payroll', sort_order: 1 },
+            { name: 'Review & approve', sort_order: 2 },
+            { name: 'Send payslips', sort_order: 3 },
+            { name: 'Submit RTI to HMRC', sort_order: 4 },
+            { name: 'BACS payment', sort_order: 5 },
+            { name: 'Pension submission', sort_order: 6 }
+          ]
         }
       })
       .select()
@@ -109,9 +118,6 @@ export async function POST(request: NextRequest) {
     
     console.log('✅ User profile created')
     
-    // Create demo data for playground mode
-    await createDemoData(supabase, tenant.id, authData.user.id)
-    
     console.log('✅ Registration completed successfully')
     
     return NextResponse.json({
@@ -138,43 +144,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       error: 'Internal server error' 
     }, { status: 500 })
-  }
-}
-
-// Helper function to create demo data
-async function createDemoData(supabase: any, tenantId: string, userId: string) {
-  try {
-    console.log('🎮 Creating demo data for tenant:', tenantId)
-    
-    // Get demo client template
-    const { data: template } = await supabase
-      .from('demo_data_templates')
-      .select('data')
-      .eq('name', 'default_clients')
-      .single()
-    
-    if (template?.data) {
-      const demoClients = template.data.map((client: any) => ({
-        ...client,
-        tenant_id: tenantId,
-        created_by: userId,
-        notes: 'Demo client - explore features risk-free!'
-      }))
-      
-      // Insert demo clients
-      const { data: insertedClients, error: clientError } = await supabase
-        .from('clients')
-        .insert(demoClients)
-        .select()
-      
-      if (!clientError && insertedClients) {
-        console.log('✅ Demo clients created:', insertedClients.length)
-      }
-    }
-    
-    console.log('✅ Demo data created')
-  } catch (error) {
-    console.warn('⚠️ Demo data creation failed:', error)
-    // Don't fail registration for demo data issues
   }
 }
