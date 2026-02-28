@@ -16,10 +16,19 @@ const clientUpdateSchema = z.object({
     postcode: z.string().optional(),
     country: z.string().optional()
   }).optional(),
-  industry: z.string().max(100).optional(),
   employee_count: z.number().int().positive().optional(),
   status: z.enum(['active', 'inactive', 'prospect']).optional(),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  paye_reference: z.string().optional(),
+  accounts_office_ref: z.string().optional(),
+  pay_frequency: z.enum(['weekly', 'fortnightly', 'four_weekly', 'monthly']).optional(),
+  pay_day: z.string().optional(),
+  tax_period_start: z.string().optional(),
+  pension_provider: z.string().optional(),
+  pension_staging_date: z.string().optional(),
+  contact_name: z.string().optional(),
+  contact_email: z.string().email().optional().or(z.literal('')),
+  contact_phone: z.string().optional(),
 })
 
 // GET /api/clients/[id] - Fetch single client with details
@@ -37,42 +46,23 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Fetch client with related data
+    // Get user to verify tenant ownership
+    const { data: user } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', session.user.id)
+      .single()
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Fetch client with checklist templates
     const { data: client, error } = await supabase
       .from('clients')
-      .select(`
-        id,
-        name,
-        company_number,
-        email,
-        phone,
-        address,
-        industry,
-        employee_count,
-        status,
-        notes,
-        created_at,
-        updated_at,
-        contacts(
-          id,
-          name,
-          email,
-          phone,
-          role,
-          is_primary
-        ),
-        contracts(
-          id,
-          name,
-          contract_number,
-          start_date,
-          end_date,
-          value,
-          status,
-          billing_frequency
-        )
-      `)
+      .select('*, checklist_templates(*)')
       .eq('id', id)
+      .eq('tenant_id', user.tenant_id)
       .single()
 
     if (error) {
@@ -168,35 +158,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if client has active contracts
-    const { data: activeContracts } = await supabase
-      .from('contracts')
-      .select('id, name')
-      .eq('client_id', id)
-      .eq('status', 'active')
-
-    if (activeContracts && activeContracts.length > 0) {
-      return NextResponse.json({
-        error: 'Cannot delete client with active contracts',
-        details: `Client has ${activeContracts.length} active contract(s)`
-      }, { status: 400 })
-    }
-
-    // Check if client has unpaid invoices
-    const { data: unpaidInvoices } = await supabase
-      .from('invoices')
-      .select('id, invoice_number')
-      .eq('client_id', id)
-      .in('status', ['pending', 'sent', 'overdue'])
-
-    if (unpaidInvoices && unpaidInvoices.length > 0) {
-      return NextResponse.json({
-        error: 'Cannot delete client with unpaid invoices',
-        details: `Client has ${unpaidInvoices.length} unpaid invoice(s)`
-      }, { status: 400 })
-    }
-
-    // Delete client (contacts will be deleted automatically due to CASCADE)
+    // Delete client (related records will cascade)
     const { error } = await supabase
       .from('clients')
       .delete()
