@@ -8,41 +8,109 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
-import { 
-  Building2, 
-  Users, 
-  Search, 
-  Plus, 
-  Filter, 
-  Download, 
-  Edit, 
-  Eye, 
-  Trash2, 
-  MoreHorizontal, 
+import { cn } from '@/lib/utils'
+import { format, parseISO } from 'date-fns'
+import {
+  Building2,
+  Users,
+  Search,
+  Plus,
+  Filter,
+  Download,
+  Edit,
+  Eye,
+  Trash2,
   Loader2,
   ArrowUp,
   ArrowDown,
   FileText,
   Phone,
   Mail,
-  MapPin
+  Calendar
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-// Interface for real client data from Supabase
+// Interface for the latestRun attached to each client
+interface LatestRun {
+  id: string
+  pay_date: string
+  status: string
+}
+
+// Interface for real client data from API
 interface Client {
   id: string
   name: string
   company_number?: string
-  email?: string
-  phone?: string
+  email?: string | null
+  phone?: string | null
   industry?: string
-  employee_count?: number
+  employee_count?: number | null
+  pay_frequency?: string | null
+  paye_reference?: string | null
   status: 'active' | 'inactive' | 'prospect'
   notes?: string
   created_at: string
   updated_at: string
   contracts?: { count: number }[]
+  latestRun?: LatestRun | null
+}
+
+// Format pay frequency for display
+const formatFrequency = (freq: string | null | undefined): string => {
+  if (!freq) return '-'
+  const map: Record<string, string> = {
+    weekly: 'Weekly',
+    fortnightly: 'Fortnightly',
+    four_weekly: '4-Weekly',
+    monthly: 'Monthly',
+  }
+  return map[freq] || freq
+}
+
+// Get payroll status badge classes (matching payrolls page pattern)
+function getPayrollStatusBadgeClasses(status: string): string {
+  switch (status) {
+    case 'complete':
+      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+    case 'in_progress':
+      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+    case 'due_soon':
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+    case 'overdue':
+      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+    case 'not_started':
+    default:
+      return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+  }
+}
+
+// Get payroll status label for display
+function getPayrollStatusLabel(status: string): string {
+  switch (status) {
+    case 'complete':
+      return 'Complete'
+    case 'in_progress':
+      return 'In Progress'
+    case 'due_soon':
+      return 'Due Soon'
+    case 'overdue':
+      return 'Overdue'
+    case 'not_started':
+      return 'Not Started'
+    default:
+      return status
+  }
+}
+
+// Format a date string safely
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  try {
+    return format(parseISO(dateStr), 'd MMM yyyy')
+  } catch {
+    return '-'
+  }
 }
 
 export default function ClientsPage() {
@@ -125,7 +193,8 @@ export default function ClientsPage() {
         client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.company_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.industry?.toLowerCase().includes(searchTerm.toLowerCase())
+        client.industry?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.paye_reference?.toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
 
@@ -684,12 +753,12 @@ export default function ClientsPage() {
             <Table>
               <TableHeader>
                 <TableRow style={{ borderColor: colors.borderElevated }}>
-                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Client Details</TableHead>
-                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Contact Info</TableHead>
-                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Industry</TableHead>
+                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Client</TableHead>
+                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Pay Frequency</TableHead>
                   <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Employees</TableHead>
-                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Status</TableHead>
-                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Created</TableHead>
+                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>PAYE Ref</TableHead>
+                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Payroll Status</TableHead>
+                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Next Pay Date</TableHead>
                   <TableHead className="text-right font-bold" style={{ color: colors.text.secondary }}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -697,8 +766,8 @@ export default function ClientsPage() {
                 {filteredClients.map((client) => {
                   const statusBadge = getStatusBadge(client.status)
                   return (
-                    <TableRow 
-                      key={client.id} 
+                    <TableRow
+                      key={client.id}
                       className="transition-all duration-300 hover:scale-[1.01] group"
                       style={{ borderColor: colors.borderElevated }}
                       onMouseEnter={(e) => {
@@ -712,7 +781,7 @@ export default function ClientsPage() {
                     >
                       <TableCell>
                         <div className="flex items-center space-x-3">
-                          <div 
+                          <div
                             className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110"
                             style={{ backgroundColor: `${colors.primary}15` }}
                           >
@@ -722,74 +791,98 @@ export default function ClientsPage() {
                             <div className="font-bold transition-colors duration-300" style={{ color: colors.text.primary }}>
                               {client.name}
                             </div>
-                            {client.company_number && (
-                              <div className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.muted }}>
+                            {client.paye_reference && (
+                              <div className="text-xs font-medium transition-colors duration-300" style={{ color: colors.text.muted }}>
+                                {client.email || ''}
+                              </div>
+                            )}
+                            {!client.paye_reference && client.company_number && (
+                              <div className="text-xs font-medium transition-colors duration-300" style={{ color: colors.text.muted }}>
                                 {client.company_number}
                               </div>
                             )}
                           </div>
                         </div>
                       </TableCell>
-                      
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="flex items-center text-sm transition-colors duration-300" style={{ color: colors.text.primary }}>
-                            <Mail className="w-3 h-3 mr-2" style={{ color: colors.text.muted }} />
-                            {client.email || '-'}
-                          </div>
-                          <div className="flex items-center text-sm transition-colors duration-300" style={{ color: colors.text.secondary }}>
-                            <Phone className="w-3 h-3 mr-2" style={{ color: colors.text.muted }} />
-                            {client.phone || '-'}
-                          </div>
-                        </div>
-                      </TableCell>
-                      
+
                       <TableCell>
                         <span className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.primary }}>
-                          {client.industry || '-'}
+                          {formatFrequency(client.pay_frequency)}
                         </span>
                       </TableCell>
-                      
+
                       <TableCell>
                         <span className="text-sm font-bold transition-colors duration-300" style={{ color: colors.text.primary }}>
-                          {client.employee_count || '-'}
+                          {client.employee_count != null ? client.employee_count : '-'}
                         </span>
                       </TableCell>
-                      
+
                       <TableCell>
-                        <Badge 
-                          className="text-white border-0 font-bold shadow-lg transition-all duration-300 hover:scale-105"
-                          style={{ 
-                            backgroundColor: statusBadge.bg,
-                            boxShadow: `0 4px 15px ${statusBadge.bg}40`
-                          }}
-                        >
-                          {statusBadge.text}
-                        </Badge>
-                      </TableCell>
-                      
-                      <TableCell>
-                        <span className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.muted }}>
-                          {new Date(client.created_at).toLocaleDateString()}
+                        <span className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.primary }}>
+                          {client.paye_reference || '-'}
                         </span>
                       </TableCell>
-                      
+
+                      <TableCell>
+                        {client.latestRun ? (
+                          <Badge
+                            className={cn(
+                              'text-xs font-bold px-3 py-1 border-0',
+                              getPayrollStatusBadgeClasses(client.latestRun.status)
+                            )}
+                          >
+                            {getPayrollStatusLabel(client.latestRun.status)}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            className="text-xs font-bold px-3 py-1 border-0 bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                          >
+                            No payroll
+                          </Badge>
+                        )}
+                      </TableCell>
+
+                      <TableCell>
+                        {client.latestRun ? (
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 flex-shrink-0" style={{ color: colors.text.muted }} />
+                            <span className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.primary }}>
+                              {formatDate(client.latestRun.pay_date)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.muted }}>
+                            -
+                          </span>
+                        )}
+                      </TableCell>
+
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end space-x-2">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
-                            className="rounded-xl transition-all duration-300 hover:scale-105"
+                            onClick={() => router.push('/dashboard/payrolls')}
+                            className="rounded-xl transition-all duration-300 hover:scale-105 text-xs font-semibold"
                             style={{
-                              borderColor: colors.borderElevated,
-                              color: colors.text.secondary,
-                              backgroundColor: colors.glass.surface
+                              borderColor: `${colors.primary}40`,
+                              color: colors.primary,
+                              backgroundColor: `${colors.primary}10`
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = `${colors.primary}20`
+                              e.currentTarget.style.borderColor = `${colors.primary}60`
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = `${colors.primary}10`
+                              e.currentTarget.style.borderColor = `${colors.primary}40`
                             }}
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-3.5 h-3.5 mr-1" />
+                            Payroll
                           </Button>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             className="rounded-xl transition-all duration-300 hover:scale-105"
                             style={{
@@ -800,8 +893,8 @@ export default function ClientsPage() {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => deleteClient(client.id)}
                             className="rounded-xl transition-all duration-300 hover:scale-105"
