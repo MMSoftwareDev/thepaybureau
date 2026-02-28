@@ -1,32 +1,29 @@
+// src/components/layout/Sidebar.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { createClientSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
+import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { 
   Building2, 
   Users, 
   FileText, 
-  DollarSign, 
   BarChart3, 
-  Settings, 
-  Bell, 
-  LogOut,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Home,
-  Calendar,
-  CreditCard,
-  Shield,
-  Archive,
-  Headphones,
-  Search,
-  Plus,
   UserCheck,
-  TrendingUp
+  Clock,
+  Shield,
+  TrendingUp,
+  Calendar,
+  DollarSign,
+  Archive,
+  Search,
+  Plus
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -34,104 +31,133 @@ interface SidebarProps {
   onToggle?: () => void
 }
 
-// Clean, focused navigation structure
-const navigationItems = [
+// Updated navigation structure based on your project
+const navigationSections = [
   {
-    name: 'Dashboard',
-    href: '/dashboard',
-    icon: Home,
-    description: 'Overview & insights'
+    title: 'Overview',
+    items: [
+      {
+        name: 'Dashboard',
+        href: '/dashboard',
+        icon: Home,
+        description: 'Overview & insights'
+      }
+    ]
   },
   {
-    name: 'Clients',
-    href: '/dashboard/clients',
-    icon: Users,
-    description: 'Manage your clients'
+    title: 'Client Management',
+    items: [
+      {
+        name: 'Onboarding',
+        href: '/onboarding',
+        icon: UserCheck,
+        description: 'New client setup'
+      },
+      {
+        name: 'Clients',
+        href: '/dashboard/clients',
+        icon: Users,
+        description: 'Manage your clients'
+      }
+    ]
   },
   {
-    name: 'Onboarding',
-    href: '/dashboard/onboarding',
-    icon: UserCheck,
-    badge: '2',
-    description: 'Client setup process'
+    title: 'Payroll Operations',
+    items: [
+      {
+        name: 'Payroll Overview',
+        href: '/dashboard/payroll-overview',
+        icon: Calendar,
+        badge: 'Soon',
+        description: 'Payroll tracking'
+      },
+      {
+        name: 'Your Payrolls',
+        href: '/dashboard/your-payrolls',
+        icon: UserCheck,
+        badge: 'Soon',
+        description: 'Your assigned payrolls'
+      },
+      {
+        name: 'Time Tracking',
+        href: '/dashboard/timesheet',
+        icon: Clock,
+        badge: 'Soon',
+        description: 'Track client time'
+      }
+    ]
   },
   {
-    name: 'Contracts',
-    href: '/dashboard/contracts',
-    icon: FileText,
-    badge: 'Soon',
-    description: 'Service agreements'
+    title: 'Business Management',
+    items: [
+      {
+        name: 'Contracts',
+        href: '/dashboard/contracts',
+        icon: FileText,
+        badge: 'Soon',
+        description: 'Service agreements'
+      },
+      {
+        name: 'Invoicing',
+        href: '/dashboard/invoices',
+        icon: DollarSign,
+        badge: 'Soon',
+        description: 'Billing & payments'
+      }
+    ]
   },
   {
-    name: 'Invoices',
-    href: '/dashboard/invoices',
-    icon: DollarSign,
-    badge: 'Soon',
-    description: 'Billing & payments'
+    title: 'Compliance',
+    items: [
+      {
+        name: 'HMRC Compliance',
+        href: '/dashboard/compliance',
+        icon: Shield,
+        badge: 'Soon',
+        description: 'RTI & regulations'
+      },
+      {
+        name: 'Pension Compliance',
+        href: '/dashboard/pension-compliance',
+        icon: Archive,
+        badge: 'Soon',
+        description: 'Auto enrollment'
+      }
+    ]
   },
   {
-    name: 'Reports',
-    href: '/dashboard/reports',
-    icon: BarChart3,
-    badge: 'Soon',
-    description: 'Analytics & insights'
-  },
-  {
-    name: 'Compliance',
-    href: '/dashboard/compliance',
-    icon: Shield,
-    badge: 'Soon',
-    description: 'HMRC & regulations'
-  },
-  {
-    name: 'Pension Compliance',
-    href: '/dashboard/pension-compliance',
-    icon: Archive,
-    badge: 'Soon',
-    description: 'Auto enrollment & TPR'
-  },
-  {
-    name: 'Bureau Benchmarking',
-    href: '/dashboard/benchmarking',
-    icon: TrendingUp,
-    badge: 'Soon',
-    description: 'Industry performance data'
-  }
-]
-
-const quickActions = [
-  { name: 'Add Client', icon: Plus, action: 'add-client' }
-]
-
-const bottomItems = [
-  {
-    name: 'Settings',
-    href: '/dashboard/settings',
-    icon: Settings,
-  },
-  {
-    name: 'Support',
-    href: '/dashboard/support',
-    icon: Headphones,
+    title: 'Reporting',
+    items: [
+      {
+        name: 'Reports',
+        href: '/dashboard/reports',
+        icon: BarChart3,
+        badge: 'Soon',
+        description: 'Analytics & insights'
+      },
+      {
+        name: 'Bureau Benchmarking',
+        href: '/dashboard/benchmarking',
+        icon: TrendingUp,
+        badge: 'Soon',
+        description: 'Industry comparisons'
+      }
+    ]
   }
 ]
 
 export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const supabase = createClientSupabaseClient()
   const [mounted, setMounted] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
+  const { isDark } = useTheme()
+  const colors = getThemeColors(isDark)
 
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
 
   const isActiveRoute = (href: string) => {
     if (href === '/dashboard') {
@@ -147,27 +173,30 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
     router.push(href)
   }
 
-  const handleQuickAction = (action: string) => {
-    switch (action) {
-      case 'add-client':
-        router.push('/dashboard/clients/add')
-        break
-      case 'quick-invoice':
-        // Handle quick invoice action
-        break
+  const toggleSection = (sectionTitle: string) => {
+    const newCollapsedSections = new Set(collapsedSections)
+    if (newCollapsedSections.has(sectionTitle)) {
+      newCollapsedSections.delete(sectionTitle)
+    } else {
+      newCollapsedSections.add(sectionTitle)
     }
+    setCollapsedSections(newCollapsedSections)
   }
-
-  const filteredItems = navigationItems.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.description.toLowerCase().includes(searchQuery.toLowerCase())
-  )
 
   if (!mounted) {
     return (
-      <div className={`${collapsed ? 'w-16' : 'w-72'} h-screen bg-white border-r border-gray-200`}>
-        <div className="animate-pulse p-4">
-          <div className="h-8 bg-gray-200 rounded mb-4"></div>
+      <div 
+        className={`${collapsed ? 'w-20' : 'w-80'} h-screen relative transition-all duration-300`}
+        style={{
+          backgroundColor: colors.surface,
+          backdropFilter: 'blur(10px)'
+        }}
+      >
+        <div className="animate-pulse p-6">
+          <div 
+            className="h-12 rounded-2xl mb-6 shadow-sm"
+            style={{ backgroundColor: colors.glass.surface }}
+          />
         </div>
       </div>
     )
@@ -175,134 +204,210 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
 
   return (
     <div 
-      className={`h-screen bg-white border-r border-gray-200 transition-all duration-300 ease-in-out ${
-        collapsed ? 'w-16' : 'w-72'
-      } flex flex-col relative`}
+      className={`h-screen transition-all duration-300 ease-in-out ${
+        collapsed ? 'w-20' : 'w-80'
+      } flex flex-col relative shadow-2xl`}
+      style={{
+        backgroundColor: colors.surface,
+        backdropFilter: 'blur(20px)',
+        borderRight: `1px solid ${colors.borderElevated}`
+      }}
     >
       {/* Header */}
-      <div className="px-4 py-4 border-b border-gray-200">
+      <div className="px-6 py-6 relative z-10">
         <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
           <div className="flex items-center">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: '#401D6C' }}>
-              <Building2 className="w-5 h-5 text-white relative z-10" />
-              {/* Subtle gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+            {/* Logo */}
+            <div 
+              className="w-12 h-12 rounded-2xl flex items-center justify-center relative overflow-hidden shadow-xl transition-all duration-300"
+              style={{ 
+                backgroundColor: colors.primary,
+                backgroundImage: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+                boxShadow: `0 10px 25px ${colors.primary}30`
+              }}
+            >
+              <Building2 className="w-6 h-6 text-white relative z-10" />
             </div>
             {!collapsed && (
-              <div className="ml-3">
-                <h1 className="text-lg font-semibold text-gray-900">ThePayBureau</h1>
-                <p className="text-xs text-gray-500 font-medium">Professional Payroll</p>
+              <div className="ml-4">
+                <h1 
+                  className="text-xl font-bold"
+                  style={{ color: colors.text.primary }}
+                >
+                  ThePayBureau
+                </h1>
+                <p className="text-sm font-medium" style={{ color: colors.text.muted }}>
+                  Professional Payroll
+                </p>
               </div>
             )}
           </div>
           
-          {!collapsed && (
+          {!collapsed && onToggle && (
             <Button
               variant="ghost"
               size="sm"
               onClick={onToggle}
-              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 h-8 w-8 p-0 rounded-lg"
+              className="h-10 w-10 p-0 rounded-xl transition-all duration-200"
+              style={{
+                color: colors.text.muted,
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = colors.glass.surfaceHover
+                e.currentTarget.style.color = colors.text.primary
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+                e.currentTarget.style.color = colors.text.muted
+              }}
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
           )}
         </div>
         
-        {collapsed && (
+        {/* Add Client Quick Action */}
+        {!collapsed && (
+          <div className="mt-6">
+            <Button 
+              onClick={() => router.push('/dashboard/clients/add')}
+              className="w-full text-white font-semibold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
+              style={{ 
+                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+                boxShadow: `0 8px 25px ${colors.primary}30`
+              }}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Client
+            </Button>
+          </div>
+        )}
+        
+        {/* Floating Toggle Button for Collapsed State */}
+        {collapsed && onToggle && (
           <Button
             variant="ghost"
             size="sm"
             onClick={onToggle}
-            className="absolute -right-3 top-5 bg-white border border-gray-200 shadow-sm text-gray-400 hover:text-gray-600 h-7 w-7 p-0 rounded-full z-10"
+            className="absolute -right-4 top-8 h-8 w-8 p-0 rounded-full z-20 transition-all duration-200 hover:scale-110 border shadow-xl"
+            style={{ 
+              backgroundColor: colors.surface,
+              backdropFilter: 'blur(10px)',
+              color: colors.text.muted,
+              borderColor: colors.borderElevated,
+              boxShadow: `0 8px 25px ${colors.primary}15`
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = colors.text.primary
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = colors.text.muted
+            }}
           >
-            <ChevronRight className="w-3.5 h-3.5" />
+            <ChevronRight className="w-4 h-4" />
           </Button>
-        )}
-
-        {/* Search - only when expanded */}
-        {!collapsed && (
-          <div className="mt-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-9 text-sm bg-gray-50 border-gray-200 focus:bg-white focus:border-gray-300 focus:ring-1 focus:ring-gray-300"
-              />
-            </div>
-          </div>
         )}
       </div>
 
-      {/* Quick Actions - only when expanded */}
-      {!collapsed && (
-        <div className="px-4 py-3 border-b border-gray-100">
-          <div className="flex gap-2">
-            {quickActions.map((action) => {
-              const Icon = action.icon
-              return (
-                <Button
-                  key={action.action}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleQuickAction(action.action)}
-                  className="flex-1 h-8 text-xs font-medium border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                >
-                  <Icon className="w-3.5 h-3.5 mr-1.5" />
-                  {action.name}
-                </Button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Navigation */}
-      <div className="flex-1 py-3 overflow-y-auto">
-        <nav className="px-2">
-          {filteredItems.map((item) => {
-            const isActive = isActiveRoute(item.href)
-            const Icon = item.icon
-            const isDisabled = item.badge === 'Soon'
+      <div className="flex-1 py-2 overflow-y-auto relative z-10">
+        <nav className="px-4">
+          {navigationSections.map((section, sectionIndex) => {
+            const isSectionCollapsed = collapsedSections.has(section.title)
             
             return (
-              <div
-                key={item.name}
-                className="relative"
-                onMouseEnter={() => setHoveredItem(item.name)}
-                onMouseLeave={() => setHoveredItem(null)}
-              >
-                <button
-                  onClick={() => handleNavigation(item.href, item.badge)}
-                  disabled={isDisabled}
-                  className={`
-                    w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg text-sm font-medium transition-all duration-200 group
-                    ${isActive 
-                      ? 'text-white shadow-sm' 
-                      : isDisabled
-                      ? 'text-gray-400 cursor-not-allowed'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                    }
-                    ${collapsed ? 'justify-center' : ''}
-                  `}
-                  style={{
-                    backgroundColor: isActive ? '#401D6C' : 'transparent'
-                  }}
-                >
-                  <div className={`flex items-center ${collapsed ? '' : 'w-full'}`}>
-                    <Icon className={`w-5 h-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'} ${isActive ? 'text-white' : isDisabled ? 'text-gray-400' : 'text-gray-500 group-hover:text-gray-700'}`} />
-                    {!collapsed && (
-                      <>
+              <div key={section.title} className={sectionIndex > 0 ? 'mt-6' : ''}>
+                {/* Collapsible Section Header */}
+                {!collapsed && (
+                  <button
+                    onClick={() => toggleSection(section.title)}
+                    className="w-full flex items-center justify-between px-3 py-2 mb-3 rounded-lg transition-all duration-200 group"
+                    style={{ backgroundColor: 'transparent' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = colors.glass.surfaceHover
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                    }}
+                  >
+                    <h3 
+                      className="text-xs font-bold uppercase tracking-wider transition-colors duration-300"
+                      style={{ color: colors.text.muted }}
+                    >
+                      {section.title}
+                    </h3>
+                    {isSectionCollapsed ? (
+                      <ChevronRight className="w-3 h-3 transition-colors duration-300" style={{ color: colors.text.muted }} />
+                    ) : (
+                      <ChevronDown className="w-3 h-3 transition-colors duration-300" style={{ color: colors.text.muted }} />
+                    )}
+                  </button>
+                )}
+                
+                {/* Section Items */}
+                {(!collapsed && !isSectionCollapsed) && section.items.map((item) => {
+                  const isActive = isActiveRoute(item.href)
+                  const Icon = item.icon
+                  const isDisabled = item.badge === 'Soon'
+                  
+                  return (
+                    <div
+                      key={item.name}
+                      className="relative mb-1"
+                      onMouseEnter={() => setHoveredItem(item.name)}
+                      onMouseLeave={() => setHoveredItem(null)}
+                    >
+                      <button
+                        onClick={() => handleNavigation(item.href, item.badge)}
+                        disabled={isDisabled}
+                        className={`
+                          w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden
+                          ${isActive 
+                            ? 'text-white shadow-xl transform scale-[1.02]' 
+                            : isDisabled
+                            ? 'cursor-not-allowed'
+                            : 'hover:shadow-lg hover:scale-[1.01]'
+                          }
+                        `}
+                        style={{
+                          backgroundColor: isActive 
+                            ? colors.primary
+                            : 'transparent',
+                          backgroundImage: isActive 
+                            ? `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`
+                            : 'none',
+                          color: isActive 
+                            ? 'white' 
+                            : isDisabled 
+                            ? colors.text.muted 
+                            : colors.text.secondary,
+                          boxShadow: isActive ? `0 10px 25px ${colors.primary}30` : 'none'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActive && !isDisabled) {
+                            e.currentTarget.style.backgroundColor = colors.glass.surfaceHover
+                            e.currentTarget.style.color = colors.text.primary
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive && !isDisabled) {
+                            e.currentTarget.style.backgroundColor = 'transparent'
+                            e.currentTarget.style.color = colors.text.secondary
+                          }
+                        }}
+                      >
+                        <Icon className="w-5 h-5 flex-shrink-0 mr-3 transition-colors duration-200" />
                         <div className="flex-1 text-left">
                           <div className="flex items-center justify-between">
-                            <span className="truncate">{item.name}</span>
+                            <span className="truncate font-semibold">{item.name}</span>
                             {item.badge && item.badge !== 'Soon' && (
                               <Badge 
-                                variant="secondary" 
-                                className="ml-2 h-5 px-2 text-xs text-white border-0"
-                                style={{ backgroundColor: '#EC385D' }}
+                                className="ml-2 h-6 px-3 text-xs font-bold text-white border-0 rounded-full shadow-sm"
+                                style={{ 
+                                  backgroundColor: colors.secondary,
+                                  boxShadow: `0 4px 15px ${colors.secondary}30`
+                                }}
                               >
                                 {item.badge}
                               </Badge>
@@ -310,84 +415,166 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                             {item.badge === 'Soon' && (
                               <Badge 
                                 variant="outline" 
-                                className="ml-2 h-5 px-2 text-xs text-gray-400 border-gray-200 bg-gray-50"
+                                className="ml-2 h-6 px-3 text-xs font-medium rounded-full"
+                                style={{ 
+                                  color: colors.text.muted,
+                                  borderColor: colors.border,
+                                  backgroundColor: colors.glass.surfaceActive
+                                }}
                               >
                                 Soon
                               </Badge>
                             )}
                           </div>
-                          <div className={`text-xs mt-0.5 truncate ${isActive ? 'text-white/70' : 'text-gray-500'}`}>
+                          <div className={`text-xs mt-1 truncate font-medium ${
+                            isActive ? 'text-white/80' : 'opacity-70'
+                          }`}>
                             {item.description}
                           </div>
                         </div>
-                      </>
-                    )}
-                  </div>
+                        
+                        {/* Active indicator */}
+                        {isActive && (
+                          <div 
+                            className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1.5 h-8 rounded-r-full shadow-sm"
+                            style={{ backgroundColor: colors.accent }}
+                          />
+                        )}
+                      </button>
+                    </div>
+                  )
+                })}
+
+                {/* Collapsed state icons */}
+                {collapsed && section.items.map((item) => {
+                  const isActive = isActiveRoute(item.href)
+                  const Icon = item.icon
+                  const isDisabled = item.badge === 'Soon'
                   
-                  {/* Active indicator */}
-                  {isActive && (
-                    <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-6 rounded-r-full opacity-80" style={{ backgroundColor: '#FF8073' }} />
-                  )}
-                </button>
-                
-                {/* Tooltip for collapsed state */}
-                {collapsed && hoveredItem === item.name && (
-                  <div className="absolute left-full top-0 ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg z-50 whitespace-nowrap">
-                    <div className="font-medium">{item.name}</div>
-                    <div className="text-xs text-gray-300 mt-0.5">{item.description}</div>
-                    {item.badge && (
-                      <Badge variant="outline" className="mt-1 text-xs border-gray-600 text-gray-300">
-                        {item.badge}
-                      </Badge>
-                    )}
-                    {/* Arrow */}
-                    <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
-                  </div>
-                )}
+                  return (
+                    <div
+                      key={item.name}
+                      className="relative mb-1"
+                      onMouseEnter={() => setHoveredItem(item.name)}
+                      onMouseLeave={() => setHoveredItem(null)}
+                    >
+                      <button
+                        onClick={() => handleNavigation(item.href, item.badge)}
+                        disabled={isDisabled}
+                        className={`
+                          w-full flex items-center justify-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden
+                          ${isActive 
+                            ? 'text-white shadow-xl transform scale-[1.02]' 
+                            : isDisabled
+                            ? 'cursor-not-allowed'
+                            : 'hover:shadow-lg hover:scale-[1.01]'
+                          }
+                        `}
+                        style={{
+                          backgroundColor: isActive 
+                            ? colors.primary
+                            : 'transparent',
+                          backgroundImage: isActive 
+                            ? `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`
+                            : 'none',
+                          color: isActive 
+                            ? 'white' 
+                            : isDisabled 
+                            ? colors.text.muted 
+                            : colors.text.secondary,
+                          boxShadow: isActive ? `0 10px 25px ${colors.primary}30` : 'none'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActive && !isDisabled) {
+                            e.currentTarget.style.backgroundColor = colors.glass.surfaceHover
+                            e.currentTarget.style.color = colors.text.primary
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive && !isDisabled) {
+                            e.currentTarget.style.backgroundColor = 'transparent'
+                            e.currentTarget.style.color = colors.text.secondary
+                          }
+                        }}
+                      >
+                        <Icon className="w-5 h-5 transition-colors duration-200" />
+                        
+                        {/* Active indicator for collapsed */}
+                        {isActive && (
+                          <div 
+                            className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1.5 h-8 rounded-r-full shadow-sm"
+                            style={{ backgroundColor: colors.accent }}
+                          />
+                        )}
+                      </button>
+                      
+                      {/* Enhanced Tooltip for collapsed state */}
+                      {hoveredItem === item.name && (
+                        <div 
+                          className="absolute left-full top-0 ml-3 px-4 py-3 text-white text-sm rounded-xl shadow-2xl z-50 whitespace-nowrap transition-all duration-200"
+                          style={{
+                            backgroundColor: colors.text.primary,
+                            backdropFilter: 'blur(10px)',
+                            boxShadow: `0 20px 40px ${colors.primary}40`
+                          }}
+                        >
+                          <div className="font-semibold">{item.name}</div>
+                          <div className="text-xs text-white/70 mt-1 font-medium">{item.description}</div>
+                          {item.badge && (
+                            <Badge 
+                              variant="outline" 
+                              className="mt-2 text-xs text-white/60 border-white/30"
+                              style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+                            >
+                              {item.badge}
+                            </Badge>
+                          )}
+                          {/* Arrow */}
+                          <div 
+                            className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-2 w-3 h-3 rotate-45"
+                            style={{ 
+                              backgroundColor: colors.text.primary
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )
           })}
         </nav>
       </div>
 
-      {/* Bottom section */}
-      <div className="p-2 border-t border-gray-100">
-        {bottomItems.map((item) => {
-          const Icon = item.icon
-          return (
-            <button
-              key={item.name}
-              onClick={() => router.push(item.href)}
-              className={`
-                w-full flex items-center px-3 py-2.5 mb-0.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors
-                ${collapsed ? 'justify-center' : ''}
-              `}
-            >
-              <Icon className={`w-5 h-5 ${collapsed ? '' : 'mr-3'} flex-shrink-0`} />
-              {!collapsed && <span className="truncate">{item.name}</span>}
-            </button>
-          )
-        })}
-        
-        <button
-          onClick={handleLogout}
-          className={`
-            w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors
-            ${collapsed ? 'justify-center' : ''}
-          `}
-        >
-          <LogOut className={`w-5 h-5 ${collapsed ? '' : 'mr-3'} flex-shrink-0`} />
-          {!collapsed && <span className="truncate">Sign out</span>}
-        </button>
-        
-        {/* Status indicator */}
+      {/* Bottom Status */}
+      <div className="p-4 relative z-10">
         {!collapsed && (
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-            <div className="flex items-center text-xs text-gray-500">
-              <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: '#22C55E' }}></div>
+          <div 
+            className="flex items-center justify-between mt-6 pt-4 rounded-xl p-3 transition-all duration-300"
+            style={{
+              borderTop: `1px solid ${colors.borderElevated}`,
+              backgroundColor: colors.glass.surfaceHover,
+              backdropFilter: 'blur(10px)'
+            }}
+          >
+            <div className="flex items-center text-xs font-medium" 
+                 style={{ color: colors.text.muted }}>
+              <div 
+                className="w-2.5 h-2.5 rounded-full mr-2 shadow-sm animate-pulse"
+                style={{ backgroundColor: colors.success }}
+              />
               All systems operational
             </div>
-            <Badge variant="outline" className="text-xs border-gray-200 text-gray-500">
+            <Badge 
+              variant="outline" 
+              className="text-xs font-medium shadow-sm"
+              style={{ 
+                color: colors.text.muted,
+                borderColor: colors.border,
+                backgroundColor: colors.glass.surfaceActive
+              }}
+            >
               v2.1
             </Badge>
           </div>

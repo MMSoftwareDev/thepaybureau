@@ -1,6 +1,6 @@
 // src/app/api/clients/[id]/route.ts - Individual Client Operations
 
-import { createServerSupabaseClient, ensureUserExists } from '@/lib/supabase-server'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -25,21 +25,16 @@ const clientUpdateSchema = z.object({
 // GET /api/clients/[id] - Fetch single client with details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = createServerSupabaseClient()
-    
+
     // Verify authentication
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Ensure user exists
-    const user = await ensureUserExists()
-    if (!user) {
-      return NextResponse.json({ error: 'User setup incomplete' }, { status: 400 })
     }
 
     // Fetch client with related data
@@ -77,7 +72,7 @@ export async function GET(
           billing_frequency
         )
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (error) {
@@ -98,21 +93,16 @@ export async function GET(
 // PUT /api/clients/[id] - Update client
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = createServerSupabaseClient()
-    
+
     // Verify authentication
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Ensure user exists
-    const user = await ensureUserExists()
-    if (!user) {
-      return NextResponse.json({ error: 'User setup incomplete' }, { status: 400 })
     }
 
     // Parse and validate request body
@@ -123,7 +113,7 @@ export async function PUT(
     const { data: existingClient } = await supabase
       .from('clients')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (!existingClient) {
@@ -137,7 +127,7 @@ export async function PUT(
         ...validatedData,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
 
@@ -149,15 +139,15 @@ export async function PUT(
     return NextResponse.json(client)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ 
-        error: 'Validation error', 
+      return NextResponse.json({
+        error: 'Validation error',
         details: error.errors.map(e => ({
           field: e.path.join('.'),
           message: e.message
         }))
       }, { status: 400 })
     }
-    
+
     console.error('Server error in PUT /api/clients/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -166,32 +156,27 @@ export async function PUT(
 // DELETE /api/clients/[id] - Delete client
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = createServerSupabaseClient()
-    
+
     // Verify authentication
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Ensure user exists
-    const user = await ensureUserExists()
-    if (!user) {
-      return NextResponse.json({ error: 'User setup incomplete' }, { status: 400 })
-    }
-
     // Check if client has active contracts
     const { data: activeContracts } = await supabase
       .from('contracts')
       .select('id, name')
-      .eq('client_id', params.id)
+      .eq('client_id', id)
       .eq('status', 'active')
 
     if (activeContracts && activeContracts.length > 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Cannot delete client with active contracts',
         details: `Client has ${activeContracts.length} active contract(s)`
       }, { status: 400 })
@@ -201,11 +186,11 @@ export async function DELETE(
     const { data: unpaidInvoices } = await supabase
       .from('invoices')
       .select('id, invoice_number')
-      .eq('client_id', params.id)
+      .eq('client_id', id)
       .in('status', ['pending', 'sent', 'overdue'])
 
     if (unpaidInvoices && unpaidInvoices.length > 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Cannot delete client with unpaid invoices',
         details: `Client has ${unpaidInvoices.length} unpaid invoice(s)`
       }, { status: 400 })
@@ -215,16 +200,16 @@ export async function DELETE(
     const { error } = await supabase
       .from('clients')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (error) {
       console.error('Database error deleting client:', error)
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Client deleted successfully',
-      id: params.id 
+      id
     })
   } catch (error) {
     console.error('Server error in DELETE /api/clients/[id]:', error)

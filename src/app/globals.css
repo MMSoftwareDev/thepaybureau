@@ -8,6 +8,8 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -119,4 +121,117 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ThePayBureau Enhanced Dark Theme - Add this at the bottom */
+
+/* Custom scrollbar for dark mode */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  
+  .scrollbar-thumb-gray-400 {
+    scrollbar-color: rgb(156 163 175) transparent;
+  }
+  
+  .scrollbar-track-transparent {
+    scrollbar-color: transparent transparent;
+  }
+
+  /* Dark mode scrollbar */
+  .dark .scrollbar-thumb-gray-400 {
+    scrollbar-color: rgb(75 85 99) transparent;
+  }
+}
+
+/* Enhanced glass morphism effects */
+.glass-effect {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* Dark mode specific enhancements */
+.dark .glass-effect {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Animation keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ═══════════════════════════════════════════
+   LOGIN PAGE — Brand tokens & animations
+   ═══════════════════════════════════════════ */
+:root {
+  --login-purple: #401D6C;
+  --login-purple-d: #2A1145;
+  --login-purple-l: #5B2D99;
+  --login-pink: #EC385D;
+  --login-peach: #FF8073;
+  --login-cream: #FBF8FF;
+  --login-text: #1A1225;
+  --login-text-2: #5E5470;
+  --login-text-3: #8E849A;
+  --login-border: #E8E2F0;
+  --login-border-f: #C5B8D9;
+  --login-error: #D93025;
+  --login-error-bg: #FEF0EF;
+  --login-success: #188038;
+  --login-success-bg: #E6F9ED;
+  --login-focus: rgba(64, 29, 108, 0.15);
+}
+
+.dark {
+  --login-purple: #7C5CBF;
+  --login-purple-d: #1A1145;
+  --login-purple-l: #9B7ED8;
+  --login-pink: #F06082;
+  --login-peach: #FFA599;
+  --login-cream: #1E1B2E;
+  --login-text: #F1F5F9;
+  --login-text-2: #CBD5E1;
+  --login-text-3: #64748B;
+  --login-border: rgba(255, 255, 255, 0.1);
+  --login-border-f: rgba(255, 255, 255, 0.2);
+  --login-error: #EF4444;
+  --login-error-bg: rgba(239, 68, 68, 0.1);
+  --login-success: #10B981;
+  --login-success-bg: rgba(16, 185, 129, 0.1);
+  --login-focus: rgba(124, 92, 191, 0.2);
+}
+
+@keyframes meshShift {
+  0%   { transform: translate(0, 0) rotate(0deg) scale(1); }
+  33%  { transform: translate(-5%, 3%) rotate(2deg) scale(1.05); }
+  66%  { transform: translate(3%, -5%) rotate(-1deg) scale(1.02); }
+  100% { transform: translate(-2%, 2%) rotate(1deg) scale(1.03); }
+}
+
+@keyframes loginPulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.3); }
+}
+
+@keyframes loginSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-mesh-bg { animation: none !important; }
+  .login-pulse-dot { animation: none !important; }
 }

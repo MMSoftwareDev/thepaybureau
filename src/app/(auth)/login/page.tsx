@@ -4,38 +4,14 @@ import { useState, useEffect } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, Building2, CheckCircle, Loader2, Shield, Users, BarChart3, Clock, AlertTriangle, Wifi, WifiOff } from 'lucide-react'
+import Link from 'next/link'
+import { cn } from '@/lib/utils'
 
-// ThePayBureau Brand Colors
-const colors = {
-  primary: '#401D6C',      // Deep Purple
-  secondary: '#EC385D',    // Vibrant Pink
-  accent: '#FF8073',       // Warm Peach
-  lightBg: '#F8F4FF',      // Very Light Purple
-  darkBg: '#2A1A4A',       // Darker Purple
-  grayBg: '#F4F4F5',       // Light Gray (tprgray)
-  success: '#22C55E',      // Green
-  error: '#EF4444',        // Red
-  // Dark Mode Colors
-  darkModeBg: '#1F1F2E',
-  darkCardBg: '#2A2A3C',
-  darkText: '#E4E4E7',
-  gray: {
-    50: '#F8F4FF',
-    100: '#F4F4F5',
-    200: '#E5E7EB',
-    300: '#D1D5DB',
-    400: '#9CA3AF',
-    500: '#6B7280',
-    600: '#4B5563',
-    700: '#374151',
-    800: '#1F2937',
-    900: '#111827'
-  }
-}
+// SVG noise texture data URI for the brand panel grain overlay
+const GRAIN_TEXTURE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E")`
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -45,369 +21,335 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [emailError, setEmailError] = useState('')
   const [passwordError, setPasswordError] = useState('')
+  const [loginError, setLoginError] = useState('')
   const [loginSuccess, setLoginSuccess] = useState(false)
-  const [connectionStatus, setConnectionStatus] = useState('connected')
-  const [loginAttempts, setLoginAttempts] = useState(0)
-  const [isLocked, setIsLocked] = useState(false)
-  const [lockTimer, setLockTimer] = useState(0)
-  const [showDemo, setShowDemo] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
   const supabase = createClientSupabaseClient()
 
-  // Check connection status
   useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        const { data, error } = await supabase.from('tenants').select('count').limit(1)
-        setConnectionStatus('connected')
-      } catch (error) {
-        setConnectionStatus('disconnected')
-      }
-    }
-    
-    checkConnection()
-    const interval = setInterval(checkConnection, 30000) // Check every 30 seconds
-    return () => clearInterval(interval)
-  }, [supabase])
+    setMounted(true)
+  }, [])
 
-  // Handle account lockout
-  useEffect(() => {
-    if (isLocked && lockTimer > 0) {
-      const timeout = setTimeout(() => {
-        setLockTimer(lockTimer - 1)
-      }, 1000)
-      return () => clearTimeout(timeout)
-    } else if (isLocked && lockTimer === 0) {
-      setIsLocked(false)
-      setLoginAttempts(0)
-    }
-  }, [isLocked, lockTimer])
-
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
+  const validateEmail = (value: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
   }
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setEmail(value)
-    if (emailError && validateEmail(value)) {
-      setEmailError('')
-    }
+    if (emailError && validateEmail(value)) setEmailError('')
+    if (loginError) setLoginError('')
   }
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setPassword(value)
-    if (passwordError && value.length >= 6) {
-      setPasswordError('')
-    }
+    if (passwordError && value.length >= 8) setPasswordError('')
+    if (loginError) setLoginError('')
   }
 
-  const handleQuickFill = () => {
-    setEmail('test@thepaybureau.com')
-    setPassword('password123')
-  }
-
-  const handleDemoAccess = () => {
-    setEmail('demo@thepaybureau.com')
-    setPassword('demo123')
-    setShowDemo(true)
-  }
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (isLocked) {
-      setPasswordError(`Account temporarily locked. Try again in ${lockTimer} seconds.`)
-      return
-    }
-    
+  const handleLogin = async () => {
     setEmailError('')
     setPasswordError('')
-    
+    setLoginError('')
+
     let hasErrors = false
-    
+
     if (!email) {
       setEmailError('Email is required')
       hasErrors = true
     } else if (!validateEmail(email)) {
-      setEmailError('Please enter a valid email address')
+      setEmailError('Enter a valid email address')
       hasErrors = true
     }
-    
+
     if (!password) {
       setPasswordError('Password is required')
       hasErrors = true
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters')
+    } else if (password.length < 8) {
+      setPasswordError('Must be at least 8 characters')
       hasErrors = true
     }
-    
+
     if (hasErrors) return
-    
+
     setLoading(true)
-    
+
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const result = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       })
 
-      if (error) throw error
-
-      setLoginSuccess(true)
-      setLoginAttempts(0) // Reset on success
-      
-      // Log successful login
-      console.log('✅ Login successful for:', email)
-      
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 1000)
-      
-    } catch (error: any) {
-      console.error('Login error:', error)
-      
-      // Increment failed attempts
-      const newAttempts = loginAttempts + 1
-      setLoginAttempts(newAttempts)
-      
-      if (newAttempts >= 5) {
-        setIsLocked(true)
-        setLockTimer(300) // 5 minutes lockout
-        setPasswordError('Too many failed attempts. Account locked for 5 minutes.')
-      } else if (error.message.includes('Invalid login credentials')) {
-        setPasswordError(`Invalid email or password. ${5 - newAttempts} attempts remaining.`)
-      } else if (error.message.includes('Email not confirmed')) {
-        setEmailError('Please check your email and confirm your account.')
+      if (result.error) {
+        setLoginError(result.error.message)
       } else {
-        setPasswordError(error.message || 'Login failed. Please try again.')
+        setLoginSuccess(true)
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 500)
       }
-      
-      setLoginSuccess(false)
+    } catch (_) {
+      setLoginError('An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleOAuthLogin = (provider: string) => {
-    console.log(`${provider} OAuth login initiated`)
-    alert(`${provider} OAuth is not yet implemented. Use email/password for now.`)
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleLogin()
   }
 
+  if (!mounted) return null
+
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{
-        background: `linear-gradient(135deg, ${colors.lightBg} 0%, #ffffff 30%, ${colors.lightBg} 100%)`
-      }}
-    >
-      <div className="w-full max-w-md">
-        {/* Logo and Header */}
-        <div className="text-center mb-8">
-          <div 
-            className="mx-auto w-20 h-20 flex items-center justify-center mb-6 rounded-full shadow-lg"
-            style={{ backgroundColor: colors.primary }}
-          >
-            <Building2 className="w-10 h-10 text-white" />
+    <div className="grid min-h-screen grid-cols-1 md:grid-cols-[44%_1fr]">
+      {/* ═══ BRAND PANEL (left) ═══ */}
+      <aside
+        className="relative hidden flex-col justify-between overflow-hidden p-10 lg:p-12 md:flex"
+        style={{ background: 'var(--login-purple-d)' }}
+        aria-hidden="true"
+      >
+        {/* Animated mesh gradient */}
+        <div
+          className="login-mesh-bg pointer-events-none absolute opacity-60"
+          style={{
+            inset: '-50%',
+            width: '200%',
+            height: '200%',
+            background: `
+              radial-gradient(ellipse at 20% 50%, var(--login-purple-l) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 20%, var(--login-pink) 0%, transparent 40%),
+              radial-gradient(ellipse at 60% 80%, var(--login-peach) 0%, transparent 45%),
+              radial-gradient(ellipse at 40% 30%, var(--login-purple) 0%, transparent 50%)
+            `,
+            animation: 'meshShift 20s ease-in-out infinite alternate',
+          }}
+        />
+
+        {/* Grain texture overlay */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.12] mix-blend-overlay"
+          style={{
+            backgroundImage: GRAIN_TEXTURE,
+            backgroundSize: '128px 128px',
+          }}
+        />
+
+        {/* Brand content */}
+        <div className="relative z-10">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-[42px] w-[42px] items-center justify-center rounded-xl border border-white/10 bg-white/15 backdrop-blur-sm">
+              <svg viewBox="0 0 24 24" fill="none" className="h-[22px] w-[22px]">
+                <path d="M4 4h6v6H4V4z" fill="rgba(255,255,255,0.9)" />
+                <path d="M14 4h6v6h-6V4z" fill="rgba(255,255,255,0.5)" />
+                <path d="M4 14h6v6H4v-6z" fill="rgba(255,255,255,0.5)" />
+                <path d="M14 14h6v6h-6v-6z" fill="rgba(255,255,255,0.3)" />
+              </svg>
+            </div>
+            <span className="font-[family-name:var(--font-body)] text-[1.25rem] font-extrabold tracking-tight text-white">
+              ThePayBureau
+            </span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome to ThePayBureau
+
+          {/* Headline */}
+          <h1 className="mt-[5vh] max-w-[420px] font-[family-name:var(--font-display)] text-[clamp(2.4rem,3.5vw,3.4rem)] leading-[1.15] text-white">
+            The future of<br />
+            payroll bureaus<br />
+            starts{' '}
+            <em
+              className="italic"
+              style={{
+                background: 'linear-gradient(135deg, var(--login-peach), var(--login-pink))',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              here.
+            </em>
           </h1>
-          <p className="text-gray-600 mb-4">
-            Professional payroll management platform
+
+          {/* Tagline */}
+          <p className="mt-6 max-w-[360px] font-[family-name:var(--font-body)] text-[1.05rem] font-normal leading-[1.7] text-white/65">
+            One platform. Built by bureau owners, for bureau owners. Streamline
+            operations, connect with peers, and grow.
           </p>
-          
-          {/* Trust Indicators */}
-          <div className="flex items-center justify-center space-x-6 mb-4">
-            <div className="flex items-center space-x-2">
-              <Shield className="w-4 h-4" style={{ color: colors.success }} />
-              <span className="text-xs text-gray-500">Enterprise Security</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Users className="w-4 h-4" style={{ color: colors.success }} />
-              <span className="text-xs text-gray-500">Multi-Tenant</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <BarChart3 className="w-4 h-4" style={{ color: colors.success }} />
-              <span className="text-xs text-gray-500">Real-time Analytics</span>
-            </div>
-          </div>
-          
-          {/* Demo Access */}
-          <div className="flex justify-center space-x-3 mb-3">
-            <button
-              type="button"
-              onClick={handleQuickFill}
-              className="text-sm hover:underline transition-colors duration-200"
-              style={{ color: colors.secondary }}
-            >
-              Fill test credentials
-            </button>
-            <span className="text-gray-300">|</span>
-            <button
-              type="button"
-              onClick={handleDemoAccess}
-              className="text-sm hover:underline transition-colors duration-200"
-              style={{ color: colors.accent }}
-            >
-              Try demo account
-            </button>
-          </div>
-          
-          {showDemo && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-              <p className="text-sm text-blue-700">
-                🎯 Demo account loaded! Experience ThePayBureau with sample data.
-              </p>
-            </div>
-          )}
         </div>
 
-        {/* Login Form */}
-        <div 
-          className="bg-white rounded-3xl shadow-2xl p-8 relative"
-          style={{
-            boxShadow: `0 25px 50px -12px rgba(64, 29, 108, 0.15)`,
-            border: '2px solid transparent',
-            backgroundImage: `linear-gradient(white, white), linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 50%, ${colors.accent} 100%)`,
-            backgroundOrigin: 'border-box',
-            backgroundClip: 'padding-box, border-box'
-          }}
+        {/* Decorative watermark */}
+        <svg
+          className="pointer-events-none absolute z-[1] opacity-[0.04]"
+          style={{ bottom: '-8%', right: '-12%', width: '420px', height: '420px' }}
+          viewBox="0 0 200 200"
+          fill="none"
         >
-          
-          {/* Security Alerts */}
-          {isLocked && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium text-red-800">Account Temporarily Locked</h4>
-                  <p className="text-sm text-red-700">
-                    Too many failed login attempts. Please wait {Math.floor(lockTimer / 60)}:{(lockTimer % 60).toString().padStart(2, '0')} before trying again.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {loginAttempts > 0 && loginAttempts < 5 && !isLocked && (
-            <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium text-yellow-800">Security Notice</h4>
-                  <p className="text-sm text-yellow-700">
-                    {loginAttempts} failed attempt{loginAttempts > 1 ? 's' : ''}. {5 - loginAttempts} attempts remaining before temporary lockout.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Success indicator */}
-          {loginSuccess && (
-            <div className="absolute top-4 right-4">
-              <div 
-                className="w-8 h-8 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: colors.success }}
+          <path d="M20 20h70v70H20V20z" fill="white" />
+          <path d="M110 20h70v70h-70V20z" fill="white" />
+          <path d="M20 110h70v70H20v-70z" fill="white" />
+          <path d="M110 110h70v70h-70v-70z" fill="white" />
+        </svg>
+
+        {/* Footer */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div
+            className="login-pulse-dot h-2 w-2 rounded-full"
+            style={{
+              background: 'var(--login-peach)',
+              animation: 'loginPulse 3s ease-in-out infinite',
+            }}
+          />
+          <span className="font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-white/45">
+            Trusted by 100+ UK bureau owners
+          </span>
+        </div>
+      </aside>
+
+      {/* ═══ FORM PANEL (right) ═══ */}
+      <main className="relative flex items-center justify-center bg-white p-6 dark:bg-[#1A1B2E] md:p-12">
+        {/* Faint blush gradient */}
+        <div
+          className="pointer-events-none absolute opacity-100"
+          style={{
+            top: '-20%',
+            right: '-10%',
+            width: '500px',
+            height: '500px',
+            background: 'radial-gradient(circle, rgba(255, 128, 115, 0.06) 0%, transparent 70%)',
+          }}
+        />
+
+        <div className="relative z-10 w-full max-w-[420px]">
+          {/* Form header */}
+          <div className="mb-10">
+            <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--login-text)]">
+              Welcome back
+            </h2>
+            <p className="mt-2 font-[family-name:var(--font-body)] text-[0.95rem] text-[var(--login-text-3)]">
+              Don&apos;t have an account?{' '}
+              <Link
+                href="/register"
+                className="font-semibold text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)]"
               >
-                <CheckCircle className="w-5 h-5 text-white" />
-              </div>
+                Create one
+              </Link>
+            </p>
+          </div>
+
+          {/* Error alert banner */}
+          {loginError && (
+            <div
+              className="mb-6 flex items-center gap-2 rounded-[10px] border border-[var(--login-error)]/10 px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-error)]"
+              style={{
+                background: 'var(--login-error-bg)',
+                animation: 'loginSlideDown 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              }}
+              role="alert"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
+                <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
+              </svg>
+              <span>{loginError}</span>
             </div>
           )}
-          
-          <form onSubmit={handleLogin} className="space-y-6">
-            {/* Email Field */}
+
+          {/* Success alert banner */}
+          {loginSuccess && (
+            <div
+              className="mb-6 flex items-center gap-2 rounded-[10px] border border-[var(--login-success)]/10 px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-success)]"
+              style={{
+                background: 'var(--login-success-bg)',
+                animation: 'loginSlideDown 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              }}
+              role="status"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
+                <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3.22 5.28a.75.75 0 00-1.06-1.06L7 8.38 5.84 7.22a.75.75 0 00-1.06 1.06l1.75 1.75a.75.75 0 001.06 0l3.63-3.75z" />
+              </svg>
+              <span>Signed in! Redirecting&hellip;</span>
+            </div>
+          )}
+
+          {/* ─── Login Form ─── */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleLogin()
+            }}
+            noValidate
+            className="space-y-6"
+          >
+            {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold mb-2" style={{ color: colors.gray[700] }}>
-                Email address
-              </label>
+              <Label
+                htmlFor="email"
+                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--login-text-2)]"
+              >
+                Email
+              </Label>
               <Input
-                id="email"
                 type="email"
+                id="email"
                 value={email}
                 onChange={handleEmailChange}
-                className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
-                  emailError 
-                    ? 'border-red-300 focus:border-red-500' 
-                    : 'border-gray-200'
-                } bg-white placeholder-gray-400`}
-                style={{
-                  borderColor: emailError ? colors.error : colors.gray[200],
-                  color: email ? colors.secondary : colors.gray[900]
-                }}
-                onFocus={(e) => {
-                  if (!emailError) {
-                    e.target.style.borderColor = colors.primary
-                    e.target.style.boxShadow = `0 0 0 3px ${colors.primary}20`
-                  }
-                }}
-                onBlur={(e) => {
-                  if (!emailError) {
-                    e.target.style.borderColor = colors.gray[200]
-                    e.target.style.boxShadow = 'none'
-                  }
-                }}
-                placeholder="Enter your email"
-                disabled={loading}
+                onKeyDown={handleKeyDown}
+                placeholder="you@yourbureauname.co.uk"
                 autoComplete="email"
+                disabled={loading}
+                className={cn(
+                  'h-12 rounded-xl border-2 border-transparent bg-[var(--login-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                  'transition-all duration-200',
+                  'hover:border-[var(--login-border)]',
+                  'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]',
+                  emailError &&
+                    'border-[var(--login-error)] bg-[var(--login-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
+                )}
               />
               {emailError && (
-                <p className="mt-2 text-sm" style={{ color: colors.error }}>{emailError}</p>
+                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
+                    <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
+                  </svg>
+                  <span>{emailError}</span>
+                </div>
               )}
             </div>
 
-            {/* Password Field */}
+            {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-semibold mb-2" style={{ color: colors.gray[700] }}>
+              <Label
+                htmlFor="password"
+                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--login-text-2)]"
+              >
                 Password
-              </label>
+              </Label>
               <div className="relative">
                 <Input
-                  id="password"
                   type={showPassword ? 'text' : 'password'}
+                  id="password"
                   value={password}
                   onChange={handlePasswordChange}
-                  className={`w-full px-4 py-3 pr-12 rounded-xl border-2 transition-all duration-200 ${
-                    passwordError 
-                      ? 'border-red-300 focus:border-red-500' 
-                      : 'border-gray-200'
-                  } bg-white placeholder-gray-400`}
-                  style={{
-                    borderColor: passwordError ? colors.error : colors.gray[200],
-                    color: password || showPassword ? colors.secondary : colors.gray[900]
-                  }}
-                  onFocus={(e) => {
-                    if (!passwordError) {
-                      e.target.style.borderColor = colors.primary
-                      e.target.style.boxShadow = `0 0 0 3px ${colors.primary}20`
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (!passwordError) {
-                      e.target.style.borderColor = colors.gray[200]
-                      e.target.style.boxShadow = 'none'
-                    }
-                  }}
+                  onKeyDown={handleKeyDown}
                   placeholder="Enter your password"
-                  disabled={loading}
                   autoComplete="current-password"
+                  disabled={loading}
+                  className={cn(
+                    'h-12 rounded-xl border-2 border-transparent bg-[var(--login-cream)] px-4 pr-12 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                    'transition-all duration-200',
+                    'hover:border-[var(--login-border)]',
+                    'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]',
+                    passwordError &&
+                      'border-[var(--login-error)] bg-[var(--login-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
+                  )}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 transition-colors duration-200 focus:outline-none"
-                  style={{ color: colors.gray[400] }}
-                  onMouseEnter={(e) => {
-                    e.target.style.color = colors.gray[600]
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.color = colors.gray[400]
-                  }}
-                  disabled={loading}
+                  className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md p-1 text-[var(--login-text-3)] transition-colors hover:text-[var(--login-purple)] focus-visible:outline-2 focus-visible:outline-[var(--login-purple)] focus-visible:outline-offset-2"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={loading}
                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5" />
@@ -417,208 +359,138 @@ export default function LoginPage() {
                 </button>
               </div>
               {passwordError && (
-                <p className="mt-2 text-sm" style={{ color: colors.error }}>{passwordError}</p>
+                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
+                    <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
+                  </svg>
+                  <span>{passwordError}</span>
+                </div>
               )}
             </div>
 
-            {/* Remember Me and Forgot Password */}
+            {/* Options row */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center">
+              <label className="flex cursor-pointer items-center gap-2">
                 <input
-                  id="remember-me"
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded transition-colors duration-200 focus:outline-none"
+                  disabled={loading}
+                  className="h-[18px] w-[18px] shrink-0 cursor-pointer appearance-none rounded-[5px] border-2 border-[var(--login-border)] bg-[var(--login-cream)] transition-all checked:border-[var(--login-purple)] checked:bg-[var(--login-purple)] focus-visible:outline-2 focus-visible:outline-[var(--login-purple)] focus-visible:outline-offset-2"
                   style={{
-                    accentColor: colors.primary,
-                    borderColor: colors.gray[300]
+                    backgroundImage: rememberMe
+                      ? `url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2.5-2.5a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E")`
+                      : 'none',
+                    backgroundSize: '12px 12px',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
                   }}
-                  disabled={loading}
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm select-none cursor-pointer" style={{ color: colors.gray[600] }}>
+                <span className="select-none font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-text-2)]">
                   Remember me
-                </label>
-              </div>
-              <div>
-                <button
-                  type="button"
-                  className="text-sm font-medium transition-colors duration-200 focus:outline-none focus:underline"
-                  style={{ color: colors.primary }}
-                  onMouseEnter={(e) => {
-                    e.target.style.color = colors.secondary
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.color = colors.primary
-                  }}
-                  disabled={loading}
-                >
-                  Forgot password?
-                </button>
-              </div>
+                </span>
+              </label>
+              <Link
+                href="/forgot-password"
+                className="font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-[var(--login-purple)] focus-visible:outline-offset-2"
+              >
+                Forgot password?
+              </Link>
             </div>
 
-            {/* Sign In Button */}
-            <button
+            {/* Submit */}
+            <Button
               type="submit"
-              disabled={loading || loginSuccess || isLocked}
-              className="w-full text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-[1.02] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-xl"
-              style={{
-                background: loginSuccess 
-                  ? `linear-gradient(135deg, ${colors.success} 0%, #16a34a 100%)`
-                  : isLocked 
-                  ? `linear-gradient(135deg, ${colors.error} 0%, #dc2626 100%)`
-                  : `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-                boxShadow: `0 10px 25px -5px ${loginSuccess ? colors.success : isLocked ? colors.error : colors.primary}40`
-              }}
-              onMouseEnter={(e) => {
-                if (!loading && !loginSuccess && !isLocked) {
-                  e.target.style.background = `linear-gradient(135deg, ${colors.darkBg} 0%, ${colors.secondary} 100%)`
-                  e.target.style.boxShadow = `0 15px 35px -5px ${colors.primary}50`
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!loading && !loginSuccess && !isLocked) {
-                  e.target.style.background = `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`
-                  e.target.style.boxShadow = `0 10px 25px -5px ${colors.primary}40`
-                }
-              }}
-            >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                  Signing in...
-                </div>
-              ) : loginSuccess ? (
-                <div className="flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 mr-2" />
-                  Success! Redirecting...
-                </div>
-              ) : isLocked ? (
-                <div className="flex items-center justify-center">
-                  <Clock className="w-5 h-5 mr-2" />
-                  Account Locked ({Math.floor(lockTimer / 60)}:{(lockTimer % 60).toString().padStart(2, '0')})
-                </div>
-              ) : (
-                'Sign in'
+              disabled={loading || loginSuccess}
+              className={cn(
+                'group relative h-12 w-full overflow-hidden rounded-xl font-[family-name:var(--font-body)] text-[0.95rem] font-bold tracking-[0.01em] text-white',
+                'transition-all duration-300',
+                'hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(64,29,108,0.3)]',
+                'active:translate-y-0',
+                'focus-visible:outline-2 focus-visible:outline-[var(--login-purple)] focus-visible:outline-offset-[3px]',
+                'disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none'
               )}
-            </button>
+              style={{ background: 'var(--login-purple)' }}
+            >
+              {/* Gradient hover overlay */}
+              <span
+                className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-400 group-hover:opacity-100 group-disabled:opacity-0"
+                style={{
+                  background: 'linear-gradient(135deg, var(--login-pink), var(--login-peach))',
+                }}
+              />
+              <span className="relative z-10 flex items-center justify-center gap-2">
+                {loading ? (
+                  <>
+                    <Loader2 className="h-[18px] w-[18px] animate-spin" />
+                    Signing in&hellip;
+                  </>
+                ) : loginSuccess ? (
+                  'Redirecting\u2026'
+                ) : (
+                  'Sign in'
+                )}
+              </span>
+            </Button>
           </form>
 
           {/* Divider */}
-          <div className="mt-8 mb-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t" style={{ borderColor: colors.gray[200] }}></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white" style={{ color: colors.gray[500] }}>
-                  Or continue with
-                </span>
-              </div>
-            </div>
+          <div className="my-8 flex items-center gap-4">
+            <div className="h-px flex-1 bg-[var(--login-border)]" />
+            <span className="whitespace-nowrap font-[family-name:var(--font-body)] text-[0.78rem] font-semibold uppercase tracking-[0.08em] text-[var(--login-text-3)]">
+              or continue with
+            </span>
+            <div className="h-px flex-1 bg-[var(--login-border)]" />
           </div>
 
-          {/* OAuth Buttons */}
-          <div className="space-y-3">
+          {/* OAuth buttons */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button
               type="button"
-              onClick={() => handleOAuthLogin('Google')}
-              disabled={loading}
-              className="w-full flex items-center justify-center px-4 py-3 border-2 rounded-xl font-medium transition-all duration-200 focus:outline-none opacity-60 cursor-not-allowed"
-              style={{
-                borderColor: colors.gray[200],
-                backgroundColor: colors.gray[50],
-                color: colors.gray[500]
-              }}
+              disabled
+              title="Coming soon"
+              className="flex cursor-not-allowed items-center justify-center gap-2.5 rounded-xl border-2 border-[var(--login-border)] bg-white px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--login-text-2)] opacity-50 dark:bg-[#1A1B2E]"
             >
-              <svg className="w-5 h-5 mr-3 opacity-50" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              <svg className="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
               </svg>
-              Continue with Google (Coming soon)
+              Google
             </button>
-            
             <button
               type="button"
-              onClick={() => handleOAuthLogin('Microsoft')}
-              disabled={loading}
-              className="w-full flex items-center justify-center px-4 py-3 border-2 rounded-xl font-medium transition-all duration-200 focus:outline-none opacity-60 cursor-not-allowed"
-              style={{
-                borderColor: colors.gray[200],
-                backgroundColor: colors.gray[50],
-                color: colors.gray[500]
-              }}
+              disabled
+              title="Coming soon"
+              className="flex cursor-not-allowed items-center justify-center gap-2.5 rounded-xl border-2 border-[var(--login-border)] bg-white px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--login-text-2)] opacity-50 dark:bg-[#1A1B2E]"
             >
-              <svg className="w-5 h-5 mr-3 opacity-50" viewBox="0 0 24 24">
-                <path fill="#F25022" d="M1 1h10v10H1z"/>
-                <path fill="#00A4EF" d="M13 1h10v10H13z"/>
-                <path fill="#7FBA00" d="M1 13h10v10H1z"/>
-                <path fill="#FFB900" d="M13 13h10v10H13z"/>
+              <svg className="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24">
+                <path fill="#F25022" d="M1 1h10v10H1z" />
+                <path fill="#00A4EF" d="M13 1h10v10H13z" />
+                <path fill="#7FBA00" d="M1 13h10v10H1z" />
+                <path fill="#FFB900" d="M13 13h10v10H13z" />
               </svg>
-              Continue with Microsoft (Coming soon)
+              Microsoft
             </button>
           </div>
-        </div>
 
-        {/* Sign Up Link */}
-        <div className="mt-8 text-center">
-          <p style={{ color: colors.gray[600] }}>
-            Need access to ThePayBureau?{' '}
-            <button 
-              className="font-semibold transition-colors duration-200 focus:outline-none focus:underline" 
-              style={{ color: colors.primary }}
-              onMouseEnter={(e) => {
-                e.target.style.color = colors.secondary
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.color = colors.primary
-              }}
-              disabled={loading}
-            >
-              Request enterprise demo
-            </button>
-          </p>
-        </div>
-
-        {/* System Status */}
-        <div className="mt-6 text-center">
-          <div className="flex items-center justify-center space-x-4 text-xs">
-            <div className="flex items-center space-x-2 text-gray-500">
-              {connectionStatus === 'connected' ? (
-                <>
-                  <div className="flex items-center space-x-1">
-                    <Wifi className="w-3 h-3" style={{ color: colors.success }} />
-                    <span>API Connected</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center space-x-1">
-                    <WifiOff className="w-3 h-3" style={{ color: colors.error }} />
-                    <span>API Disconnected</span>
-                  </div>
-                </>
-              )}
-            </div>
-            <span className="text-gray-300">•</span>
-            <div className="flex items-center space-x-1">
-              <div 
-                className="w-2 h-2 rounded-full animate-pulse"
-                style={{ backgroundColor: colors.success }}
-              ></div>
-              <span className="text-gray-500">All systems operational</span>
-            </div>
-          </div>
-          
-          {/* Version Info */}
-          <div className="mt-2 text-xs text-gray-400">
-            ThePayBureau v2.1.0 • Last updated: {new Date().toLocaleDateString()}
+          {/* Footer */}
+          <div className="mt-10 text-center font-[family-name:var(--font-body)] text-[0.78rem] leading-relaxed text-[var(--login-text-3)]">
+            <p>
+              By signing in you agree to our{' '}
+              <Link href="/terms" className="text-[var(--login-text-2)] underline underline-offset-2 hover:text-[var(--login-purple)]">
+                Terms
+              </Link>{' '}
+              and{' '}
+              <Link href="/privacy" className="text-[var(--login-text-2)] underline underline-offset-2 hover:text-[var(--login-purple)]">
+                Privacy Policy
+              </Link>
+              .
+            </p>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

@@ -1,3 +1,4 @@
+// src/app/(dashboard)/dashboard/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -5,37 +6,22 @@ import { createClientSupabaseClient } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { 
   Building2, 
   Users, 
   FileText, 
-  DollarSign, 
-  TrendingUp, 
   Plus, 
   UserPlus, 
   Clock, 
   BarChart3, 
-  ArrowUp, 
-  ArrowDown,
+  ArrowUp,
   Shield,
-  CheckCircle2,
   AlertTriangle,
   Activity,
-  PoundSterling,
-  Target
+  PoundSterling
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-
-// ThePayBureau Brand Colors
-const colors = {
-  primary: '#401D6C',
-  secondary: '#EC385D',
-  accent: '#FF8073',
-  lightBg: '#F8F4FF',
-  success: '#22C55E',
-  warning: '#F59E0B',
-  error: '#EF4444',
-}
 
 // Dashboard data
 const dashboardData = {
@@ -47,10 +33,10 @@ const dashboardData = {
   // Key performance indicators
   kpis: {
     clientRetentionRate: 94.2,
-    payrollErrorRate: 2.1, // Percentage of payrolls requiring reprocessing/rollback
-    averageFeePerPayroll: 87.70, // Average fee charged per payroll run
-    averageFeePerPayslip: 5.50, // Average fee per individual payslip
-    averageFeePerClient: 107.68, // Average fee per client per month
+    payrollErrorRate: 2.1,
+    averageFeePerPayroll: 87.70,
+    averageFeePerPayslip: 5.50,
+    averageFeePerClient: 107.68,
     clientSatisfaction: 4.7,
   },
   
@@ -62,7 +48,7 @@ const dashboardData = {
     complianceIssues: 3,
   },
   
-  // Chart data for revenue trend (last 6 months) - clear increasing trend
+  // Chart data for revenue trend (last 6 months)
   revenueChart: [
     { month: 'Aug', revenue: 1000, clients: 229 },
     { month: 'Sep', revenue: 3500, clients: 235 },
@@ -75,7 +61,7 @@ const dashboardData = {
   // KPI trends for mini charts
   kpiTrends: {
     retention: [92.1, 93.2, 93.8, 94.5, 94.2, 94.2],
-    errorRate: [3.2, 2.8, 2.5, 2.3, 2.4, 2.1], // Decreasing is good (lower error rate)
+    errorRate: [3.2, 2.8, 2.5, 2.3, 2.4, 2.1],
     satisfaction: [4.5, 4.6, 4.6, 4.7, 4.8, 4.7],
   },
   
@@ -111,8 +97,8 @@ const dashboardData = {
   ]
 }
 
-// Simple chart components
-const MiniLineChart = ({ data, color = colors.primary }: { data: number[], color?: string }) => {
+// Enhanced theme-aware chart components
+const MiniLineChart = ({ data, color }: { data: number[], color: string }) => {
   const max = Math.max(...data)
   const min = Math.min(...data)
   const range = max - min
@@ -124,10 +110,11 @@ const MiniLineChart = ({ data, color = colors.primary }: { data: number[], color
         return (
           <div
             key={index}
-            className="w-1 rounded-t-sm opacity-80"
+            className="w-1.5 rounded-t-sm transition-all duration-300 hover:opacity-90"
             style={{
               height: `${Math.max(height, 10)}%`,
-              backgroundColor: color
+              backgroundColor: color,
+              boxShadow: `0 0 8px ${color}40`
             }}
           />
         )
@@ -136,29 +123,29 @@ const MiniLineChart = ({ data, color = colors.primary }: { data: number[], color
   )
 }
 
-const RevenueChart = ({ data }: { data: typeof dashboardData.revenueChart }) => {
-  // Use 16k as the scale maximum to show proper growth
+const RevenueChart = ({ data, colors }: { data: typeof dashboardData.revenueChart, colors: any }) => {
   const scaleMax = 16000
   
   return (
     <div className="flex items-end justify-between h-32 px-2">
       {data.map((item, index) => {
-        // Calculate height as percentage of our 16k scale
         const heightPercent = (item.revenue / scaleMax) * 100
-        // Convert to actual pixels (out of 128px container height)
         const heightPx = Math.max((heightPercent / 100) * 128, 8)
         
         return (
-          <div key={item.month} className="flex flex-col items-center space-y-2">
+          <div key={item.month} className="flex flex-col items-center space-y-2 group">
             <div
-              className="w-8 rounded-t-lg transition-all hover:opacity-80 cursor-pointer"
+              className="w-8 rounded-t-lg transition-all duration-300 cursor-pointer group-hover:opacity-80 group-hover:scale-105"
               style={{
                 height: `${heightPx}px`,
-                backgroundColor: colors.secondary,
+                background: `linear-gradient(to top, ${colors.secondary}, ${colors.accent})`,
+                boxShadow: `0 4px 15px ${colors.secondary}30`
               }}
               title={`${item.month}: £${item.revenue.toLocaleString()}`}
             />
-            <span className="text-xs text-gray-500 font-medium">{item.month}</span>
+            <span className="text-xs font-medium transition-colors duration-300" style={{ color: colors.text.muted }}>
+              {item.month}
+            </span>
           </div>
         )
       })}
@@ -170,21 +157,31 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activityFilter, setActivityFilter] = useState('All')
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
   const supabase = createClientSupabaseClient()
+  const { isDark } = useTheme()
+  const colors = getThemeColors(isDark)
 
   useEffect(() => {
+    setMounted(true)
     checkUser()
   }, [])
 
   const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+        return
+      }
+      setUser(session.user)
+    } catch (error) {
+      console.error('Error checking user:', error)
       router.push('/login')
-      return
+    } finally {
+      setLoading(false)
     }
-    setUser(session.user)
-    setLoading(false)
   }
 
   const getActivityIcon = (type: string) => {
@@ -200,47 +197,93 @@ export default function DashboardPage() {
     }
   }
 
-  // Filter recent activity based on selected filter
   const filteredActivity = dashboardData.recentActivity.filter(activity => {
     if (activityFilter === 'All') return true
     if (activityFilter === 'Success') return activity.status === 'success'
     if (activityFilter === 'Warning') return activity.status === 'warning'
     if (activityFilter === 'Today') {
-      const today = new Date().toDateString()
-      const activityDate = new Date(activity.time).toDateString()
-      return today === activityDate
+      // For demo purposes, show all as "today"
+      return true
     }
     return true
   })
 
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="space-y-8 animate-pulse">
+        <div className="h-20 bg-gray-200 rounded-xl"></div>
+        <div className="grid grid-cols-3 gap-8">
+          <div className="h-40 bg-gray-200 rounded-xl"></div>
+          <div className="h-40 bg-gray-200 rounded-xl"></div>
+          <div className="h-40 bg-gray-200 rounded-xl"></div>
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div 
+        className="min-h-screen flex items-center justify-center transition-colors duration-300" 
+        style={{ backgroundColor: colors.lightBg }}
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: colors.primary }}></div>
-          <p className="text-gray-600">Loading dashboard...</p>
+          <div 
+            className="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-xl flex items-center justify-center"
+            style={{ 
+              background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+              boxShadow: isDark 
+                ? `0 25px 50px ${colors.shadow.heavy}` 
+                : `0 20px 40px ${colors.primary}30`
+            }}
+          >
+            <Building2 className="w-10 h-10 text-white animate-pulse" />
+          </div>
+          <p className="text-xl font-semibold transition-colors duration-300" style={{ color: colors.text.primary }}>
+            Loading your bureau...
+          </p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-8">
+      {/* Enhanced Header with Better Dark Mode */}
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Welcome back! Here's your bureau overview.</p>
+          <h1 className="text-4xl font-bold mb-2 transition-colors duration-300" style={{ 
+            color: colors.text.primary 
+          }}>
+            Dashboard
+          </h1>
+          <p className="text-lg transition-colors duration-300" style={{ 
+            color: colors.text.secondary 
+          }}>
+            Welcome back! Your bureau is performing excellently.
+          </p>
         </div>
         <Button 
           onClick={() => router.push('/dashboard/clients/add')}
-          className="text-white transition-all duration-200"
-          style={{ backgroundColor: colors.primary }}
+          className="text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl border-0"
+          style={{ 
+            background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+            boxShadow: isDark 
+              ? `0 10px 25px ${colors.primary}50` 
+              : `0 10px 25px ${colors.primary}30`
+          }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = colors.secondary
+            e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'
+            e.currentTarget.style.boxShadow = isDark
+              ? `0 20px 40px ${colors.primary}60`
+              : `0 20px 40px ${colors.primary}40`
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = colors.primary
+            e.currentTarget.style.transform = 'translateY(0px) scale(1)'
+            e.currentTarget.style.boxShadow = isDark
+              ? `0 10px 25px ${colors.primary}50`
+              : `0 10px 25px ${colors.primary}30`
           }}
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -248,269 +291,461 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {/* Primary Metrics - 3 main cards with larger borders */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-2 border-gray-200 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Total Clients</p>
-                <p className="text-4xl font-bold text-gray-900 mt-2">{dashboardData.totalClients}</p>
-                <div className="flex items-center mt-3">
-                  <ArrowUp className="w-4 h-4 text-green-600 mr-1" />
-                  <span className="text-sm font-medium text-green-600">5.2%</span>
-                  <span className="text-sm text-gray-500 ml-1">vs last month</span>
+      {/* Enhanced Primary Metrics with True Dark Mode */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {[
+          {
+            title: 'Total Clients',
+            value: dashboardData.totalClients,
+            change: '+5.2%',
+            icon: Users,
+            iconColor: colors.primary,
+            iconBg: `${colors.primary}20`
+          },
+          {
+            title: 'Monthly Revenue',
+            value: `£${dashboardData.monthlyRevenue.toLocaleString()}`,
+            change: '+12.3%',
+            icon: PoundSterling,
+            iconColor: colors.success,
+            iconBg: `${colors.success}20`
+          },
+          {
+            title: 'Active Contracts',
+            value: dashboardData.activeContracts,
+            change: '+3.4%',
+            icon: FileText,
+            iconColor: colors.secondary,
+            iconBg: `${colors.secondary}20`
+          }
+        ].map((metric, index) => (
+          <Card 
+            key={index}
+            className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] group"
+            style={{
+              backgroundColor: colors.glass.card,
+              backdropFilter: 'blur(20px)',
+              borderRadius: '20px',
+              border: `1px solid ${colors.borderElevated}`,
+              boxShadow: isDark 
+                ? `0 10px 30px ${colors.shadow.medium}` 
+                : `0 10px 25px ${colors.shadow.light}`
+            }}
+          >
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-base font-semibold mb-3 transition-colors duration-300" style={{ 
+                    color: colors.text.secondary 
+                  }}>
+                    {metric.title}
+                  </p>
+                  <p className="text-5xl font-bold mb-4 transition-colors duration-300" style={{ 
+                    color: colors.text.primary 
+                  }}>
+                    {metric.value}
+                  </p>
+                  <div className="flex items-center">
+                    <ArrowUp className="w-4 h-4 text-green-600 mr-1" />
+                    <span className="text-sm font-medium text-green-600">{metric.change}</span>
+                    <span className="text-sm ml-1 transition-colors duration-300" style={{ 
+                      color: colors.text.muted 
+                    }}>
+                      vs last month
+                    </span>
+                  </div>
+                </div>
+                <div 
+                  className="w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110" 
+                  style={{ 
+                    backgroundColor: metric.iconBg,
+                    boxShadow: `0 8px 25px ${metric.iconColor}30`
+                  }}
+                >
+                  <metric.icon className="w-10 h-10 transition-transform duration-300 group-hover:scale-110" style={{ color: metric.iconColor }} />
                 </div>
               </div>
-              <div className="w-16 h-16 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${colors.primary}15` }}>
-                <Users className="w-8 h-8" style={{ color: colors.primary }} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-gray-200 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Monthly Revenue</p>
-                <p className="text-4xl font-bold text-gray-900 mt-2">£{dashboardData.monthlyRevenue.toLocaleString()}</p>
-                <div className="flex items-center mt-3">
-                  <ArrowUp className="w-4 h-4 text-green-600 mr-1" />
-                  <span className="text-sm font-medium text-green-600">12.3%</span>
-                  <span className="text-sm text-gray-500 ml-1">vs last month</span>
-                </div>
-              </div>
-              <div className="w-16 h-16 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${colors.success}15` }}>
-                <PoundSterling className="w-8 h-8" style={{ color: colors.success }} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-gray-200 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Active Contracts</p>
-                <p className="text-4xl font-bold text-gray-900 mt-2">{dashboardData.activeContracts}</p>
-                <div className="flex items-center mt-3">
-                  <ArrowUp className="w-4 h-4 text-green-600 mr-1" />
-                  <span className="text-sm font-medium text-green-600">3.4%</span>
-                  <span className="text-sm text-gray-500 ml-1">this month</span>
-                </div>
-              </div>
-              <div className="w-16 h-16 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${colors.secondary}15` }}>
-                <FileText className="w-8 h-8" style={{ color: colors.secondary }} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Two-column layout for charts and KPIs */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Enhanced Charts Layout with Glass Morphism */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Revenue Trend Chart - takes 2 columns */}
-        <Card className="lg:col-span-2 border-0 shadow-sm">
+        {/* Enhanced Revenue Chart */}
+        <Card 
+          className="lg:col-span-2 border-0 shadow-xl hover:shadow-2xl transition-all duration-300"
+          style={{
+            backgroundColor: colors.glass.card,
+            backdropFilter: 'blur(20px)',
+            borderRadius: '20px',
+            border: `1px solid ${colors.borderElevated}`,
+            boxShadow: isDark 
+              ? `0 15px 35px ${colors.shadow.medium}` 
+              : `0 10px 25px ${colors.shadow.light}`
+          }}
+        >
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-semibold">Revenue Trend</CardTitle>
-              <Badge variant="outline" className="text-green-700 border-green-200 bg-green-50">
+              <CardTitle className="text-xl font-bold transition-colors duration-300" style={{ 
+                color: colors.text.primary 
+              }}>
+                Revenue Trend
+              </CardTitle>
+              <Badge 
+                className="text-green-700 border-green-200 bg-green-50 font-semibold px-3 py-1"
+                style={{
+                  backgroundColor: `${colors.success}20`,
+                  color: colors.success,
+                  border: `1px solid ${colors.success}30`
+                }}
+              >
                 +12.3% this month
               </Badge>
             </div>
           </CardHeader>
           <CardContent>
-            <RevenueChart data={dashboardData.revenueChart} />
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-xl font-bold text-gray-900">£{dashboardData.kpis.averageFeePerPayroll}</p>
-                  <p className="text-xs text-gray-600">Per Payroll</p>
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-gray-900">£{dashboardData.kpis.averageFeePerPayslip}</p>
-                  <p className="text-xs text-gray-600">Per Payslip</p>
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-gray-900">£{dashboardData.kpis.averageFeePerClient}</p>
-                  <p className="text-xs text-gray-600">Per Client/Month</p>
-                </div>
+            <RevenueChart data={dashboardData.revenueChart} colors={colors} />
+            <div className="mt-6 pt-6 transition-colors duration-300" style={{ 
+              borderTop: `1px solid ${colors.borderElevated}` 
+            }}>
+              <div className="grid grid-cols-3 gap-6 text-center">
+                {[
+                  { label: 'Per Payroll', value: `£${dashboardData.kpis.averageFeePerPayroll}` },
+                  { label: 'Per Payslip', value: `£${dashboardData.kpis.averageFeePerPayslip}` },
+                  { label: 'Per Client/Month', value: `£${dashboardData.kpis.averageFeePerClient}` }
+                ].map((item, index) => (
+                  <div key={index} className="group cursor-pointer p-3 rounded-xl transition-all duration-300 hover:scale-105"
+                       style={{ backgroundColor: 'transparent' }}
+                       onMouseEnter={(e) => {
+                         e.currentTarget.style.backgroundColor = colors.glass.surfaceHover
+                       }}
+                       onMouseLeave={(e) => {
+                         e.currentTarget.style.backgroundColor = 'transparent'
+                       }}>
+                    <p className="text-2xl font-bold transition-colors duration-300" style={{ 
+                      color: colors.text.primary 
+                    }}>
+                      {item.value}
+                    </p>
+                    <p className="text-sm font-medium transition-colors duration-300" style={{ 
+                      color: colors.text.secondary 
+                    }}>
+                      {item.label}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* KPIs with mini charts - takes 1 column */}
-        <Card className="border-0 shadow-sm">
+        {/* Enhanced KPIs Card */}
+        <Card 
+          className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300"
+          style={{
+            backgroundColor: colors.glass.card,
+            backdropFilter: 'blur(20px)',
+            borderRadius: '20px',
+            border: `1px solid ${colors.borderElevated}`,
+            boxShadow: isDark 
+              ? `0 15px 35px ${colors.shadow.medium}` 
+              : `0 10px 25px ${colors.shadow.light}`
+          }}
+        >
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Key Performance</CardTitle>
+            <CardTitle className="text-xl font-bold transition-colors duration-300" style={{ 
+              color: colors.text.primary 
+            }}>
+              Key Performance
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Client Retention</p>
-                <p className="text-2xl font-bold text-gray-900">{dashboardData.kpis.clientRetentionRate}%</p>
+          <CardContent className="space-y-8">
+            {[
+              { 
+                label: 'Client Retention', 
+                value: `${dashboardData.kpis.clientRetentionRate}%`, 
+                data: dashboardData.kpiTrends.retention, 
+                color: colors.success 
+              },
+              { 
+                label: 'Payroll Error Rate', 
+                value: `${dashboardData.kpis.payrollErrorRate}%`, 
+                data: dashboardData.kpiTrends.errorRate, 
+                color: colors.error 
+              },
+              { 
+                label: 'Client Satisfaction', 
+                value: `${dashboardData.kpis.clientSatisfaction}/5`, 
+                data: dashboardData.kpiTrends.satisfaction, 
+                color: colors.primary 
+              }
+            ].map((kpi, index) => (
+              <div key={index} className="flex items-center justify-between p-3 rounded-xl transition-all duration-300 hover:scale-102 group"
+                   style={{ backgroundColor: 'transparent' }}
+                   onMouseEnter={(e) => {
+                     e.currentTarget.style.backgroundColor = colors.glass.surfaceHover
+                   }}
+                   onMouseLeave={(e) => {
+                     e.currentTarget.style.backgroundColor = 'transparent'
+                   }}>
+                <div>
+                  <p className="text-sm font-semibold transition-colors duration-300" style={{ 
+                    color: colors.text.secondary 
+                  }}>
+                    {kpi.label}
+                  </p>
+                  <p className="text-3xl font-bold transition-colors duration-300" style={{ 
+                    color: colors.text.primary 
+                  }}>
+                    {kpi.value}
+                  </p>
+                </div>
+                <div className="transition-transform duration-300 group-hover:scale-110">
+                  <MiniLineChart data={kpi.data} color={kpi.color} />
+                </div>
               </div>
-              <MiniLineChart data={dashboardData.kpiTrends.retention} color={colors.success} />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Payroll Error Rate</p>
-                <p className="text-2xl font-bold text-gray-900">{dashboardData.kpis.payrollErrorRate}%</p>
-              </div>
-              <MiniLineChart data={dashboardData.kpiTrends.errorRate} color={colors.error} />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">Client Satisfaction</p>
-                <p className="text-2xl font-bold text-gray-900">{dashboardData.kpis.clientSatisfaction}/5</p>
-              </div>
-              <MiniLineChart data={dashboardData.kpiTrends.satisfaction} color={colors.primary} />
-            </div>
+            ))}
           </CardContent>
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <Card className="border-0 shadow-sm">
+      {/* Enhanced Quick Actions */}
+      <Card 
+        className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300"
+        style={{
+          backgroundColor: colors.glass.card,
+          backdropFilter: 'blur(20px)',
+          borderRadius: '20px',
+          border: `1px solid ${colors.borderElevated}`,
+          boxShadow: isDark 
+            ? `0 15px 35px ${colors.shadow.medium}` 
+            : `0 10px 25px ${colors.shadow.light}`
+        }}
+      >
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
+          <CardTitle className="text-xl font-bold transition-colors duration-300" style={{ 
+            color: colors.text.primary 
+          }}>
+            Quick Actions
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button 
-              onClick={() => router.push('/dashboard/clients/add')}
-              className="h-14 text-white justify-start transition-all duration-200 shadow-sm hover:shadow-md"
-              style={{ backgroundColor: colors.primary }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = colors.secondary
-                e.currentTarget.style.transform = 'translateY(-1px)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colors.primary
-                e.currentTarget.style.transform = 'translateY(0px)'
-              }}
-            >
-              <Plus className="w-5 h-5 mr-3" />
-              <div className="text-left">
-                <div className="font-semibold">Add Client</div>
-                <div className="text-xs opacity-90">Start new client onboarding</div>
-              </div>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="h-14 justify-start"
-              style={{ borderColor: colors.secondary, color: colors.secondary }}
-            >
-              <FileText className="w-5 h-5 mr-3" />
-              <div className="text-left">
-                <div className="font-semibold">Create Contract</div>
-                <div className="text-xs opacity-70">Setup service agreement</div>
-              </div>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="h-14 justify-start"
-              style={{ borderColor: colors.accent, color: colors.accent }}
-            >
-              <BarChart3 className="w-5 h-5 mr-3" />
-              <div className="text-left">
-                <div className="font-semibold">View Reports</div>
-                <div className="text-xs opacity-70">Business analytics</div>
-              </div>
-            </Button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                title: 'Add Client',
+                subtitle: 'Start new client onboarding',
+                icon: Plus,
+                onClick: () => router.push('/dashboard/clients/add'),
+                primary: true
+              },
+              {
+                title: 'Create Contract',
+                subtitle: 'Setup service agreement',
+                icon: FileText,
+                onClick: () => {},
+                primary: false
+              },
+              {
+                title: 'View Reports',
+                subtitle: 'Business analytics',
+                icon: BarChart3,
+                onClick: () => {},
+                primary: false
+              }
+            ].map((action, index) => (
+              <Button 
+                key={index}
+                onClick={action.onClick}
+                variant="outline"
+                className="h-16 justify-start transition-all duration-300 shadow-lg hover:shadow-xl text-base font-semibold rounded-xl border group"
+                style={{
+                  background: action.primary 
+                    ? `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)` 
+                    : colors.glass.surface,
+                  color: action.primary ? 'white' : colors.text.primary,
+                  borderColor: action.primary ? 'transparent' : colors.borderElevated,
+                  backdropFilter: 'blur(10px)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'
+                  if (!action.primary) {
+                    e.currentTarget.style.backgroundColor = colors.glass.surfaceHover
+                    e.currentTarget.style.borderColor = colors.primary
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0px) scale(1)'
+                  if (!action.primary) {
+                    e.currentTarget.style.backgroundColor = colors.glass.surface
+                    e.currentTarget.style.borderColor = colors.borderElevated
+                  }
+                }}
+              >
+                <action.icon className="w-5 h-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
+                <div className="text-left">
+                  <div className="font-bold">{action.title}</div>
+                  <div className="text-sm opacity-80">{action.subtitle}</div>
+                </div>
+              </Button>
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Bottom section: Operations Status + Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      {/* Enhanced Bottom Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         
-        {/* Operations Status */}
-        <Card className="lg:col-span-2 border-0 shadow-sm">
+        {/* Enhanced Operations Status */}
+        <Card 
+          className="lg:col-span-2 border-0 shadow-xl hover:shadow-2xl transition-all duration-300"
+          style={{
+            backgroundColor: colors.glass.card,
+            backdropFilter: 'blur(20px)',
+            borderRadius: '20px',
+            border: `1px solid ${colors.borderElevated}`,
+            boxShadow: isDark 
+              ? `0 15px 35px ${colors.shadow.medium}` 
+              : `0 10px 25px ${colors.shadow.light}`
+          }}
+        >
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Operations Status</CardTitle>
+            <CardTitle className="text-xl font-bold transition-colors duration-300" style={{ 
+              color: colors.text.primary 
+            }}>
+              Operations Status
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-              <div className="flex items-center">
-                <Activity className="w-5 h-5 mr-3" style={{ color: colors.primary }} />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Active Payrolls</p>
-                  <p className="text-xs text-gray-600">Currently processing</p>
-                </div>
-              </div>
-              <Badge className="text-white" style={{ backgroundColor: colors.primary }}>
-                {dashboardData.operations.activePayrolls}
-              </Badge>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-              <div className="flex items-center">
-                <UserPlus className="w-5 h-5 mr-3" style={{ color: colors.success }} />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Onboarding</p>
-                  <p className="text-xs text-gray-600">New clients in progress</p>
-                </div>
-              </div>
-              <Badge className="text-white" style={{ backgroundColor: colors.success }}>
-                {dashboardData.operations.pendingOnboarding}
-              </Badge>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-pink-50 rounded-lg">
-              <div className="flex items-center">
-                <Clock className="w-5 h-5 mr-3" style={{ color: colors.secondary }} />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Renewals Due</p>
-                  <p className="text-xs text-gray-600">This month</p>
-                </div>
-              </div>
-              <Badge className="text-white" style={{ backgroundColor: colors.secondary }}>
-                {dashboardData.operations.contractRenewals}
-              </Badge>
-            </div>
-
-            {dashboardData.operations.complianceIssues > 0 && (
-              <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+          <CardContent className="space-y-5">
+            {[
+              {
+                title: 'Active Payrolls',
+                subtitle: 'Currently processing',
+                value: dashboardData.operations.activePayrolls,
+                icon: Activity,
+                color: colors.primary
+              },
+              {
+                title: 'Onboarding',
+                subtitle: 'New clients in progress',
+                value: dashboardData.operations.pendingOnboarding,
+                icon: UserPlus,
+                color: colors.success
+              },
+              {
+                title: 'Renewals Due',
+                subtitle: 'This month',
+                value: dashboardData.operations.contractRenewals,
+                icon: Clock,
+                color: colors.secondary
+              },
+              ...(dashboardData.operations.complianceIssues > 0 ? [{
+                title: 'Compliance',
+                subtitle: 'Require attention',
+                value: dashboardData.operations.complianceIssues,
+                icon: AlertTriangle,
+                color: colors.warning
+              }] : [])
+            ].map((item, index) => (
+              <div 
+                key={index}
+                className="flex items-center justify-between p-4 rounded-xl transition-all duration-300 cursor-pointer group hover:scale-[1.02]"
+                style={{ 
+                  backgroundColor: `${item.color}10`,
+                  borderLeft: `4px solid ${item.color}`,
+                  border: `1px solid ${item.color}20`
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = `${item.color}20`
+                  e.currentTarget.style.boxShadow = `0 8px 25px ${item.color}30`
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = `${item.color}10`
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              >
                 <div className="flex items-center">
-                  <AlertTriangle className="w-5 h-5 mr-3" style={{ color: colors.warning }} />
+                  <item.icon 
+                    className="w-6 h-6 mr-4 transition-transform duration-300 group-hover:scale-110" 
+                    style={{ color: item.color }} 
+                  />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Compliance</p>
-                    <p className="text-xs text-gray-600">Require attention</p>
+                    <p className="text-sm font-semibold transition-colors duration-300" style={{ 
+                      color: colors.text.primary 
+                    }}>
+                      {item.title}
+                    </p>
+                    <p className="text-xs transition-colors duration-300" style={{ 
+                      color: colors.text.muted 
+                    }}>
+                      {item.subtitle}
+                    </p>
                   </div>
                 </div>
-                <Badge className="text-white" style={{ backgroundColor: colors.warning }}>
-                  {dashboardData.operations.complianceIssues}
+                <Badge 
+                  className="text-white font-bold px-3 py-1 shadow-lg" 
+                  style={{ 
+                    backgroundColor: item.color,
+                    boxShadow: `0 4px 15px ${item.color}40`
+                  }}
+                >
+                  {item.value}
                 </Badge>
               </div>
-            )}
+            ))}
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
-        <Card className="lg:col-span-3 border-0 shadow-sm">
+        {/* Enhanced Recent Activity */}
+        <Card 
+          className="lg:col-span-3 border-0 shadow-xl hover:shadow-2xl transition-all duration-300"
+          style={{
+            backgroundColor: colors.glass.card,
+            backdropFilter: 'blur(20px)',
+            borderRadius: '20px',
+            border: `1px solid ${colors.borderElevated}`,
+            boxShadow: isDark 
+              ? `0 15px 35px ${colors.shadow.medium}` 
+              : `0 10px 25px ${colors.shadow.light}`
+          }}
+        >
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
-              <div className="flex items-center space-x-3">
+              <CardTitle className="text-xl font-bold transition-colors duration-300" style={{ 
+                color: colors.text.primary 
+              }}>
+                Recent Activity
+              </CardTitle>
+              <div className="flex items-center space-x-4">
                 <select
                   value={activityFilter}
                   onChange={(e) => setActivityFilter(e.target.value)}
-                  className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:border-gray-400"
+                  className="text-sm rounded-xl px-4 py-2 focus:outline-none font-medium transition-all duration-300 shadow-sm"
+                  style={{
+                    backgroundColor: colors.glass.surface,
+                    color: colors.text.primary,
+                    border: `1px solid ${colors.borderElevated}`,
+                    backdropFilter: 'blur(10px)'
+                  }}
                 >
                   <option value="All">All Activity</option>
                   <option value="Success">Successful</option>
                   <option value="Warning">Warnings</option>
                   <option value="Today">Today</option>
                 </select>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="rounded-xl font-semibold transition-all duration-300 hover:scale-105"
+                  style={{
+                    borderColor: colors.borderElevated,
+                    color: colors.text.secondary,
+                    backgroundColor: colors.glass.surface,
+                    backdropFilter: 'blur(10px)'
+                  }}
+                >
                   View All
                 </Button>
               </div>
@@ -519,9 +754,21 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-4">
               {filteredActivity.map((activity) => (
-                <div key={activity.id} className="flex items-start space-x-4 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                <div 
+                  key={activity.id} 
+                  className="flex items-start space-x-4 p-4 rounded-xl transition-all duration-300 cursor-pointer group hover:scale-[1.01]"
+                  style={{ backgroundColor: 'transparent' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = colors.glass.surfaceHover
+                    e.currentTarget.style.boxShadow = `0 4px 15px ${colors.shadow.light}`
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
+                >
                   <div 
-                    className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
+                    className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
                     style={{ backgroundColor: `${colors.primary}15` }}
                   >
                     {getActivityIcon(activity.type)}
@@ -530,26 +777,42 @@ export default function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-gray-900">{activity.client}</p>
-                        <p className="text-sm text-gray-600 mt-1">{activity.message}</p>
-                        <div className="flex items-center space-x-4 mt-2">
+                        <p className="text-sm font-bold transition-colors duration-300" style={{ 
+                          color: colors.text.primary 
+                        }}>
+                          {activity.client}
+                        </p>
+                        <p className="text-sm mt-1 transition-colors duration-300" style={{ 
+                          color: colors.text.secondary 
+                        }}>
+                          {activity.message}
+                        </p>
+                        <div className="flex items-center space-x-4 mt-3">
                           {activity.amount && (
-                            <span className="text-sm font-medium" style={{ color: colors.success }}>
+                            <span className="text-sm font-semibold" style={{ color: colors.success }}>
                               {activity.amount}
                             </span>
                           )}
-                          <span className="text-xs text-gray-500">{activity.time}</span>
+                          <span className="text-xs font-medium transition-colors duration-300" style={{ 
+                            color: colors.text.muted 
+                          }}>
+                            {activity.time}
+                          </span>
                         </div>
                       </div>
                       
                       <Badge 
-                        variant="outline" 
-                        className="text-white border-0 text-xs"
+                        className="text-white border-0 text-xs font-bold shadow-lg"
                         style={{
                           backgroundColor: 
                             activity.status === 'success' ? colors.success :
                             activity.status === 'warning' ? colors.warning :
+                            colors.primary,
+                          boxShadow: `0 4px 15px ${
+                            activity.status === 'success' ? colors.success :
+                            activity.status === 'warning' ? colors.warning :
                             colors.primary
+                          }40`
                         }}
                       >
                         {activity.status}

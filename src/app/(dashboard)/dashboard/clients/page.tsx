@@ -7,20 +7,27 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Building2, Users, Search, Plus, Filter, Download, Edit, Eye, Trash2, MoreHorizontal, Loader2 } from 'lucide-react'
+import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
+import { 
+  Building2, 
+  Users, 
+  Search, 
+  Plus, 
+  Filter, 
+  Download, 
+  Edit, 
+  Eye, 
+  Trash2, 
+  MoreHorizontal, 
+  Loader2,
+  ArrowUp,
+  ArrowDown,
+  FileText,
+  Phone,
+  Mail,
+  MapPin
+} from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-
-// ThePayBureau Brand Colors
-const colors = {
-  primary: '#401D6C',
-  secondary: '#EC385D',
-  accent: '#FF8073',
-  lightBg: '#F8F4FF',
-  success: '#22C55E',
-  warning: '#F59E0B',
-  error: '#EF4444',
-}
 
 // Interface for real client data from Supabase
 interface Client {
@@ -45,7 +52,19 @@ export default function ClientsPage() {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [industryFilter, setIndustryFilter] = useState('all')
+  const [employeeSizeFilter, setEmployeeSizeFilter] = useState('all')
+  const [sortBy, setSortBy] = useState('name')
+  const [sortOrder, setSortOrder] = useState('asc')
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
+  const { isDark } = useTheme()
+  const colors = getThemeColors(isDark)
+
+  useEffect(() => {
+    setMounted(true)
+    fetchClients()
+  }, [])
 
   // Fetch clients from API
   const fetchClients = async () => {
@@ -88,17 +107,13 @@ export default function ClientsPage() {
       }
       
       setClients(prev => prev.filter(client => client.id !== clientId))
+      // TODO: Replace with proper toast notification
       alert('Client deleted successfully!')
     } catch (err) {
       console.error('Error deleting client:', err)
       alert(err instanceof Error ? err.message : 'Failed to delete client')
     }
   }
-
-  // Load clients on mount
-  useEffect(() => {
-    fetchClients()
-  }, [])
 
   // Filter clients based on search and filters
   useEffect(() => {
@@ -119,8 +134,64 @@ export default function ClientsPage() {
       filtered = filtered.filter(client => client.status === statusFilter)
     }
 
+    // Industry filter
+    if (industryFilter !== 'all') {
+      filtered = filtered.filter(client => client.industry === industryFilter)
+    }
+
+    // Employee size filter
+    if (employeeSizeFilter !== 'all') {
+      filtered = filtered.filter(client => {
+        const count = client.employee_count || 0
+        switch (employeeSizeFilter) {
+          case 'small': return count <= 10
+          case 'medium': return count > 10 && count <= 50
+          case 'large': return count > 50 && count <= 250
+          case 'enterprise': return count > 250
+          default: return true
+        }
+      })
+    }
+
+    // Sort clients
+    filtered.sort((a, b) => {
+      let aValue = ''
+      let bValue = ''
+      
+      switch (sortBy) {
+        case 'name':
+          aValue = a.name.toLowerCase()
+          bValue = b.name.toLowerCase()
+          break
+        case 'created':
+          aValue = a.created_at
+          bValue = b.created_at
+          break
+        case 'employees':
+          return sortOrder === 'asc' 
+            ? (a.employee_count || 0) - (b.employee_count || 0)
+            : (b.employee_count || 0) - (a.employee_count || 0)
+        case 'status':
+          aValue = a.status
+          bValue = b.status
+          break
+        default:
+          aValue = a.name.toLowerCase()
+          bValue = b.name.toLowerCase()
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
+      }
+    })
+
     setFilteredClients(filtered)
-  }, [searchTerm, statusFilter, clients])
+  }, [searchTerm, statusFilter, industryFilter, employeeSizeFilter, sortBy, sortOrder, clients])
+
+  // Get unique industries for filter
+  const uniqueIndustries = [...new Set(clients.map(c => c.industry).filter(Boolean))].sort()
 
   // Get status badge styling
   const getStatusBadge = (status: string) => {
@@ -130,9 +201,9 @@ export default function ClientsPage() {
       case 'prospect':
         return { bg: colors.primary, text: 'Prospect' }
       case 'inactive':
-        return { bg: '#6B7280', text: 'Inactive' }
+        return { bg: colors.text.muted, text: 'Inactive' }
       default:
-        return { bg: '#6B7280', text: status }
+        return { bg: colors.text.muted, text: status }
     }
   }
 
@@ -140,16 +211,47 @@ export default function ClientsPage() {
   const stats = {
     total: clients.length,
     active: clients.filter(c => c.status === 'active').length,
-    prospects: clients.filter(c => c.status === 'prospect').length,
-    inactive: clients.filter(c => c.status === 'inactive').length,
+    onboarding: clients.filter(c => c.status === 'prospect').length,
+    disengaged: clients.filter(c => c.status === 'inactive').length,
+  }
+
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="space-y-8 animate-pulse">
+        <div className="h-20 rounded-xl" style={{ backgroundColor: colors.glass.surface }}></div>
+        <div className="grid grid-cols-4 gap-8">
+          <div className="h-32 rounded-xl" style={{ backgroundColor: colors.glass.surface }}></div>
+          <div className="h-32 rounded-xl" style={{ backgroundColor: colors.glass.surface }}></div>
+          <div className="h-32 rounded-xl" style={{ backgroundColor: colors.glass.surface }}></div>
+          <div className="h-32 rounded-xl" style={{ backgroundColor: colors.glass.surface }}></div>
+        </div>
+        <div className="h-96 rounded-xl" style={{ backgroundColor: colors.glass.surface }}></div>
+      </div>
+    )
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.lightBg }}>
+      <div 
+        className="min-h-screen flex items-center justify-center transition-colors duration-300" 
+        style={{ backgroundColor: colors.lightBg }}
+      >
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" style={{ color: colors.primary }} />
-          <p className="text-gray-600">Loading clients...</p>
+          <div 
+            className="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-xl flex items-center justify-center"
+            style={{ 
+              background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+              boxShadow: isDark 
+                ? `0 25px 50px ${colors.shadow.heavy}` 
+                : `0 20px 40px ${colors.primary}30`
+            }}
+          >
+            <Users className="w-10 h-10 text-white animate-pulse" />
+          </div>
+          <p className="text-xl font-semibold transition-colors duration-300" style={{ color: colors.text.primary }}>
+            Loading clients...
+          </p>
         </div>
       </div>
     )
@@ -157,13 +259,40 @@ export default function ClientsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colors.lightBg }}>
-        <Card className="max-w-md">
-          <CardContent className="p-6 text-center">
-            <div className="text-red-500 mb-4">❌</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Clients</h3>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={fetchClients}>Try Again</Button>
+      <div 
+        className="min-h-screen flex items-center justify-center transition-colors duration-300" 
+        style={{ backgroundColor: colors.lightBg }}
+      >
+        <Card 
+          className="max-w-md border-0 shadow-2xl"
+          style={{
+            backgroundColor: colors.glass.card,
+            backdropFilter: 'blur(20px)',
+            borderRadius: '20px',
+            border: `1px solid ${colors.borderElevated}`,
+            boxShadow: isDark 
+              ? `0 25px 50px ${colors.shadow.heavy}` 
+              : `0 20px 40px ${colors.primary}20`
+          }}
+        >
+          <CardContent className="p-8 text-center">
+            <div className="text-6xl mb-6">❌</div>
+            <h3 className="text-xl font-bold mb-3 transition-colors duration-300" style={{ color: colors.text.primary }}>
+              Error Loading Clients
+            </h3>
+            <p className="text-base mb-6 transition-colors duration-300" style={{ color: colors.text.secondary }}>
+              {error}
+            </p>
+            <Button 
+              onClick={fetchClients}
+              className="text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition-all duration-300"
+              style={{ 
+                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+                boxShadow: `0 10px 25px ${colors.primary}30`
+              }}
+            >
+              Try Again
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -171,243 +300,578 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: colors.lightBg }}>
-      {/* Page Header */}
-      <div className="bg-white shadow-sm border-b-2" style={{ borderColor: colors.primary }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div 
-                className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
-                style={{ background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)` }}
-              >
-                <Users className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Client Management</h1>
-                <p className="text-gray-600">Manage all your payroll bureau clients</p>
-              </div>
-            </div>
-            
-            <Button 
-              onClick={() => router.push('/clients/add')}
-              className="text-white shadow-lg hover:shadow-xl transition-all"
-              style={{ background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)` }}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add New Client
-            </Button>
-          </div>
+    <div className="space-y-8">
+      {/* Enhanced Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold mb-2 transition-colors duration-300" style={{ 
+            color: colors.text.primary 
+          }}>
+            Client Management
+          </h1>
+          <p className="text-lg transition-colors duration-300" style={{ 
+            color: colors.text.secondary 
+          }}>
+            Manage all your payroll bureau clients efficiently.
+          </p>
         </div>
+        <Button 
+          onClick={() => router.push('/dashboard/clients/add')}
+          className="text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl border-0"
+          style={{ 
+            background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+            boxShadow: isDark 
+              ? `0 10px 25px ${colors.primary}50` 
+              : `0 10px 25px ${colors.primary}30`
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'
+            e.currentTarget.style.boxShadow = isDark
+              ? `0 20px 40px ${colors.primary}60`
+              : `0 20px 40px ${colors.primary}40`
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0px) scale(1)'
+            e.currentTarget.style.boxShadow = isDark
+              ? `0 10px 25px ${colors.primary}50`
+              : `0 10px 25px ${colors.primary}30`
+          }}
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Add New Client
+        </Button>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold" style={{ color: colors.primary }}>{stats.total}</div>
-              <div className="text-sm text-gray-600">Total Clients</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-              <div className="text-sm text-gray-600">Active</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold" style={{ color: colors.secondary }}>{stats.prospects}</div>
-              <div className="text-sm text-gray-600">Prospects</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-gray-600">{stats.inactive}</div>
-              <div className="text-sm text-gray-600">Inactive</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search and Filters */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              {/* Search */}
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search clients by name, email, or company number..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-12"
-                />
+      {/* Enhanced Summary Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        {[
+          {
+            title: 'Total Clients',
+            value: stats.total,
+            change: '+5.2%',
+            icon: Users,
+            iconColor: colors.primary,
+            iconBg: `${colors.primary}20`
+          },
+          {
+            title: 'Active Clients',
+            value: stats.active,
+            change: '+12.3%',
+            icon: Building2,
+            iconColor: colors.success,
+            iconBg: `${colors.success}20`
+          },
+          {
+            title: 'Onboarding',
+            value: stats.onboarding,
+            change: '+8.1%',
+            icon: Eye,
+            iconColor: colors.secondary,
+            iconBg: `${colors.secondary}20`
+          },
+          {
+            title: 'Disengaged',
+            value: stats.disengaged,
+            change: '-2.4%',
+            icon: FileText,
+            iconColor: colors.text.muted,
+            iconBg: `${colors.text.muted}20`
+          }
+        ].map((stat, index) => (
+          <Card 
+            key={index}
+            className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] group"
+            style={{
+              backgroundColor: colors.glass.card,
+              backdropFilter: 'blur(20px)',
+              borderRadius: '20px',
+              border: `1px solid ${colors.borderElevated}`,
+              boxShadow: isDark 
+                ? `0 10px 30px ${colors.shadow.medium}` 
+                : `0 10px 25px ${colors.shadow.light}`
+            }}
+          >
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold mb-2 transition-colors duration-300" style={{ 
+                    color: colors.text.secondary 
+                  }}>
+                    {stat.title}
+                  </p>
+                  <p className="text-3xl font-bold mb-3 transition-colors duration-300" style={{ 
+                    color: colors.text.primary 
+                  }}>
+                    {stat.value}
+                  </p>
+                  <div className="flex items-center">
+                    <ArrowUp className="w-3 h-3 text-green-600 mr-1" />
+                    <span className="text-xs font-medium text-green-600">{stat.change}</span>
+                    <span className="text-xs ml-1 transition-colors duration-300" style={{ 
+                      color: colors.text.muted 
+                    }}>
+                      vs last month
+                    </span>
+                  </div>
+                </div>
+                <div 
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110" 
+                  style={{ 
+                    backgroundColor: stat.iconBg,
+                    boxShadow: `0 8px 25px ${stat.iconColor}30`
+                  }}
+                >
+                  <stat.icon className="w-8 h-8 transition-transform duration-300 group-hover:scale-110" style={{ color: stat.iconColor }} />
+                </div>
               </div>
-              
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Enhanced Search and Filters */}
+      <Card 
+        className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300"
+        style={{
+          backgroundColor: colors.glass.card,
+          backdropFilter: 'blur(20px)',
+          borderRadius: '20px',
+          border: `1px solid ${colors.borderElevated}`,
+          boxShadow: isDark 
+            ? `0 15px 35px ${colors.shadow.medium}` 
+            : `0 10px 25px ${colors.shadow.light}`
+        }}
+      >
+        <CardContent className="p-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Enhanced Search */}
+            <div className="flex-1 relative">
+              <Search 
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors duration-300" 
+                style={{ color: colors.text.muted }} 
+              />
+              <Input
+                type="text"
+                placeholder="Search clients by name, email, company number, or industry..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-12 h-12 text-sm border-0 shadow-lg transition-all duration-300 focus:shadow-2xl rounded-xl font-medium"
+                style={{
+                  background: colors.glass.surface,
+                  backdropFilter: 'blur(15px)',
+                  color: colors.text.primary,
+                  fontSize: '14px',
+                  border: `1px solid ${colors.borderElevated}`,
+                  boxShadow: isDark 
+                    ? `0 4px 20px ${colors.shadow.light}` 
+                    : `0 4px 15px ${colors.shadow.light}`
+                }}
+                onFocus={(e) => {
+                  e.target.style.background = colors.glass.surfaceHover
+                  e.target.style.boxShadow = isDark
+                    ? `0 12px 35px ${colors.shadow.medium}, 0 0 0 1px ${colors.primary}40`
+                    : `0 8px 25px ${colors.primary}25, 0 0 0 1px ${colors.primary}30`
+                  e.target.style.borderColor = `${colors.primary}60`
+                }}
+                onBlur={(e) => {
+                  e.target.style.background = colors.glass.surface
+                  e.target.style.boxShadow = isDark 
+                    ? `0 4px 20px ${colors.shadow.light}` 
+                    : `0 4px 15px ${colors.shadow.light}`
+                  e.target.style.borderColor = colors.borderElevated
+                }}
+              />
+            </div>
+            
+            {/* Filter Row */}
+            <div className="flex flex-wrap gap-3">
               {/* Status Filter */}
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-3 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all duration-300 shadow-lg min-w-[120px]"
+                style={{
+                  backgroundColor: colors.glass.surface,
+                  color: colors.text.primary,
+                  border: `1px solid ${colors.borderElevated}`,
+                  backdropFilter: 'blur(15px)'
+                }}
               >
                 <option value="all">All Statuses</option>
                 <option value="active">Active</option>
-                <option value="prospect">Prospects</option>
-                <option value="inactive">Inactive</option>
+                <option value="prospect">Onboarding</option>
+                <option value="inactive">Disengaged</option>
               </select>
-              
-              {/* Refresh Button */}
-              <Button variant="outline" className="h-12" onClick={fetchClients}>
-                <Download className="w-4 h-4 mr-2" />
-                Refresh
+
+              {/* Industry Filter */}
+              <select
+                value={industryFilter}
+                onChange={(e) => setIndustryFilter(e.target.value)}
+                className="px-3 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all duration-300 shadow-lg min-w-[130px]"
+                style={{
+                  backgroundColor: colors.glass.surface,
+                  color: colors.text.primary,
+                  border: `1px solid ${colors.borderElevated}`,
+                  backdropFilter: 'blur(15px)'
+                }}
+              >
+                <option value="all">All Industries</option>
+                {uniqueIndustries.map(industry => (
+                  <option key={industry} value={industry}>{industry}</option>
+                ))}
+              </select>
+
+              {/* Employee Size Filter */}
+              <select
+                value={employeeSizeFilter}
+                onChange={(e) => setEmployeeSizeFilter(e.target.value)}
+                className="px-3 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all duration-300 shadow-lg min-w-[120px]"
+                style={{
+                  backgroundColor: colors.glass.surface,
+                  color: colors.text.primary,
+                  border: `1px solid ${colors.borderElevated}`,
+                  backdropFilter: 'blur(15px)'
+                }}
+              >
+                <option value="all">All Sizes</option>
+                <option value="small">Small (1-10)</option>
+                <option value="medium">Medium (11-50)</option>
+                <option value="large">Large (51-250)</option>
+                <option value="enterprise">Enterprise (250+)</option>
+              </select>
+
+              {/* Sort By */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all duration-300 shadow-lg min-w-[110px]"
+                style={{
+                  backgroundColor: colors.glass.surface,
+                  color: colors.text.primary,
+                  border: `1px solid ${colors.borderElevated}`,
+                  backdropFilter: 'blur(15px)'
+                }}
+              >
+                <option value="name">Sort by Name</option>
+                <option value="created">Sort by Date</option>
+                <option value="employees">Sort by Size</option>
+                <option value="status">Sort by Status</option>
+              </select>
+
+              {/* Sort Order Toggle */}
+              <Button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                variant="outline"
+                className="h-12 px-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
+                style={{
+                  borderColor: colors.borderElevated,
+                  color: colors.text.secondary,
+                  backgroundColor: colors.glass.surface,
+                  backdropFilter: 'blur(10px)'
+                }}
+                title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
+              >
+                {sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
               </Button>
             </div>
             
-            {/* Filter Summary */}
-            <div className="mt-4 flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                Showing {filteredClients.length} of {clients.length} clients
-              </div>
+            {/* Enhanced Action Buttons */}
+            <div className="flex items-center space-x-3">
+              <Button 
+                variant="outline" 
+                className="h-12 px-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
+                onClick={fetchClients}
+                style={{
+                  borderColor: colors.borderElevated,
+                  color: colors.text.secondary,
+                  backgroundColor: colors.glass.surface,
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
               
-              {(searchTerm || statusFilter !== 'all') && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    setSearchTerm('')
-                    setStatusFilter('all')
-                  }}
-                >
-                  Clear Filters
-                </Button>
+              <Button 
+                variant="outline" 
+                className="h-12 px-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
+                style={{
+                  borderColor: colors.borderElevated,
+                  color: colors.text.secondary,
+                  backgroundColor: colors.glass.surface,
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </div>
+          </div>
+          
+          {/* Enhanced Filter Summary */}
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.secondary }}>
+              Showing {filteredClients.length} of {clients.length} clients
+              {(statusFilter !== 'all' || industryFilter !== 'all' || employeeSizeFilter !== 'all') && (
+                <span className="ml-2" style={{ color: colors.text.muted }}>
+                  • Filtered by {[
+                    statusFilter !== 'all' && `Status: ${statusFilter}`,
+                    industryFilter !== 'all' && `Industry: ${industryFilter}`,
+                    employeeSizeFilter !== 'all' && `Size: ${employeeSizeFilter}`
+                  ].filter(Boolean).join(', ')}
+                </span>
               )}
             </div>
-          </CardContent>
-        </Card>
+            
+            {(searchTerm || statusFilter !== 'all' || industryFilter !== 'all' || employeeSizeFilter !== 'all') && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setSearchTerm('')
+                  setStatusFilter('all')
+                  setIndustryFilter('all')
+                  setEmployeeSizeFilter('all')
+                  setSortBy('name')
+                  setSortOrder('asc')
+                }}
+                className="rounded-xl font-semibold transition-all duration-300 hover:scale-105"
+                style={{
+                  borderColor: colors.borderElevated,
+                  color: colors.text.muted,
+                  backgroundColor: colors.glass.surfaceActive
+                }}
+              >
+                Clear All Filters
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Client Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Client List</span>
-              <span className="text-sm font-normal text-gray-500">
-                {filteredClients.length} clients
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Client Details</TableHead>
-                    <TableHead>Contact Info</TableHead>
-                    <TableHead>Industry</TableHead>
-                    <TableHead>Employees</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredClients.map((client) => {
-                    const statusBadge = getStatusBadge(client.status)
-                    return (
-                      <TableRow key={client.id} className="hover:bg-gray-50">
-                        <TableCell>
+      {/* Enhanced Client Table */}
+      <Card 
+        className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300"
+        style={{
+          backgroundColor: colors.glass.card,
+          backdropFilter: 'blur(20px)',
+          borderRadius: '20px',
+          border: `1px solid ${colors.borderElevated}`,
+          boxShadow: isDark 
+            ? `0 15px 35px ${colors.shadow.medium}` 
+            : `0 10px 25px ${colors.shadow.light}`
+        }}
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between text-xl font-bold transition-colors duration-300" style={{ 
+            color: colors.text.primary 
+          }}>
+            <span>Client Directory</span>
+            <Badge 
+              className="text-xs font-bold px-3 py-1 shadow-lg"
+              style={{
+                backgroundColor: `${colors.secondary}20`,
+                color: colors.secondary,
+                border: `1px solid ${colors.secondary}30`
+              }}
+            >
+              {filteredClients.length} clients
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow style={{ borderColor: colors.borderElevated }}>
+                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Client Details</TableHead>
+                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Contact Info</TableHead>
+                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Industry</TableHead>
+                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Employees</TableHead>
+                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Status</TableHead>
+                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Created</TableHead>
+                  <TableHead className="text-right font-bold" style={{ color: colors.text.secondary }}>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredClients.map((client) => {
+                  const statusBadge = getStatusBadge(client.status)
+                  return (
+                    <TableRow 
+                      key={client.id} 
+                      className="transition-all duration-300 hover:scale-[1.01] group"
+                      style={{ borderColor: colors.borderElevated }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = colors.glass.surfaceHover
+                        e.currentTarget.style.boxShadow = `0 4px 15px ${colors.shadow.light}`
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                        e.currentTarget.style.boxShadow = 'none'
+                      }}
+                    >
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <div 
+                            className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110"
+                            style={{ backgroundColor: `${colors.primary}15` }}
+                          >
+                            <Building2 className="w-5 h-5" style={{ color: colors.primary }} />
+                          </div>
                           <div>
-                            <div className="font-semibold text-gray-900">{client.name}</div>
+                            <div className="font-bold transition-colors duration-300" style={{ color: colors.text.primary }}>
+                              {client.name}
+                            </div>
                             {client.company_number && (
-                              <div className="text-sm text-gray-500">{client.company_number}</div>
+                              <div className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.muted }}>
+                                {client.company_number}
+                              </div>
                             )}
                           </div>
-                        </TableCell>
-                        
-                        <TableCell>
-                          <div className="text-sm">
-                            <div className="text-gray-900">{client.email || '-'}</div>
-                            <div className="text-gray-500">{client.phone || '-'}</div>
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="flex items-center text-sm transition-colors duration-300" style={{ color: colors.text.primary }}>
+                            <Mail className="w-3 h-3 mr-2" style={{ color: colors.text.muted }} />
+                            {client.email || '-'}
                           </div>
-                        </TableCell>
-                        
-                        <TableCell>
-                          <span className="text-sm text-gray-900">{client.industry || '-'}</span>
-                        </TableCell>
-                        
-                        <TableCell>
-                          <span className="text-sm font-medium text-gray-900">
-                            {client.employee_count || '-'}
-                          </span>
-                        </TableCell>
-                        
-                        <TableCell>
-                          <Badge 
-                            className="text-white border-0"
-                            style={{ backgroundColor: statusBadge.bg }}
+                          <div className="flex items-center text-sm transition-colors duration-300" style={{ color: colors.text.secondary }}>
+                            <Phone className="w-3 h-3 mr-2" style={{ color: colors.text.muted }} />
+                            {client.phone || '-'}
+                          </div>
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell>
+                        <span className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.primary }}>
+                          {client.industry || '-'}
+                        </span>
+                      </TableCell>
+                      
+                      <TableCell>
+                        <span className="text-sm font-bold transition-colors duration-300" style={{ color: colors.text.primary }}>
+                          {client.employee_count || '-'}
+                        </span>
+                      </TableCell>
+                      
+                      <TableCell>
+                        <Badge 
+                          className="text-white border-0 font-bold shadow-lg transition-all duration-300 hover:scale-105"
+                          style={{ 
+                            backgroundColor: statusBadge.bg,
+                            boxShadow: `0 4px 15px ${statusBadge.bg}40`
+                          }}
+                        >
+                          {statusBadge.text}
+                        </Badge>
+                      </TableCell>
+                      
+                      <TableCell>
+                        <span className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.muted }}>
+                          {new Date(client.created_at).toLocaleDateString()}
+                        </span>
+                      </TableCell>
+                      
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="rounded-xl transition-all duration-300 hover:scale-105"
+                            style={{
+                              borderColor: colors.borderElevated,
+                              color: colors.text.secondary,
+                              backgroundColor: colors.glass.surface
+                            }}
                           >
-                            {statusBadge.text}
-                          </Badge>
-                        </TableCell>
-                        
-                        <TableCell>
-                          <span className="text-sm text-gray-500">
-                            {new Date(client.created_at).toLocaleDateString()}
-                          </span>
-                        </TableCell>
-                        
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <Button variant="outline" size="sm">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => deleteClient(client.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-            
-            {filteredClients.length === 0 && (
-              <div className="text-center py-12">
-                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No clients found</h3>
-                <p className="text-gray-500 mb-4">
-                  {searchTerm || statusFilter !== 'all'
-                    ? "Try adjusting your search or filters"
-                    : "Get started by adding your first client"
-                  }
-                </p>
-                <Button 
-                  className="text-white"
-                  style={{ background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)` }}
-                  onClick={() => router.push('/clients/add')}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Your First Client
-                </Button>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="rounded-xl transition-all duration-300 hover:scale-105"
+                            style={{
+                              borderColor: colors.borderElevated,
+                              color: colors.text.secondary,
+                              backgroundColor: colors.glass.surface
+                            }}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => deleteClient(client.id)}
+                            className="rounded-xl transition-all duration-300 hover:scale-105"
+                            style={{
+                              borderColor: colors.error + '40',
+                              color: colors.error,
+                              backgroundColor: colors.error + '10'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = colors.error + '20'
+                              e.currentTarget.style.borderColor = colors.error + '60'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = colors.error + '10'
+                              e.currentTarget.style.borderColor = colors.error + '40'
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          
+          {/* Enhanced Empty State */}
+          {filteredClients.length === 0 && (
+            <div className="text-center py-16">
+              <div 
+                className="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-xl flex items-center justify-center"
+                style={{ 
+                  backgroundColor: `${colors.primary}15`,
+                  border: `2px dashed ${colors.primary}30`
+                }}
+              >
+                <Users className="w-10 h-10" style={{ color: colors.primary }} />
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              <h3 className="text-xl font-bold mb-3 transition-colors duration-300" style={{ color: colors.text.primary }}>
+                No clients found
+              </h3>
+              <p className="text-base mb-6 transition-colors duration-300" style={{ color: colors.text.secondary }}>
+                {searchTerm || statusFilter !== 'all'
+                  ? "Try adjusting your search or filters to find what you're looking for"
+                  : "Get started by adding your first client to begin managing your payroll bureau"
+                }
+              </p>
+              <Button 
+                onClick={() => router.push('/dashboard/clients/add')}
+                className="text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl"
+                style={{ 
+                  background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+                  boxShadow: `0 10px 25px ${colors.primary}30`
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0px) scale(1)'
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                {searchTerm || statusFilter !== 'all' ? 'Add New Client' : 'Add Your First Client'}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
