@@ -19,6 +19,7 @@ function VerifyEmailContent() {
         style={{ background: 'var(--login-purple-d)' }}
         aria-hidden="true"
       >
+        {/* Animated mesh gradient */}
         <div
           className="login-mesh-bg pointer-events-none absolute opacity-60"
           style={{
@@ -34,12 +35,16 @@ function VerifyEmailContent() {
             animation: 'meshShift 20s ease-in-out infinite alternate',
           }}
         />
+
+        {/* Grain texture overlay */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.12] mix-blend-overlay"
           style={{ backgroundImage: GRAIN_TEXTURE, backgroundSize: '128px 128px' }}
         />
 
+        {/* Brand content */}
         <div className="relative z-10">
+          {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="flex h-[42px] w-[42px] items-center justify-center rounded-xl border border-white/10 bg-white/15 backdrop-blur-sm">
               <svg viewBox="0 0 24 24" fill="none" className="h-[22px] w-[22px]">
@@ -54,16 +59,45 @@ function VerifyEmailContent() {
             </span>
           </div>
 
+          {/* Headline */}
           <h1 className="mt-[5vh] max-w-[420px] font-[family-name:var(--font-display)] text-[clamp(2.4rem,3.5vw,3.4rem)] leading-[1.15] text-white">
-            Almost<br />
-            there
+            You&apos;re{' '}
+            <em
+              className="italic"
+              style={{
+                background: 'linear-gradient(135deg, var(--login-peach), var(--login-pink))',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              almost
+            </em>
+            <br />
+            there.
           </h1>
 
+          {/* Tagline */}
           <p className="mt-6 max-w-[360px] font-[family-name:var(--font-body)] text-[1.05rem] font-normal leading-[1.7] text-white/65">
-            Just one more step to get your payroll bureau set up and running.
+            Just one more step and your payroll bureau will be
+            set up and ready to go.
           </p>
         </div>
 
+        {/* Decorative watermark */}
+        <svg
+          className="pointer-events-none absolute z-[1] opacity-[0.04]"
+          style={{ bottom: '-8%', right: '-12%', width: '420px', height: '420px' }}
+          viewBox="0 0 200 200"
+          fill="none"
+        >
+          <path d="M20 20h70v70H20V20z" fill="white" />
+          <path d="M110 20h70v70h-70V20z" fill="white" />
+          <path d="M20 110h70v70H20v-70z" fill="white" />
+          <path d="M110 110h70v70h-70v-70z" fill="white" />
+        </svg>
+
+        {/* Footer */}
         <div className="relative z-10 flex items-center gap-3">
           <div
             className="login-pulse-dot h-2 w-2 rounded-full"
@@ -76,27 +110,42 @@ function VerifyEmailContent() {
       </aside>
 
       {/* ═══ CONTENT PANEL (right) ═══ */}
-      <main className="relative flex items-center justify-center px-6 py-12 sm:px-12 bg-[var(--login-surface)]">
-        <div className="w-full max-w-[420px] text-center">
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--login-purple)]/10">
-            <Mail className="h-8 w-8 text-[var(--login-purple)]" />
+      <main className="relative flex items-center justify-center bg-[var(--login-surface)] p-6 md:p-12">
+        {/* Faint blush gradient */}
+        <div
+          className="pointer-events-none absolute opacity-100"
+          style={{
+            top: '-20%',
+            right: '-10%',
+            width: '500px',
+            height: '500px',
+            background: 'radial-gradient(circle, rgba(255, 128, 115, 0.06) 0%, transparent 70%)',
+          }}
+        />
+
+        <div className="relative z-10 w-full max-w-[420px] text-center">
+          <div
+            className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full"
+            style={{ background: 'var(--login-success-bg)' }}
+          >
+            <Mail className="h-8 w-8" style={{ color: 'var(--login-success)' }} />
           </div>
 
-          <h2 className="font-[family-name:var(--font-display)] text-[1.75rem] leading-tight text-[var(--login-fg)]">
-            Check your email
+          <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--login-text)]">
+            Check your inbox
           </h2>
 
-          <p className="mt-3 text-[0.95rem] leading-relaxed text-[var(--login-muted)]">
+          <p className="mt-3 font-[family-name:var(--font-body)] text-[0.95rem] leading-relaxed text-[var(--login-text-3)]">
             We&apos;ve sent a confirmation link to{' '}
-            <strong className="text-[var(--login-fg)]">{email}</strong>.
+            <strong className="text-[var(--login-text)]">{email}</strong>.
             Click the link in the email to verify your account and get started.
           </p>
 
-          <div className="mt-8 rounded-xl border border-[var(--login-border)] bg-[var(--login-input-bg)] p-4 text-left">
-            <p className="text-[0.85rem] font-medium text-[var(--login-fg)]">
+          <div className="mt-8 rounded-[10px] border border-[var(--login-border)] bg-[var(--login-cream)] p-4 text-left">
+            <p className="font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-text-2)]">
               Didn&apos;t receive the email?
             </p>
-            <ul className="mt-2 space-y-1 text-[0.82rem] text-[var(--login-muted)]">
+            <ul className="mt-2 space-y-1 font-[family-name:var(--font-body)] text-[0.8rem] text-[var(--login-text-3)]">
               <li>Check your spam or junk folder</li>
               <li>Make sure you entered the correct email</li>
               <li>The email may take a minute to arrive</li>
@@ -105,7 +154,7 @@ function VerifyEmailContent() {
 
           <Link
             href="/login"
-            className="mt-8 inline-flex items-center gap-2 text-sm font-medium text-[var(--login-muted)] transition-colors hover:text-[var(--login-fg)]"
+            className="mt-8 inline-flex items-center gap-2 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-text-3)] transition-colors hover:text-[var(--login-text)]"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to sign in

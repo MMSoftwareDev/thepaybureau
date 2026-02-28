@@ -5,7 +5,7 @@ import { createClientSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, ArrowLeft, Mail, CheckCircle2 } from 'lucide-react'
+import { Loader2, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -63,6 +63,7 @@ export default function ForgotPasswordPage() {
         style={{ background: 'var(--login-purple-d)' }}
         aria-hidden="true"
       >
+        {/* Animated mesh gradient */}
         <div
           className="login-mesh-bg pointer-events-none absolute opacity-60"
           style={{
@@ -78,12 +79,16 @@ export default function ForgotPasswordPage() {
             animation: 'meshShift 20s ease-in-out infinite alternate',
           }}
         />
+
+        {/* Grain texture overlay */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.12] mix-blend-overlay"
           style={{ backgroundImage: GRAIN_TEXTURE, backgroundSize: '128px 128px' }}
         />
 
+        {/* Brand content */}
         <div className="relative z-10">
+          {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="flex h-[42px] w-[42px] items-center justify-center rounded-xl border border-white/10 bg-white/15 backdrop-blur-sm">
               <svg viewBox="0 0 24 24" fill="none" className="h-[22px] w-[22px]">
@@ -98,16 +103,44 @@ export default function ForgotPasswordPage() {
             </span>
           </div>
 
+          {/* Headline */}
           <h1 className="mt-[5vh] max-w-[420px] font-[family-name:var(--font-display)] text-[clamp(2.4rem,3.5vw,3.4rem)] leading-[1.15] text-white">
-            Reset your<br />
-            password
+            Happens to the<br />
+            best of{' '}
+            <em
+              className="italic"
+              style={{
+                background: 'linear-gradient(135deg, var(--login-peach), var(--login-pink))',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              us.
+            </em>
           </h1>
 
+          {/* Tagline */}
           <p className="mt-6 max-w-[360px] font-[family-name:var(--font-body)] text-[1.05rem] font-normal leading-[1.7] text-white/65">
-            No worries — it happens to the best of us. We&apos;ll send you a link to reset your password.
+            No worries — we&apos;ll send a secure link to your email so you
+            can get back to running your bureau in no time.
           </p>
         </div>
 
+        {/* Decorative watermark */}
+        <svg
+          className="pointer-events-none absolute z-[1] opacity-[0.04]"
+          style={{ bottom: '-8%', right: '-12%', width: '420px', height: '420px' }}
+          viewBox="0 0 200 200"
+          fill="none"
+        >
+          <path d="M20 20h70v70H20V20z" fill="white" />
+          <path d="M110 20h70v70h-70V20z" fill="white" />
+          <path d="M20 110h70v70H20v-70z" fill="white" />
+          <path d="M110 110h70v70h-70v-70z" fill="white" />
+        </svg>
+
+        {/* Footer */}
         <div className="relative z-10 flex items-center gap-3">
           <div
             className="login-pulse-dot h-2 w-2 rounded-full"
@@ -120,12 +153,24 @@ export default function ForgotPasswordPage() {
       </aside>
 
       {/* ═══ FORM PANEL (right) ═══ */}
-      <main className="relative flex items-center justify-center px-6 py-12 sm:px-12 bg-[var(--login-surface)]">
-        <div className="w-full max-w-[420px]">
+      <main className="relative flex items-center justify-center bg-[var(--login-surface)] p-6 md:p-12">
+        {/* Faint blush gradient */}
+        <div
+          className="pointer-events-none absolute opacity-100"
+          style={{
+            top: '-20%',
+            right: '-10%',
+            width: '500px',
+            height: '500px',
+            background: 'radial-gradient(circle, rgba(255, 128, 115, 0.06) 0%, transparent 70%)',
+          }}
+        />
+
+        <div className="relative z-10 w-full max-w-[420px]">
           {/* Back to login */}
           <Link
             href="/login"
-            className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-[var(--login-muted)] transition-colors hover:text-[var(--login-fg)]"
+            className="mb-8 inline-flex items-center gap-2 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-text-3)] transition-colors hover:text-[var(--login-text)]"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to sign in
@@ -134,26 +179,36 @@ export default function ForgotPasswordPage() {
           {sent ? (
             /* ── Success state ── */
             <div className="text-center">
-              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+              <div
+                className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full"
+                style={{ background: 'var(--login-success-bg)' }}
+              >
+                <CheckCircle2 className="h-8 w-8" style={{ color: 'var(--login-success)' }} />
               </div>
-              <h2 className="font-[family-name:var(--font-display)] text-[1.75rem] leading-tight text-[var(--login-fg)]">
-                Check your email
+              <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--login-text)]">
+                Check your inbox
               </h2>
-              <p className="mt-3 text-[0.95rem] leading-relaxed text-[var(--login-muted)]">
+              <p className="mt-3 font-[family-name:var(--font-body)] text-[0.95rem] leading-relaxed text-[var(--login-text-3)]">
                 We&apos;ve sent a password reset link to{' '}
-                <strong className="text-[var(--login-fg)]">{email}</strong>.
-                Click the link in the email to reset your password.
+                <strong className="text-[var(--login-text)]">{email}</strong>.
+                Click the link in the email to choose a new password.
               </p>
-              <p className="mt-6 text-sm text-[var(--login-muted)]">
-                Didn&apos;t receive it?{' '}
-                <button
-                  onClick={() => setSent(false)}
-                  className="font-semibold text-[var(--login-purple)] hover:underline"
-                >
-                  Try again
-                </button>
-              </p>
+              <div className="mt-6 rounded-[10px] border border-[var(--login-border)] bg-[var(--login-cream)] p-4 text-left">
+                <p className="font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-text-2)]">
+                  Didn&apos;t receive it?
+                </p>
+                <ul className="mt-2 space-y-1 font-[family-name:var(--font-body)] text-[0.8rem] text-[var(--login-text-3)]">
+                  <li>Check your spam or junk folder</li>
+                  <li>Make sure you entered the correct email</li>
+                  <li>The link expires in one hour</li>
+                </ul>
+              </div>
+              <button
+                onClick={() => setSent(false)}
+                className="mt-6 font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)]"
+              >
+                Try a different email
+              </button>
             </div>
           ) : (
             /* ── Form state ── */
@@ -171,23 +226,26 @@ export default function ForgotPasswordPage() {
                     <path d="M14 14h6v6h-6v-6z" fill="rgba(255,255,255,0.3)" />
                   </svg>
                 </div>
-                <span className="font-[family-name:var(--font-body)] text-lg font-extrabold tracking-tight text-[var(--login-fg)]">
+                <span className="font-[family-name:var(--font-body)] text-lg font-extrabold tracking-tight text-[var(--login-text)]">
                   ThePayBureau
                 </span>
               </div>
 
-              <h2 className="font-[family-name:var(--font-display)] text-[1.75rem] leading-tight text-[var(--login-fg)]">
-                Forgot password?
-              </h2>
-              <p className="mt-2 text-[0.95rem] text-[var(--login-muted)]">
-                Enter your email and we&apos;ll send you a reset link.
-              </p>
+              {/* Form header */}
+              <div className="mb-8">
+                <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--login-text)]">
+                  Forgot password?
+                </h2>
+                <p className="mt-2 font-[family-name:var(--font-body)] text-[0.95rem] text-[var(--login-text-3)]">
+                  Enter the email you signed up with and we&apos;ll send you a reset link.
+                </p>
+              </div>
 
               {/* Email field */}
-              <div className="mt-8 space-y-2">
+              <div>
                 <Label
                   htmlFor="email"
-                  className="text-[0.82rem] font-semibold uppercase tracking-wider text-[var(--login-label)]"
+                  className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--login-text-2)]"
                 >
                   Email address
                 </Label>
@@ -200,20 +258,25 @@ export default function ForgotPasswordPage() {
                     if (emailError) setEmailError('')
                   }}
                   onKeyDown={handleKeyDown}
-                  placeholder="you@company.com"
+                  placeholder="you@yourcompany.co.uk"
+                  autoComplete="email"
+                  disabled={loading}
                   className={cn(
-                    'h-12 rounded-xl border bg-[var(--login-input-bg)] px-4 text-[0.95rem] text-[var(--login-fg)] placeholder:text-[var(--login-muted)]/50',
-                    'transition-shadow focus-visible:ring-2 focus-visible:ring-[var(--login-purple)]/40 focus-visible:ring-offset-0',
-                    emailError
-                      ? 'border-red-400 dark:border-red-500'
-                      : 'border-[var(--login-border)] hover:border-[var(--login-border-hover)]'
+                    'h-12 rounded-xl border-2 border-transparent bg-[var(--login-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                    'transition-all duration-200',
+                    'hover:border-[var(--login-border)]',
+                    'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]',
+                    emailError &&
+                      'border-[var(--login-error)] bg-[var(--login-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
                   )}
                 />
                 {emailError && (
-                  <p className="flex items-center gap-1.5 text-[0.8rem] font-medium text-red-500 dark:text-red-400">
-                    <Mail className="h-3.5 w-3.5" />
-                    {emailError}
-                  </p>
+                  <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
+                      <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
+                    </svg>
+                    <span>{emailError}</span>
+                  </div>
                 )}
               </div>
 
@@ -222,23 +285,32 @@ export default function ForgotPasswordPage() {
                 onClick={handleSubmit}
                 disabled={loading}
                 className={cn(
-                  'mt-6 h-12 w-full rounded-xl text-[0.95rem] font-semibold text-white shadow-lg transition-all',
-                  'hover:brightness-110 active:scale-[0.98]',
-                  loading && 'pointer-events-none opacity-60'
+                  'group relative mt-6 h-12 w-full overflow-hidden rounded-xl font-[family-name:var(--font-body)] text-[0.95rem] font-bold tracking-[0.01em] text-white',
+                  'transition-all duration-300',
+                  'hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(64,29,108,0.3)]',
+                  'active:translate-y-0',
+                  'focus-visible:outline-2 focus-visible:outline-[var(--login-purple)] focus-visible:outline-offset-[3px]',
+                  'disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none'
                 )}
-                style={{
-                  background: 'linear-gradient(135deg, var(--login-purple) 0%, var(--login-purple-d) 100%)',
-                  boxShadow: '0 4px 20px var(--login-purple) / 0.25',
-                }}
+                style={{ background: 'var(--login-purple)' }}
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending link...
-                  </>
-                ) : (
-                  'Send reset link'
-                )}
+                {/* Gradient hover overlay */}
+                <span
+                  className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-400 group-hover:opacity-100 group-disabled:opacity-0"
+                  style={{
+                    background: 'linear-gradient(135deg, var(--login-pink), var(--login-peach))',
+                  }}
+                />
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-[18px] w-[18px] animate-spin" />
+                      Sending link&hellip;
+                    </>
+                  ) : (
+                    'Send reset link'
+                  )}
+                </span>
               </Button>
             </>
           )}
