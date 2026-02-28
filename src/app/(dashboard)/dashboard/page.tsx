@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
+import { createClientSupabaseClient } from '@/lib/supabase'
 import {
   Users,
   Clock,
@@ -84,16 +85,35 @@ function TableSkeleton({ colors }: { colors: ReturnType<typeof getThemeColors> }
   )
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
+  const [userName, setUserName] = useState('')
   const router = useRouter()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
 
   useEffect(() => {
     setMounted(true)
+    // Fetch user name for greeting
+    const fetchUser = async () => {
+      const supabase = createClientSupabaseClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUserName(
+          user.user_metadata?.name || user.email?.split('@')[0] || ''
+        )
+      }
+    }
+    fetchUser()
   }, [])
 
   useEffect(() => {
@@ -185,20 +205,20 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
+      {/* Greeting */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1
             className="text-4xl font-bold mb-2 transition-colors duration-300"
             style={{ color: colors.text.primary }}
           >
-            Dashboard
+            {getGreeting()}{userName ? `, ${userName}` : ''}
           </h1>
           <p
             className="text-lg transition-colors duration-300"
             style={{ color: colors.text.secondary }}
           >
-            Your payroll bureau at a glance.
+            {format(new Date(), 'EEEE, d MMMM yyyy')}
           </p>
         </div>
       </div>

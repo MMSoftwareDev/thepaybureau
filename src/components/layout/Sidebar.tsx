@@ -26,6 +26,8 @@ interface NavItem {
 interface SidebarProps {
   collapsed?: boolean
   onToggle?: () => void
+  mobileOpen?: boolean
+  onMobileClose?: () => void
 }
 
 const navigationItems: NavItem[] = [
@@ -55,7 +57,7 @@ const navigationItems: NavItem[] = [
   }
 ]
 
-export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
+export default function Sidebar({ collapsed = false, onToggle, mobileOpen = false, onMobileClose }: SidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
@@ -77,7 +79,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   if (!mounted) {
     return (
       <div
-        className={`${collapsed ? 'w-20' : 'w-80'} h-screen relative transition-all duration-300`}
+        className={`hidden md:block ${collapsed ? 'w-20' : 'w-80'} h-screen relative transition-all duration-300`}
         style={{
           backgroundColor: colors.surface,
           backdropFilter: 'blur(10px)'
@@ -95,9 +97,13 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
 
   return (
     <div
-      className={`h-screen transition-all duration-300 ease-in-out ${
-        collapsed ? 'w-20' : 'w-80'
-      } flex flex-col relative shadow-2xl`}
+      className={`
+        h-screen flex flex-col relative shadow-2xl
+        fixed inset-y-0 left-0 z-50 w-80 transition-transform duration-300 ease-in-out
+        md:relative md:z-auto md:translate-x-0 md:transition-all md:duration-300
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        ${collapsed ? 'md:w-20' : 'md:w-80'}
+      `}
       style={{
         backgroundColor: colors.surface,
         backdropFilter: 'blur(20px)',
@@ -162,7 +168,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         {!collapsed && (
           <div className="mt-6">
             <Button
-              onClick={() => router.push('/dashboard/clients/add')}
+              onClick={() => { router.push('/dashboard/clients/add'); onMobileClose?.() }}
               className="w-full text-white font-semibold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
               style={{
                 background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
@@ -217,7 +223,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
               >
                 {!collapsed ? (
                   <button
-                    onClick={() => router.push(item.href)}
+                    onClick={() => { router.push(item.href); onMobileClose?.() }}
                     className={`
                       w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden
                       ${isActive
@@ -271,7 +277,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
                 ) : (
                   <>
                     <button
-                      onClick={() => router.push(item.href)}
+                      onClick={() => { router.push(item.href); onMobileClose?.() }}
                       className={`
                         w-full flex items-center justify-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden
                         ${isActive

@@ -13,6 +13,7 @@ interface DashboardWrapperProps {
 
 export default function DashboardWrapper({ children, user }: DashboardWrapperProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
@@ -25,7 +26,7 @@ export default function DashboardWrapper({ children, user }: DashboardWrapperPro
   if (!mounted) {
     return (
       <div className="flex h-screen overflow-hidden">
-        <div className="w-80 h-screen bg-gray-100 animate-pulse"></div>
+        <div className="hidden md:block w-80 h-screen bg-gray-100 animate-pulse"></div>
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="h-16 bg-white border-b animate-pulse"></div>
           <main className="flex-1 overflow-y-auto bg-gray-50 p-6">
@@ -41,25 +42,38 @@ export default function DashboardWrapper({ children, user }: DashboardWrapperPro
   }
 
   return (
-    <div 
+    <div
       className="flex h-screen overflow-hidden transition-colors duration-300"
       style={{
         background: colors.lightBg
       }}
     >
-      {/* Enhanced Sidebar */}
-      <Sidebar 
-        collapsed={sidebarCollapsed} 
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
+      {/* Mobile overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar — hidden on mobile by default, slides in when mobileMenuOpen */}
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        mobileOpen={mobileMenuOpen}
+        onMobileClose={() => setMobileMenuOpen(false)}
       />
-      
+
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Enhanced Top Navbar */}
-        <Navbar user={user} />
-        
-        {/* Enhanced Page Content with Dark Mode Support */}
-        <main 
+        {/* Top Navbar with hamburger on mobile */}
+        <Navbar
+          user={user}
+          onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+        />
+
+        {/* Page Content */}
+        <main
           className="flex-1 overflow-x-hidden overflow-y-auto transition-colors duration-300 relative"
           style={{
             background: isDark
@@ -69,7 +83,7 @@ export default function DashboardWrapper({ children, user }: DashboardWrapperPro
           }}
         >
           {/* Floating background elements for depth */}
-          <div 
+          <div
             className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-5 pointer-events-none transition-opacity duration-300"
             style={{
               background: `radial-gradient(circle, ${colors.primary} 0%, transparent 70%)`,
@@ -77,7 +91,7 @@ export default function DashboardWrapper({ children, user }: DashboardWrapperPro
               animation: 'pulse 4s ease-in-out infinite'
             }}
           />
-          <div 
+          <div
             className="absolute bottom-0 left-0 w-80 h-80 rounded-full opacity-3 pointer-events-none transition-opacity duration-300"
             style={{
               background: `radial-gradient(circle, ${colors.secondary} 0%, transparent 70%)`,
@@ -85,7 +99,7 @@ export default function DashboardWrapper({ children, user }: DashboardWrapperPro
               animation: 'pulse 6s ease-in-out infinite reverse'
             }}
           />
-          
+
           {/* Content with proper z-index */}
           <div className="relative z-10">
             {children}

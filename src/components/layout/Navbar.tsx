@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
-import { 
+import {
   Search,
   Bell,
   User,
@@ -16,12 +16,14 @@ import {
   LogOut,
   Settings,
   Sun,
-  Moon
+  Moon,
+  Menu
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface NavbarProps {
   user?: any
+  onMenuToggle?: () => void
 }
 
 // Theme Toggle Component
@@ -63,13 +65,9 @@ function ThemeToggle() {
   )
 }
 
-export default function Navbar({ user }: NavbarProps) {
+export default function Navbar({ user, onMenuToggle }: NavbarProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: 'client', message: 'New client onboarding completed', time: '5m ago', unread: true },
-    { id: 2, type: 'payroll', message: 'Payroll run requires attention', time: '1h ago', unread: true },
-    { id: 3, type: 'system', message: 'System maintenance scheduled', time: '2h ago', unread: false }
-  ])
+  const [notifications, setNotifications] = useState<{ id: number; type: string; message: string; time: string; unread: boolean }[]>([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -85,7 +83,8 @@ export default function Navbar({ user }: NavbarProps) {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      console.log('Search query:', searchQuery)
+      router.push(`/dashboard/clients?search=${encodeURIComponent(searchQuery.trim())}`)
+      setSearchQuery('')
     }
   }
 
@@ -151,8 +150,23 @@ export default function Navbar({ user }: NavbarProps) {
       <div className="max-w-full mx-auto px-6 relative z-10">
         <div className="flex items-center justify-between h-16">
           
-          {/* Left Section - Search Bar (Keep Exactly As-Is) */}
-          <div className="flex items-center flex-1 max-w-lg">
+          {/* Left Section - Hamburger + Search */}
+          <div className="flex items-center flex-1 max-w-lg gap-3">
+            {/* Hamburger menu - mobile only */}
+            {onMenuToggle && (
+              <Button
+                onClick={onMenuToggle}
+                variant="ghost"
+                size="sm"
+                className="p-3 rounded-xl transition-all duration-300 md:hidden"
+                style={{
+                  background: colors.glass.surfaceActive,
+                  border: `1px solid ${colors.borderElevated}`
+                }}
+              >
+                <Menu className="w-5 h-5" style={{ color: colors.text.primary }} />
+              </Button>
+            )}
             <form onSubmit={handleSearch} className="relative w-full">
               <Search 
                 className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors duration-300" 
@@ -160,7 +174,7 @@ export default function Navbar({ user }: NavbarProps) {
               />
               <Input
                 type="text"
-                placeholder="Search clients, contracts, invoices..."
+                placeholder="Search clients..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-12 h-12 text-sm border-0 shadow-lg transition-all duration-300 focus:shadow-2xl rounded-xl font-medium"
@@ -290,20 +304,29 @@ export default function Navbar({ user }: NavbarProps) {
                       <h3 className="text-lg font-bold transition-colors duration-300" style={{ color: colors.text.primary }}>
                         Notifications
                       </h3>
-                      <Badge 
-                        className="text-white text-xs px-3 py-1 font-bold transition-all duration-300 shadow-lg"
-                        style={{ 
-                          background: `linear-gradient(135deg, ${colors.secondary} 0%, ${colors.accent} 100%)`,
-                          boxShadow: `0 4px 15px ${colors.secondary}30`
-                        }}
-                      >
-                        {unreadCount} new
-                      </Badge>
+                      {unreadCount > 0 && (
+                        <Badge
+                          className="text-white text-xs px-3 py-1 font-bold transition-all duration-300 shadow-lg"
+                          style={{
+                            background: `linear-gradient(135deg, ${colors.secondary} 0%, ${colors.accent} 100%)`,
+                            boxShadow: `0 4px 15px ${colors.secondary}30`
+                          }}
+                        >
+                          {unreadCount} new
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   
                   <div className="max-h-80 overflow-y-auto">
-                    {notifications.map((notification) => (
+                    {notifications.length === 0 ? (
+                      <div className="p-8 text-center">
+                        <Bell className="w-8 h-8 mx-auto mb-3" style={{ color: colors.text.muted, opacity: 0.5 }} />
+                        <p className="text-sm font-medium" style={{ color: colors.text.muted }}>
+                          No notifications yet
+                        </p>
+                      </div>
+                    ) : notifications.map((notification) => (
                       <button
                         key={notification.id}
                         onClick={() => markNotificationAsRead(notification.id)}
@@ -353,12 +376,13 @@ export default function Navbar({ user }: NavbarProps) {
                     ))}
                   </div>
                   
+                  {notifications.length > 0 && (
                   <div className="p-4 border-t transition-colors duration-300" style={{ borderColor: colors.borderElevated }}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="w-full text-sm font-semibold transition-all duration-300 hover:scale-[1.02] rounded-xl py-2"
-                      style={{ 
+                      style={{
                         color: colors.primary,
                         background: `${colors.primary}10`,
                         border: `1px solid ${colors.primary}20`
@@ -375,6 +399,7 @@ export default function Navbar({ user }: NavbarProps) {
                       View All Notifications
                     </Button>
                   </div>
+                  )}
                 </div>
               )}
             </div>

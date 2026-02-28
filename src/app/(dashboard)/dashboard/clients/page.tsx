@@ -28,7 +28,7 @@ import {
   Mail,
   Calendar
 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 // Interface for the latestRun attached to each client
 interface LatestRun {
@@ -114,11 +114,12 @@ function formatDate(dateStr: string | null | undefined): string {
 }
 
 export default function ClientsPage() {
+  const searchParams = useSearchParams()
   const [clients, setClients] = useState<Client[]>([])
   const [filteredClients, setFilteredClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '')
   const [statusFilter, setStatusFilter] = useState('all')
   const [industryFilter, setIndustryFilter] = useState('all')
   const [employeeSizeFilter, setEmployeeSizeFilter] = useState('all')
@@ -417,7 +418,6 @@ export default function ClientsPage() {
           {
             title: 'Total Clients',
             value: stats.total,
-            change: '+5.2%',
             icon: Users,
             iconColor: colors.primary,
             iconBg: `${colors.primary}20`
@@ -425,7 +425,6 @@ export default function ClientsPage() {
           {
             title: 'Active Clients',
             value: stats.active,
-            change: '+12.3%',
             icon: Building2,
             iconColor: colors.success,
             iconBg: `${colors.success}20`
@@ -433,7 +432,6 @@ export default function ClientsPage() {
           {
             title: 'Onboarding',
             value: stats.onboarding,
-            change: '+8.1%',
             icon: Eye,
             iconColor: colors.secondary,
             iconBg: `${colors.secondary}20`
@@ -441,13 +439,12 @@ export default function ClientsPage() {
           {
             title: 'Disengaged',
             value: stats.disengaged,
-            change: '-2.4%',
             icon: FileText,
             iconColor: colors.text.muted,
             iconBg: `${colors.text.muted}20`
           }
         ].map((stat, index) => (
-          <Card 
+          <Card
             key={index}
             className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] group"
             style={{
@@ -455,37 +452,28 @@ export default function ClientsPage() {
               backdropFilter: 'blur(20px)',
               borderRadius: '20px',
               border: `1px solid ${colors.borderElevated}`,
-              boxShadow: isDark 
-                ? `0 10px 30px ${colors.shadow.medium}` 
+              boxShadow: isDark
+                ? `0 10px 30px ${colors.shadow.medium}`
                 : `0 10px 25px ${colors.shadow.light}`
             }}
           >
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold mb-2 transition-colors duration-300" style={{ 
-                    color: colors.text.secondary 
+                  <p className="text-sm font-semibold mb-2 transition-colors duration-300" style={{
+                    color: colors.text.secondary
                   }}>
                     {stat.title}
                   </p>
-                  <p className="text-3xl font-bold mb-3 transition-colors duration-300" style={{ 
-                    color: colors.text.primary 
+                  <p className="text-3xl font-bold transition-colors duration-300" style={{
+                    color: colors.text.primary
                   }}>
                     {stat.value}
                   </p>
-                  <div className="flex items-center">
-                    <ArrowUp className="w-3 h-3 text-green-600 mr-1" />
-                    <span className="text-xs font-medium text-green-600">{stat.change}</span>
-                    <span className="text-xs ml-1 transition-colors duration-300" style={{ 
-                      color: colors.text.muted 
-                    }}>
-                      vs last month
-                    </span>
-                  </div>
                 </div>
-                <div 
-                  className="w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110" 
-                  style={{ 
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110"
+                  style={{
                     backgroundColor: stat.iconBg,
                     boxShadow: `0 8px 25px ${stat.iconColor}30`
                   }}
