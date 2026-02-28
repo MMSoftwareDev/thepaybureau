@@ -82,6 +82,10 @@ export async function GET(request: NextRequest) {
       console.log('✅ Created new tenant and user')
     }
 
+    if (!user) {
+      return NextResponse.json({ error: 'Failed to resolve user' }, { status: 500 })
+    }
+
     const { data: clients, error: clientsError } = await supabase
       .from('clients')
       .select('*')
@@ -162,6 +166,10 @@ export async function POST(request: NextRequest) {
 
       user = newUser
       console.log('✅ Created new tenant and user')
+    }
+
+    if (!user) {
+      return NextResponse.json({ error: 'Failed to resolve user' }, { status: 500 })
     }
 
     const body = await request.json()

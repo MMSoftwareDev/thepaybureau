@@ -1,9 +1,9 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import type { Database } from '@/types/database'
 
-// For API routes - use service role key
+// For API routes - use service role key (bypasses RLS)
 export const createServerSupabaseClient = () => {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,10 +17,30 @@ export const createServerSupabaseClient = () => {
   )
 }
 
-// For server components - use cookies
+// For server components - use cookies for auth context
 export const createServerComponentSupabaseClient = async () => {
   const cookieStore = await cookies()
-  return createServerComponentClient<Database>({ 
-    cookies: () => cookieStore 
-  })
+
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // setAll is called from Server Components where cookies
+            // cannot be set. This can be ignored if middleware refreshes
+            // user sessions.
+          }
+        },
+      },
+    }
+  )
 }

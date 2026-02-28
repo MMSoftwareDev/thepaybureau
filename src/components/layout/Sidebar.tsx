@@ -1,7 +1,7 @@
 // src/components/layout/Sidebar.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,13 +26,26 @@ import {
   Plus
 } from 'lucide-react'
 
+interface NavItem {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
+  description: string
+  badge?: string
+}
+
+interface NavigationSection {
+  title: string
+  items: NavItem[]
+}
+
 interface SidebarProps {
   collapsed?: boolean
   onToggle?: () => void
 }
 
 // Updated navigation structure based on your project
-const navigationSections = [
+const navigationSections: NavigationSection[] = [
   {
     title: 'Overview',
     items: [
