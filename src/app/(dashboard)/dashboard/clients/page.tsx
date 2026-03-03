@@ -29,6 +29,7 @@ import {
   Calendar
 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useToast } from '@/components/ui/toast'
 
 // Interface for the latestRun attached to each client
 interface LatestRun {
@@ -127,6 +128,7 @@ export default function ClientsPage() {
   const [sortOrder, setSortOrder] = useState('asc')
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
+  const { toast } = useToast()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
 
@@ -176,11 +178,10 @@ export default function ClientsPage() {
       }
       
       setClients(prev => prev.filter(client => client.id !== clientId))
-      // TODO: Replace with proper toast notification
-      alert('Client deleted successfully!')
+      toast('Client deleted successfully')
     } catch (err) {
       console.error('Error deleting client:', err)
-      alert(err instanceof Error ? err.message : 'Failed to delete client')
+      toast(err instanceof Error ? err.message : 'Failed to delete client', 'error')
     }
   }
 
@@ -872,6 +873,7 @@ export default function ClientsPage() {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
                             className="rounded-xl transition-all duration-300 hover:scale-105"
                             style={{
                               borderColor: colors.borderElevated,
