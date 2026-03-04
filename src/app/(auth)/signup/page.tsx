@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { isDisposableEmail } from '@/lib/disposable-domains'
 
 const GRAIN_TEXTURE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E")`
 
@@ -64,6 +65,15 @@ export default function SignupPage() {
         isValid: false,
         message: 'Business email required',
         suggestion: `Try using your company email instead of ${domain}`
+      })
+      return
+    }
+
+    if (isDisposableEmail(email)) {
+      setEmailValidation({
+        isValid: false,
+        message: 'Disposable emails are not allowed',
+        suggestion: 'Please use a permanent business email address'
       })
       return
     }

@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { adminRegistrationSchema } from '@/lib/validations'
 import { z } from 'zod'
+import dns from 'dns/promises'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +17,20 @@ export async function POST(request: NextRequest) {
     // Extract company domain
     const companyDomain = validatedData.email.split('@')[1]
     console.log('🏢 Company domain:', companyDomain)
+
+    // Verify the domain has valid MX records (can actually receive email)
+    try {
+      const mxRecords = await dns.resolveMx(companyDomain)
+      if (!mxRecords || mxRecords.length === 0) {
+        return NextResponse.json({
+          error: 'This email domain does not appear to accept emails. Please use a valid business email.'
+        }, { status: 400 })
+      }
+    } catch {
+      return NextResponse.json({
+        error: 'We could not verify this email domain. Please check the address and try again.'
+      }, { status: 400 })
+    }
     
     // Check if user already exists
     const { data: existingUser } = await supabase
