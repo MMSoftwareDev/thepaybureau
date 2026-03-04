@@ -134,8 +134,18 @@ export default function SettingsPage() {
 
     setUploadingAvatar(true)
     try {
-      const fileExt = file.name.split('.').pop()
-      const filePath = `${userId}/avatar.${fileExt}`
+      // Always use a fixed filename so re-uploads overwrite the old file
+      const filePath = `${userId}/avatar`
+
+      // Remove any existing avatars (old extension-based + new fixed name)
+      const { data: existingFiles } = await supabase.storage
+        .from('avatars')
+        .list(userId)
+      if (existingFiles?.length) {
+        await supabase.storage
+          .from('avatars')
+          .remove(existingFiles.map((f) => `${userId}/${f.name}`))
+      }
 
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
@@ -144,24 +154,59 @@ export default function SettingsPage() {
 
       if (uploadError) throw uploadError
 
-      // Get public URL
+      // Get public URL with cache-busting param
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath)
 
+      const urlWithCacheBust = `${publicUrl}?t=${Date.now()}`
+
       // Save URL to user record
       const { error: updateError } = await supabase
         .from('users')
-        .update({ avatar_url: publicUrl })
+        .update({ avatar_url: urlWithCacheBust })
         .eq('id', userId)
 
       if (updateError) throw updateError
 
-      setAvatarUrl(publicUrl)
+      setAvatarUrl(urlWithCacheBust)
       showMessage(setProfileMessage, 'Profile photo updated!')
     } catch (err) {
       console.error('Error uploading avatar:', err)
       showMessage(setProfileMessage, 'Error uploading photo. Please try again.')
+    } finally {
+      setUploadingAvatar(false)
+      // Reset the input so the same file can be re-selected
+      e.target.value = ''
+    }
+  }
+
+  const handleAvatarRemove = async () => {
+    if (!userId) return
+    setUploadingAvatar(true)
+    try {
+      // Remove all files in user's avatar folder
+      const { data: existingFiles } = await supabase.storage
+        .from('avatars')
+        .list(userId)
+      if (existingFiles?.length) {
+        await supabase.storage
+          .from('avatars')
+          .remove(existingFiles.map((f) => `${userId}/${f.name}`))
+      }
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ avatar_url: null })
+        .eq('id', userId)
+
+      if (updateError) throw updateError
+
+      setAvatarUrl(null)
+      showMessage(setProfileMessage, 'Profile photo removed.')
+    } catch (err) {
+      console.error('Error removing avatar:', err)
+      showMessage(setProfileMessage, 'Error removing photo. Please try again.')
     } finally {
       setUploadingAvatar(false)
     }
@@ -288,8 +333,20 @@ export default function SettingsPage() {
                 Profile photo
               </p>
               <p className="text-[0.75rem]" style={{ color: colors.text.muted }}>
-                Click the image to upload. Max 2MB.
+                Hover to change. Max 2MB.
               </p>
+              {avatarUrl && (
+                <button
+                  onClick={handleAvatarRemove}
+                  disabled={uploadingAvatar}
+                  className="text-[0.75rem] font-medium mt-1 transition-colors duration-150"
+                  style={{ color: colors.error }}
+                  onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
+                >
+                  Remove photo
+                </button>
+              )}
             </div>
           </div>
 
