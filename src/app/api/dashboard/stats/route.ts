@@ -61,7 +61,7 @@ export async function GET() {
     // All clients for this tenant
     const { data: clients } = await supabase
       .from('clients')
-      .select('id, status, employee_count, pay_frequency')
+      .select('id, name, status, employee_count, pay_frequency, created_at')
       .eq('tenant_id', user.tenant_id)
 
     const allClients = clients || []
@@ -207,6 +207,59 @@ export async function GET() {
       })
     }
 
+    // Recent activity — last 15 events from clients + payroll runs
+    const recentActivity: Array<{
+      id: string
+      type: 'client_added' | 'payroll_completed' | 'payroll_started' | 'payroll_created'
+      description: string
+      timestamp: string
+    }> = []
+
+    for (const c of allClients) {
+      if (c.created_at) {
+        recentActivity.push({
+          id: `client-${c.id}`,
+          type: 'client_added',
+          description: `${c.name || 'New client'} was added`,
+          timestamp: c.created_at,
+        })
+      }
+    }
+
+    for (const run of allRuns) {
+      const clientName =
+        (run.clients as { name: string } | null)?.name || 'Unknown Client'
+
+      if (run.status === 'complete' && run.updated_at) {
+        recentActivity.push({
+          id: `run-complete-${run.id}`,
+          type: 'payroll_completed',
+          description: `Payroll completed for ${clientName}`,
+          timestamp: run.updated_at,
+        })
+      } else if (run.status === 'in_progress' && run.updated_at) {
+        recentActivity.push({
+          id: `run-progress-${run.id}`,
+          type: 'payroll_started',
+          description: `Payroll in progress for ${clientName}`,
+          timestamp: run.updated_at,
+        })
+      } else if (run.created_at) {
+        recentActivity.push({
+          id: `run-created-${run.id}`,
+          type: 'payroll_created',
+          description: `Payroll run created for ${clientName}`,
+          timestamp: run.created_at,
+        })
+      }
+    }
+
+    // Sort by most recent first, limit to 15
+    recentActivity.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    )
+    const limitedActivity = recentActivity.slice(0, 15)
+
     return NextResponse.json({
       totalClients,
       totalEmployees,
@@ -218,6 +271,7 @@ export async function GET() {
       clientStatusDistribution,
       payFrequencyDistribution,
       completionTrend,
+      recentActivity: limitedActivity,
     })
   } catch (error) {
     console.error('Unexpected error in GET /api/dashboard/stats:', error)
