@@ -4,7 +4,11 @@ import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import { subDays, format, startOfDay } from 'date-fns'
 
-const ADMIN_EMAIL = 'minhaz.moosa@intelligentpayroll.co.uk'
+// Platform admin emails — loaded from env variable (comma-separated)
+const PLATFORM_ADMIN_EMAILS = (process.env.PLATFORM_ADMIN_EMAILS || '')
+  .split(',')
+  .map(e => e.trim().toLowerCase())
+  .filter(Boolean)
 
 export async function GET() {
   try {
@@ -13,7 +17,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (authUser.email.toLowerCase() !== ADMIN_EMAIL) {
+    if (!PLATFORM_ADMIN_EMAILS.includes(authUser.email.toLowerCase())) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

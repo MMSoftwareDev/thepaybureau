@@ -115,8 +115,8 @@ export default function SignupPage() {
       newErrors.password = 'Password is required'
     } else if (formData.password.length < 8) {
       newErrors.password = 'Password must be at least 8 characters'
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-      newErrors.password = 'Must include uppercase, lowercase, and number'
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?])/.test(formData.password)) {
+      newErrors.password = 'Must include uppercase, lowercase, number, and special character'
     }
 
     if (!formData.companyName.trim()) {
@@ -147,7 +147,8 @@ export default function SignupPage() {
       const data = await response.json()
 
       if (response.ok) {
-        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`)
+        sessionStorage.setItem('verify_email', formData.email)
+        router.push('/verify-email')
       } else {
         setErrors({ submit: data.error || 'Registration failed. Please try again.' })
       }
@@ -435,7 +436,7 @@ export default function SignupPage() {
                 type="password"
                 value={formData.password}
                 onChange={(e) => handleInputChange('password', e.target.value)}
-                placeholder="Min 8 chars, upper + lower + number"
+                placeholder="Min 8 chars, upper + lower + number + special"
                 autoComplete="new-password"
                 disabled={loading}
                 className={cn(

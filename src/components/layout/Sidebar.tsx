@@ -283,7 +283,7 @@ export default function Sidebar({ user, avatarUrl, mobileOpen = false, onMobileC
       {/* Bottom section */}
       <div className="px-3 pb-3 mt-auto">
         {/* Admin Analytics — only visible to platform admin */}
-        {user?.email?.toLowerCase() === 'minhaz.moosa@intelligentpayroll.co.uk' && (
+        {(process.env.NEXT_PUBLIC_PLATFORM_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).includes(user?.email?.toLowerCase() || '') && (
           <button
             onClick={() => navigate('/dashboard/admin/analytics')}
             className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-px transition-all duration-150 relative"

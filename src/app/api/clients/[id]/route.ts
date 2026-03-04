@@ -80,7 +80,7 @@ export async function GET(
         return NextResponse.json({ error: 'Client not found' }, { status: 404 })
       }
       console.error('Database error fetching client:', error)
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to fetch client' }, { status: 400 })
     }
 
     // Fetch payroll runs for this client
@@ -157,7 +157,7 @@ export async function PUT(
 
     if (error) {
       console.error('Database error updating client:', error)
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to update client' }, { status: 400 })
     }
 
     // Update checklist templates if provided
@@ -224,15 +224,27 @@ export async function DELETE(
 
     const supabase = createServerSupabaseClient()
 
-    // Delete client (related records will cascade)
+    // Get user to verify tenant ownership
+    const { data: user } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', authUser.id)
+      .single()
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Delete client (related records will cascade) - scoped to tenant
     const { error } = await supabase
       .from('clients')
       .delete()
       .eq('id', id)
+      .eq('tenant_id', user.tenant_id)
 
     if (error) {
       console.error('Database error deleting client:', error)
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to delete client' }, { status: 400 })
     }
 
     return NextResponse.json({
