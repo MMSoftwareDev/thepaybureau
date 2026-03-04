@@ -339,13 +339,26 @@ export default function PayrollsPage() {
             setPanelOpen(false)
             setSelectedRun(null)
             try {
-              await fetch('/api/payroll-runs/generate', {
+              const res = await fetch('/api/payroll-runs/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ client_id: parentRun.client_id }),
               })
-            } catch {
-              // Non-critical
+              if (res.ok) {
+                const newRun = await res.json()
+                if (newRun.pay_date) {
+                  const newPayDate = parseISO(newRun.pay_date)
+                  const newMonth = startOfMonth(newPayDate)
+                  if (newMonth.getTime() !== currentPeriod.getTime()) {
+                    setCurrentPeriod(newMonth)
+                  }
+                }
+              } else {
+                const body = await res.json().catch(() => ({}))
+                console.error('Auto-generate next period failed:', body.error || res.status)
+              }
+            } catch (err) {
+              console.error('Auto-generate network error:', err)
             }
           }
         }
@@ -376,13 +389,28 @@ export default function PayrollsPage() {
 
       // Auto-generate next period
       try {
-        await fetch('/api/payroll-runs/generate', {
+        const res = await fetch('/api/payroll-runs/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ client_id: run.client_id }),
         })
-      } catch {
-        // Non-critical — next period generation can fail silently
+        if (res.ok) {
+          const newRun = await res.json()
+          // If the new run falls in a different month, navigate to it
+          if (newRun.pay_date) {
+            const newPayDate = parseISO(newRun.pay_date)
+            const newMonth = startOfMonth(newPayDate)
+            if (newMonth.getTime() !== currentPeriod.getTime()) {
+              setCurrentPeriod(newMonth)
+              return // fetchRuns will be triggered by currentPeriod change
+            }
+          }
+        } else {
+          const body = await res.json().catch(() => ({}))
+          console.error('Auto-generate next period failed:', body.error || res.status)
+        }
+      } catch (err) {
+        console.error('Auto-generate network error:', err)
       }
 
       await fetchRuns()
