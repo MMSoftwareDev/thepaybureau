@@ -1,6 +1,6 @@
 // src/app/api/clients/[id]/route.ts - Individual Client Operations
 
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -38,19 +38,18 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const supabase = createServerSupabaseClient()
-
-    // Verify authentication
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const authUser = await getAuthUser()
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const supabase = createServerSupabaseClient()
 
     // Get user to verify tenant ownership
     const { data: user } = await supabase
       .from('users')
       .select('tenant_id')
-      .eq('id', session.user.id)
+      .eq('id', authUser.id)
       .single()
 
     if (!user) {
@@ -87,13 +86,12 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    const supabase = createServerSupabaseClient()
-
-    // Verify authentication
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const authUser = await getAuthUser()
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const supabase = createServerSupabaseClient()
 
     // Parse and validate request body
     const body = await request.json()
@@ -150,13 +148,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const supabase = createServerSupabaseClient()
-
-    // Verify authentication
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const authUser = await getAuthUser()
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const supabase = createServerSupabaseClient()
 
     // Delete client (related records will cascade)
     const { error } = await supabase
