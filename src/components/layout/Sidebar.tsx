@@ -29,6 +29,7 @@ interface NavSection {
 
 interface SidebarProps {
   user?: { email?: string; user_metadata?: { name?: string } }
+  avatarUrl?: string | null
   mobileOpen?: boolean
   onMobileClose?: () => void
 }
@@ -55,7 +56,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ]
 
-export default function Sidebar({ user, mobileOpen = false, onMobileClose }: SidebarProps) {
+export default function Sidebar({ user, avatarUrl, mobileOpen = false, onMobileClose }: SidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
@@ -347,12 +348,20 @@ export default function Sidebar({ user, mobileOpen = false, onMobileClose }: Sid
         <div className="flex items-center gap-2.5 px-1.5 py-1.5 rounded-md"
           style={{ cursor: 'default' }}
         >
-          <div
-            className="h-7 w-7 rounded-md flex items-center justify-center text-white text-[0.7rem] font-bold flex-shrink-0"
-            style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
-          >
-            {getUserInitial()}
-          </div>
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={getUserName()}
+              className="h-7 w-7 rounded-md object-cover flex-shrink-0"
+            />
+          ) : (
+            <div
+              className="h-7 w-7 rounded-md flex items-center justify-center text-white text-[0.7rem] font-bold flex-shrink-0"
+              style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+            >
+              {getUserInitial()}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <div className="text-[0.78rem] font-semibold truncate leading-tight" style={{ color: colors.text.primary }}>
               {getUserName()}

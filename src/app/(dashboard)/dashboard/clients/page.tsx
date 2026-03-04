@@ -320,23 +320,15 @@ function ClientsContent() {
 
   if (loading) {
     return (
-      <div 
-        className="min-h-screen flex items-center justify-center transition-colors duration-300" 
-        style={{ backgroundColor: colors.lightBg }}
-      >
+      <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <div 
-            className="w-20 h-20 mx-auto mb-6 rounded-2xl  flex items-center justify-center"
-            style={{ 
-              background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-              boxShadow: isDark 
-                ? `0 25px 50px ${colors.shadow.heavy}` 
-                : `0 20px 40px ${colors.primary}30`
-            }}
+          <div
+            className="w-12 h-12 mx-auto mb-4 rounded-xl flex items-center justify-center"
+            style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
           >
-            <Users className="w-10 h-10 text-white animate-pulse" />
+            <Users className="w-6 h-6 text-white animate-pulse" />
           </div>
-          <p className="text-xl font-semibold transition-colors duration-300" style={{ color: colors.text.primary }}>
+          <p className="text-[0.9rem] font-medium" style={{ color: colors.text.secondary }}>
             Loading clients...
           </p>
         </div>
@@ -346,36 +338,27 @@ function ClientsContent() {
 
   if (error) {
     return (
-      <div 
-        className="min-h-screen flex items-center justify-center transition-colors duration-300" 
-        style={{ backgroundColor: colors.lightBg }}
-      >
-        <Card 
-          className="max-w-md border-0 "
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Card
+          className="max-w-sm border-0"
           style={{
             backgroundColor: colors.surface,
-            
-            borderRadius: '16px',
+            borderRadius: '12px',
             border: `1px solid ${colors.border}`,
-            boxShadow: isDark 
-              ? `0 25px 50px ${colors.shadow.heavy}` 
-              : `0 20px 40px ${colors.primary}20`
           }}
         >
-          <CardContent className="p-8 text-center">
-            <div className="text-6xl mb-6">❌</div>
-            <h3 className="text-xl font-bold mb-3 transition-colors duration-300" style={{ color: colors.text.primary }}>
+          <CardContent className="p-6 text-center">
+            <h3 className="text-base font-bold mb-2" style={{ color: colors.text.primary }}>
               Error Loading Clients
             </h3>
-            <p className="text-base mb-6 transition-colors duration-300" style={{ color: colors.text.secondary }}>
+            <p className="text-[0.85rem] mb-4" style={{ color: colors.text.secondary }}>
               {error}
             </p>
-            <Button 
+            <Button
               onClick={fetchClients}
-              className="text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition-all duration-300"
-              style={{ 
-                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-                boxShadow: `0 10px 25px ${colors.primary}30`
+              className="text-white font-semibold px-5 py-2 rounded-lg border-0 text-[0.85rem]"
+              style={{
+                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
               }}
             >
               Try Again
@@ -387,115 +370,61 @@ function ClientsContent() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Enhanced Header */}
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold" style={{ 
-            color: colors.text.primary 
-          }}>
-            Client Management
+          <h1 className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>
+            Clients
           </h1>
-          <p className="text-[0.9rem] mt-1" style={{ 
-            color: colors.text.secondary 
-          }}>
-            Manage all your payroll bureau clients efficiently.
+          <p className="text-[0.82rem] mt-0.5" style={{ color: colors.text.muted }}>
+            Manage your payroll bureau clients.
           </p>
         </div>
-        <Button 
+        <Button
           onClick={() => router.push('/dashboard/clients/add')}
-          className="text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover: border-0"
-          style={{ 
-            background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-            boxShadow: isDark 
-              ? `0 10px 25px ${colors.primary}50` 
-              : `0 10px 25px ${colors.primary}30`
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'
-            e.currentTarget.style.boxShadow = isDark
-              ? `0 20px 40px ${colors.primary}60`
-              : `0 20px 40px ${colors.primary}40`
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0px) scale(1)'
-            e.currentTarget.style.boxShadow = isDark
-              ? `0 10px 25px ${colors.primary}50`
-              : `0 10px 25px ${colors.primary}30`
+          className="text-white font-semibold py-2 px-5 rounded-lg border-0 text-[0.85rem]"
+          style={{
+            background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
           }}
         >
           <Plus className="w-4 h-4 mr-2" />
-          Add New Client
+          Add Client
         </Button>
       </div>
 
-      {/* Enhanced Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {[
-          {
-            title: 'Total Clients',
-            value: stats.total,
-            icon: Users,
-            iconColor: colors.primary,
-            iconBg: `${colors.primary}20`
-          },
-          {
-            title: 'Active Clients',
-            value: stats.active,
-            icon: Building2,
-            iconColor: colors.success,
-            iconBg: `${colors.success}20`
-          },
-          {
-            title: 'Onboarding',
-            value: stats.onboarding,
-            icon: Eye,
-            iconColor: colors.secondary,
-            iconBg: `${colors.secondary}20`
-          },
-          {
-            title: 'Disengaged',
-            value: stats.disengaged,
-            icon: FileText,
-            iconColor: colors.text.muted,
-            iconBg: `${colors.text.muted}20`
-          }
+          { title: 'Total Clients', value: stats.total, icon: Users, iconColor: colors.primary },
+          { title: 'Active', value: stats.active, icon: Building2, iconColor: colors.success },
+          { title: 'Onboarding', value: stats.onboarding, icon: Eye, iconColor: colors.secondary },
+          { title: 'Disengaged', value: stats.disengaged, icon: FileText, iconColor: colors.text.muted },
         ].map((stat, index) => (
           <Card
             key={index}
-            className="border-0  transition-all duration-300 transform hover:scale-[1.02] group"
+            className="border-0"
             style={{
               backgroundColor: colors.surface,
-              
-              borderRadius: '16px',
+              borderRadius: '12px',
               border: `1px solid ${colors.border}`,
-              boxShadow: isDark
-                ? `0 10px 30px ${colors.shadow.medium}`
-                : `0 10px 25px ${colors.shadow.light}`
             }}
           >
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold mb-2 transition-colors duration-300" style={{
-                    color: colors.text.secondary
-                  }}>
+                  <p className="text-[0.68rem] md:text-[0.72rem] font-semibold uppercase tracking-[0.04em] mb-1" style={{ color: colors.text.muted }}>
                     {stat.title}
                   </p>
-                  <p className="text-3xl font-bold transition-colors duration-300" style={{
-                    color: colors.text.primary
-                  }}>
+                  <p className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>
                     {stat.value}
                   </p>
                 </div>
                 <div
-                  className="w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110"
-                  style={{
-                    backgroundColor: stat.iconBg,
-                    boxShadow: `0 8px 25px ${stat.iconColor}30`
-                  }}
+                  className="w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: `${stat.iconColor}10` }}
                 >
-                  <stat.icon className="w-8 h-8 transition-transform duration-300 group-hover:scale-110" style={{ color: stat.iconColor }} />
+                  <stat.icon className="w-4 h-4 md:w-5 md:h-5" style={{ color: stat.iconColor }} />
                 </div>
               </div>
             </CardContent>
@@ -503,72 +432,55 @@ function ClientsContent() {
         ))}
       </div>
 
-      {/* Enhanced Search and Filters */}
-      <Card 
-        className="border-0  transition-all duration-300"
+      {/* Search and Filters */}
+      <Card
+        className="border-0"
         style={{
           backgroundColor: colors.surface,
-          
-          borderRadius: '16px',
+          borderRadius: '12px',
           border: `1px solid ${colors.border}`,
-          boxShadow: isDark 
-            ? `0 15px 35px ${colors.shadow.medium}` 
-            : `0 10px 25px ${colors.shadow.light}`
         }}
       >
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Enhanced Search */}
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-col lg:flex-row gap-3">
+            {/* Search */}
             <div className="flex-1 relative">
-              <Search 
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors duration-300" 
-                style={{ color: colors.text.muted }} 
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
+                style={{ color: colors.text.muted }}
               />
               <Input
                 type="text"
-                placeholder="Search clients by name, email, company number, or industry..."
+                placeholder="Search clients..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-12 h-12 text-sm border-0 shadow-lg transition-all duration-300 focus: rounded-xl font-medium"
+                className="pl-10 h-9 text-[0.85rem] rounded-lg font-medium"
                 style={{
                   background: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
-                  
                   color: colors.text.primary,
-                  fontSize: '14px',
                   border: `1px solid ${colors.border}`,
-                  boxShadow: isDark 
-                    ? `0 4px 20px ${colors.shadow.light}` 
-                    : `0 4px 15px ${colors.shadow.light}`
                 }}
                 onFocus={(e) => {
-                  e.target.style.background = isDark ? 'rgba(255,255,255,0.05)' : '#F5F0FF'
-                  e.target.style.boxShadow = isDark
-                    ? `0 12px 35px ${colors.shadow.medium}, 0 0 0 1px ${colors.primary}40`
-                    : `0 8px 25px ${colors.primary}25, 0 0 0 1px ${colors.primary}30`
-                  e.target.style.borderColor = `${colors.primary}60`
+                  e.target.style.borderColor = `${colors.primary}50`
+                  e.target.style.boxShadow = `0 0 0 3px ${colors.primary}10`
                 }}
                 onBlur={(e) => {
-                  e.target.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
-                  e.target.style.boxShadow = isDark 
-                    ? `0 4px 20px ${colors.shadow.light}` 
-                    : `0 4px 15px ${colors.shadow.light}`
                   e.target.style.borderColor = colors.border
+                  e.target.style.boxShadow = 'none'
                 }}
               />
             </div>
             
-            {/* Filter Row */}
-            <div className="flex flex-wrap gap-3">
-              {/* Status Filter */}
+            {/* Filters */}
+            <div className="flex flex-wrap gap-2">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all duration-300 shadow-lg min-w-[120px]"
+                className="px-3 h-9 rounded-lg text-[0.82rem] font-medium focus:outline-none"
                 style={{
                   backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
                   color: colors.text.primary,
                   border: `1px solid ${colors.border}`,
-                  backdropFilter: 'blur(15px)'
                 }}
               >
                 <option value="all">All Statuses</option>
@@ -577,16 +489,14 @@ function ClientsContent() {
                 <option value="inactive">Disengaged</option>
               </select>
 
-              {/* Industry Filter */}
               <select
                 value={industryFilter}
                 onChange={(e) => setIndustryFilter(e.target.value)}
-                className="px-3 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all duration-300 shadow-lg min-w-[130px]"
+                className="px-3 h-9 rounded-lg text-[0.82rem] font-medium focus:outline-none"
                 style={{
                   backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
                   color: colors.text.primary,
                   border: `1px solid ${colors.border}`,
-                  backdropFilter: 'blur(15px)'
                 }}
               >
                 <option value="all">All Industries</option>
@@ -595,16 +505,14 @@ function ClientsContent() {
                 ))}
               </select>
 
-              {/* Employee Size Filter */}
               <select
                 value={employeeSizeFilter}
                 onChange={(e) => setEmployeeSizeFilter(e.target.value)}
-                className="px-3 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all duration-300 shadow-lg min-w-[120px]"
+                className="px-3 h-9 rounded-lg text-[0.82rem] font-medium focus:outline-none"
                 style={{
                   backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
                   color: colors.text.primary,
                   border: `1px solid ${colors.border}`,
-                  backdropFilter: 'blur(15px)'
                 }}
               >
                 <option value="all">All Sizes</option>
@@ -614,77 +522,41 @@ function ClientsContent() {
                 <option value="enterprise">Enterprise (250+)</option>
               </select>
 
-              {/* Sort By */}
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all duration-300 shadow-lg min-w-[110px]"
+                className="px-3 h-9 rounded-lg text-[0.82rem] font-medium focus:outline-none"
                 style={{
                   backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
                   color: colors.text.primary,
                   border: `1px solid ${colors.border}`,
-                  backdropFilter: 'blur(15px)'
                 }}
               >
-                <option value="name">Sort by Name</option>
-                <option value="created">Sort by Date</option>
-                <option value="employees">Sort by Size</option>
-                <option value="status">Sort by Status</option>
+                <option value="name">Sort: Name</option>
+                <option value="created">Sort: Date</option>
+                <option value="employees">Sort: Size</option>
+                <option value="status">Sort: Status</option>
               </select>
 
-              {/* Sort Order Toggle */}
               <Button
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
                 variant="outline"
-                className="h-12 px-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
+                className="h-9 px-2.5 rounded-lg"
                 style={{
                   borderColor: colors.border,
                   color: colors.text.secondary,
                   backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
-                  backdropFilter: 'blur(10px)'
                 }}
                 title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
               >
-                {sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
-              </Button>
-            </div>
-            
-            {/* Enhanced Action Buttons */}
-            <div className="flex items-center space-x-3">
-              <Button 
-                variant="outline" 
-                className="h-12 px-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
-                onClick={fetchClients}
-                style={{
-                  borderColor: colors.border,
-                  color: colors.text.secondary,
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
-                  backdropFilter: 'blur(10px)'
-                }}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Refresh
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-12 px-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
-                style={{
-                  borderColor: colors.border,
-                  color: colors.text.secondary,
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
-                  backdropFilter: 'blur(10px)'
-                }}
-              >
-                <Filter className="w-4 h-4 mr-2" />
-                Export
+                {sortOrder === 'asc' ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />}
               </Button>
             </div>
           </div>
           
-          {/* Enhanced Filter Summary */}
-          <div className="mt-4 flex items-center justify-between">
-            <div className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.secondary }}>
+          {/* Filter Summary */}
+          <div className="mt-3 flex items-center justify-between">
+            <div className="text-[0.78rem] font-medium" style={{ color: colors.text.secondary }}>
               Showing {filteredClients.length} of {clients.length} clients
               {(statusFilter !== 'all' || industryFilter !== 'all' || employeeSizeFilter !== 'all') && (
                 <span className="ml-2" style={{ color: colors.text.muted }}>
@@ -698,8 +570,8 @@ function ClientsContent() {
             </div>
             
             {(searchTerm || statusFilter !== 'all' || industryFilter !== 'all' || employeeSizeFilter !== 'all') && (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => {
                   setSearchTerm('')
@@ -709,47 +581,40 @@ function ClientsContent() {
                   setSortBy('name')
                   setSortOrder('asc')
                 }}
-                className="rounded-xl font-semibold transition-all duration-300 hover:scale-105"
+                className="rounded-lg text-[0.78rem] font-medium"
                 style={{
                   borderColor: colors.border,
                   color: colors.text.muted,
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
                 }}
               >
-                Clear All Filters
+                Clear filters
               </Button>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Enhanced Client Table */}
-      <Card 
-        className="border-0  transition-all duration-300"
+      {/* Client Table */}
+      <Card
+        className="border-0"
         style={{
           backgroundColor: colors.surface,
-          
-          borderRadius: '16px',
+          borderRadius: '12px',
           border: `1px solid ${colors.border}`,
-          boxShadow: isDark 
-            ? `0 15px 35px ${colors.shadow.medium}` 
-            : `0 10px 25px ${colors.shadow.light}`
         }}
       >
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between text-xl font-bold transition-colors duration-300" style={{ 
-            color: colors.text.primary 
-          }}>
+        <CardHeader className="pb-0">
+          <CardTitle className="flex items-center justify-between text-[0.9rem] font-bold" style={{ color: colors.text.primary }}>
             <span>Client Directory</span>
-            <Badge 
-              className="text-xs font-bold px-3 py-1 shadow-lg"
+            <Badge
+              className="text-[0.7rem] font-semibold px-2 py-0.5"
               style={{
-                backgroundColor: `${colors.secondary}20`,
-                color: colors.secondary,
-                border: `1px solid ${colors.secondary}30`
+                backgroundColor: `${colors.primary}10`,
+                color: colors.primary,
+                border: `1px solid ${colors.primary}20`,
               }}
             >
-              {filteredClients.length} clients
+              {filteredClients.length}
             </Badge>
           </CardTitle>
         </CardHeader>
@@ -773,25 +638,23 @@ function ClientsContent() {
                   return (
                     <TableRow
                       key={client.id}
-                      className="transition-all duration-300 hover:scale-[1.01] group cursor-pointer"
+                      className="group cursor-pointer transition-colors duration-150"
                       style={{ borderColor: colors.border }}
                       onClick={() => router.push(`/dashboard/clients/${client.id}`)}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.05)' : '#F5F0FF'
-                        e.currentTarget.style.boxShadow = `0 4px 15px ${colors.shadow.light}`
+                        e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.03)' : colors.lightBg
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = 'transparent'
-                        e.currentTarget.style.boxShadow = 'none'
                       }}
                     >
                       <TableCell>
                         <div className="flex items-center space-x-3">
                           <div
-                            className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110"
-                            style={{ backgroundColor: `${colors.primary}15` }}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center"
+                            style={{ backgroundColor: `${colors.primary}10` }}
                           >
-                            <Building2 className="w-5 h-5" style={{ color: colors.primary }} />
+                            <Building2 className="w-4 h-4" style={{ color: colors.primary }} />
                           </div>
                           <div>
                             <div
@@ -873,57 +736,38 @@ function ClientsContent() {
                             variant="outline"
                             size="sm"
                             onClick={() => router.push('/dashboard/payrolls')}
-                            className="rounded-xl transition-all duration-300 hover:scale-105 text-xs font-semibold"
+                            className="rounded-lg text-[0.75rem] font-medium"
                             style={{
-                              borderColor: `${colors.primary}40`,
+                              borderColor: colors.border,
                               color: colors.primary,
-                              backgroundColor: `${colors.primary}10`
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = `${colors.primary}20`
-                              e.currentTarget.style.borderColor = `${colors.primary}60`
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = `${colors.primary}10`
-                              e.currentTarget.style.borderColor = `${colors.primary}40`
                             }}
                           >
-                            <Eye className="w-3.5 h-3.5 mr-1" />
+                            <Eye className="w-3 h-3 mr-1" />
                             Payroll
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
-                            className="rounded-xl transition-all duration-300 hover:scale-105"
+                            className="rounded-lg"
                             style={{
                               borderColor: colors.border,
                               color: colors.text.secondary,
-                              backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
                             }}
                           >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="w-3.5 h-3.5" />
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => deleteClient(client.id)}
-                            className="rounded-xl transition-all duration-300 hover:scale-105"
+                            className="rounded-lg"
                             style={{
-                              borderColor: colors.error + '40',
+                              borderColor: colors.border,
                               color: colors.error,
-                              backgroundColor: colors.error + '10'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = colors.error + '20'
-                              e.currentTarget.style.borderColor = colors.error + '60'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = colors.error + '10'
-                              e.currentTarget.style.borderColor = colors.error + '40'
                             }}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
                       </TableCell>
@@ -934,43 +778,33 @@ function ClientsContent() {
             </Table>
           </div>
           
-          {/* Enhanced Empty State */}
+          {/* Empty State */}
           {filteredClients.length === 0 && (
-            <div className="text-center py-16">
-              <div 
-                className="w-20 h-20 mx-auto mb-6 rounded-2xl  flex items-center justify-center"
-                style={{ 
-                  backgroundColor: `${colors.primary}15`,
-                  border: `2px dashed ${colors.primary}30`
-                }}
+            <div className="text-center py-12">
+              <div
+                className="w-12 h-12 mx-auto mb-4 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: `${colors.primary}10` }}
               >
-                <Users className="w-10 h-10" style={{ color: colors.primary }} />
+                <Users className="w-6 h-6" style={{ color: colors.primary }} />
               </div>
-              <h3 className="text-xl font-bold mb-3 transition-colors duration-300" style={{ color: colors.text.primary }}>
+              <h3 className="text-base font-bold mb-1" style={{ color: colors.text.primary }}>
                 No clients found
               </h3>
-              <p className="text-base mb-6 transition-colors duration-300" style={{ color: colors.text.secondary }}>
+              <p className="text-[0.85rem] mb-5" style={{ color: colors.text.muted }}>
                 {searchTerm || statusFilter !== 'all'
-                  ? "Try adjusting your search or filters to find what you're looking for"
-                  : "Get started by adding your first client to begin managing your payroll bureau"
+                  ? "Try adjusting your search or filters."
+                  : "Add your first client to get started."
                 }
               </p>
-              <Button 
+              <Button
                 onClick={() => router.push('/dashboard/clients/add')}
-                className="text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition-all duration-300 hover:"
-                style={{ 
-                  background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-                  boxShadow: `0 10px 25px ${colors.primary}30`
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0px) scale(1)'
+                className="text-white font-semibold px-5 py-2 rounded-lg border-0 text-[0.85rem]"
+                style={{
+                  background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
                 }}
               >
                 <Plus className="w-4 h-4 mr-2" />
-                {searchTerm || statusFilter !== 'all' ? 'Add New Client' : 'Add Your First Client'}
+                Add Client
               </Button>
             </div>
           )}

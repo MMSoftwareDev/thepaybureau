@@ -183,7 +183,7 @@ export default function DashboardPage() {
 
   const cardStyle = {
     backgroundColor: colors.surface,
-    borderRadius: '16px',
+    borderRadius: '12px',
     border: `1px solid ${colors.border}`,
   }
 
@@ -192,11 +192,11 @@ export default function DashboardPage() {
 
   if (!mounted) {
     return (
-      <div className="space-y-8 animate-pulse">
-        <div className="h-16 rounded-2xl" style={{ background: colors.border }} />
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-5">
+      <div className="space-y-6 animate-pulse">
+        <div className="h-14 rounded-xl" style={{ background: colors.border }} />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-28 rounded-2xl" style={{ background: colors.border }} />
+            <div key={i} className="h-24 rounded-xl" style={{ background: colors.border }} />
           ))}
         </div>
       </div>
@@ -247,14 +247,14 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-6 md:space-y-8">
+    <div className="space-y-6">
       {/* Greeting */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold" style={{ color: colors.text.primary }}>
+        <h1 className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>
           {getGreeting()}
           {userName ? `, ${userName}` : ''}
         </h1>
-        <p className="text-[0.9rem] mt-1" style={{ color: colors.text.muted }}>
+        <p className="text-[0.82rem] mt-0.5" style={{ color: colors.text.muted }}>
           {format(new Date(), 'EEEE, d MMMM yyyy')}
         </p>
       </div>
@@ -262,25 +262,24 @@ export default function DashboardPage() {
       {/* Empty state */}
       {!loading && isEmptyState && (
         <Card className="border-0" style={cardStyle}>
-          <CardContent className="p-10 text-center">
+          <CardContent className="p-8 text-center">
             <div
-              className="w-16 h-16 mx-auto mb-5 rounded-2xl flex items-center justify-center"
+              className="w-12 h-12 mx-auto mb-4 rounded-xl flex items-center justify-center"
               style={{ backgroundColor: `${colors.primary}12` }}
             >
-              <Users className="w-8 h-8" style={{ color: colors.primary }} />
+              <Users className="w-6 h-6" style={{ color: colors.primary }} />
             </div>
-            <h2 className="text-xl font-bold mb-2" style={{ color: colors.text.primary }}>
+            <h2 className="text-lg font-bold mb-1.5" style={{ color: colors.text.primary }}>
               Welcome to ThePayBureau
             </h2>
-            <p className="text-[0.9rem] mb-6 max-w-sm mx-auto" style={{ color: colors.text.secondary }}>
+            <p className="text-[0.85rem] mb-5 max-w-sm mx-auto" style={{ color: colors.text.secondary }}>
               Add your first client to get started.
             </p>
             <Button
               onClick={() => router.push('/dashboard/clients/add')}
-              className="text-white font-semibold py-2.5 px-6 rounded-xl border-0 transition-all duration-300 hover:-translate-y-0.5"
+              className="text-white font-semibold py-2 px-5 rounded-lg border-0 text-[0.85rem]"
               style={{
-                background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
-                boxShadow: '0 8px 24px rgba(64, 29, 108, 0.25)',
+                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
               }}
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -290,15 +289,15 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* KPI Cards - Clickable */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-5">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         {loading
           ? [1, 2, 3, 4, 5].map((i) => (
               <Card key={i} className="border-0" style={cardStyle}>
-                <CardContent className="p-5 md:p-6">
-                  <div className="space-y-3 animate-pulse">
-                    <div className="h-3.5 w-20 md:w-24 rounded" style={{ background: colors.border }} />
-                    <div className="h-8 w-14 rounded" style={{ background: colors.border }} />
+                <CardContent className="p-4 md:p-5">
+                  <div className="space-y-2.5 animate-pulse">
+                    <div className="h-3 w-20 rounded" style={{ background: colors.border }} />
+                    <div className="h-7 w-12 rounded" style={{ background: colors.border }} />
                   </div>
                 </CardContent>
               </Card>
@@ -306,28 +305,34 @@ export default function DashboardPage() {
           : kpiCards.map((kpi, index) => (
               <Card
                 key={index}
-                className="border-0 group cursor-pointer transition-all duration-200 hover:-translate-y-0.5"
+                className="border-0 group cursor-pointer transition-colors duration-150"
                 style={cardStyle}
                 onClick={() => router.push(kpi.href)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = colors.borderElevated
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = colors.border
+                }}
               >
-                <CardContent className="p-5 md:p-6">
+                <CardContent className="p-4 md:p-5">
                   <div className="flex items-center justify-between">
                     <div className="min-w-0">
                       <p
-                        className="text-[0.72rem] md:text-[0.78rem] font-semibold uppercase tracking-[0.04em] mb-1.5 truncate"
+                        className="text-[0.68rem] md:text-[0.72rem] font-semibold uppercase tracking-[0.04em] mb-1 truncate"
                         style={{ color: colors.text.muted }}
                       >
                         {kpi.title}
                       </p>
-                      <p className="text-2xl md:text-3xl font-bold" style={{ color: kpi.accentColor || colors.text.primary }}>
+                      <p className="text-xl md:text-2xl font-bold" style={{ color: kpi.accentColor || colors.text.primary }}>
                         {kpi.value}
                       </p>
                     </div>
                     <div
-                      className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ml-2"
-                      style={{ backgroundColor: `${kpi.iconColor}12` }}
+                      className="w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ml-2"
+                      style={{ backgroundColor: `${kpi.iconColor}10` }}
                     >
-                      <kpi.icon className="w-5 h-5 md:w-6 md:h-6" style={{ color: kpi.iconColor }} />
+                      <kpi.icon className="w-4 h-4 md:w-5 md:h-5" style={{ color: kpi.iconColor }} />
                     </div>
                   </div>
                 </CardContent>
@@ -337,15 +342,15 @@ export default function DashboardPage() {
 
       {/* Charts Grid */}
       {!loading && !isEmptyState && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
           {/* Payroll Status Breakdown - Donut */}
           <Card className="border-0" style={cardStyle}>
-            <CardHeader className="pb-0 px-4 md:px-6">
-              <CardTitle className="text-base font-bold" style={{ color: colors.text.primary }}>
+            <CardHeader className="pb-0 px-4 md:px-5">
+              <CardTitle className="text-[0.9rem] font-bold" style={{ color: colors.text.primary }}>
                 Payroll Status Breakdown
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-4 px-4 md:px-6">
+            <CardContent className="pt-4 px-4 md:px-5">
               {stats?.payrollStatusBreakdown?.length ? (
                 <div className="flex flex-col sm:flex-row items-center">
                   <ResponsiveContainer width="100%" height={200} className="sm:!w-[60%]">
@@ -391,8 +396,8 @@ export default function DashboardPage() {
 
           {/* Completion Trend - Line Chart */}
           <Card className="border-0" style={cardStyle}>
-            <CardHeader className="pb-0 px-4 md:px-6">
-              <CardTitle className="text-base font-bold" style={{ color: colors.text.primary }}>
+            <CardHeader className="pb-0 px-4 md:px-5">
+              <CardTitle className="text-[0.9rem] font-bold" style={{ color: colors.text.primary }}>
                 Payroll Completion Trend
               </CardTitle>
             </CardHeader>
@@ -443,12 +448,12 @@ export default function DashboardPage() {
 
           {/* Client Status Distribution - Donut */}
           <Card className="border-0" style={cardStyle}>
-            <CardHeader className="pb-0 px-4 md:px-6">
-              <CardTitle className="text-base font-bold" style={{ color: colors.text.primary }}>
+            <CardHeader className="pb-0 px-4 md:px-5">
+              <CardTitle className="text-[0.9rem] font-bold" style={{ color: colors.text.primary }}>
                 Client Status
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-4 px-4 md:px-6">
+            <CardContent className="pt-4 px-4 md:px-5">
               {stats?.clientStatusDistribution?.length ? (
                 <div className="flex flex-col sm:flex-row items-center">
                   <ResponsiveContainer width="100%" height={200} className="sm:!w-[60%]">
@@ -494,8 +499,8 @@ export default function DashboardPage() {
 
           {/* Pay Frequency Distribution - Bar Chart */}
           <Card className="border-0" style={cardStyle}>
-            <CardHeader className="pb-0 px-4 md:px-6">
-              <CardTitle className="text-base font-bold" style={{ color: colors.text.primary }}>
+            <CardHeader className="pb-0 px-4 md:px-5">
+              <CardTitle className="text-[0.9rem] font-bold" style={{ color: colors.text.primary }}>
                 Pay Frequency Distribution
               </CardTitle>
             </CardHeader>
@@ -540,22 +545,21 @@ export default function DashboardPage() {
           className="border-0"
           style={{
             ...cardStyle,
-            border: `2px dashed ${colors.border}`,
+            border: `1px dashed ${colors.border}`,
           }}
         >
-          <CardContent className="p-6 md:p-8 text-center">
+          <CardContent className="p-5 md:p-6 text-center">
             <div
-              className="w-14 h-14 mx-auto mb-4 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: `${colors.text.muted}10` }}
+              className="w-10 h-10 mx-auto mb-3 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: `${colors.text.muted}08` }}
             >
-              <Receipt className="w-7 h-7" style={{ color: colors.text.muted }} />
+              <Receipt className="w-5 h-5" style={{ color: colors.text.muted }} />
             </div>
-            <h3 className="text-base font-bold mb-1" style={{ color: colors.text.primary }}>
+            <h3 className="text-[0.88rem] font-bold mb-0.5" style={{ color: colors.text.primary }}>
               Invoicing &amp; Revenue
             </h3>
-            <p className="text-[0.85rem] max-w-md mx-auto" style={{ color: colors.text.muted }}>
-              Invoice tracking and revenue analytics coming soon. You&apos;ll be able to see invoiced
-              amounts, outstanding balances, and revenue trends right here.
+            <p className="text-[0.8rem] max-w-md mx-auto" style={{ color: colors.text.muted }}>
+              Invoice tracking and revenue analytics coming soon.
             </p>
           </CardContent>
         </Card>
@@ -563,19 +567,19 @@ export default function DashboardPage() {
 
       {/* Recent Activity + Upcoming Deadlines side by side on desktop */}
       {!isEmptyState && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
           {/* Recent Activity */}
           <Card className="border-0" style={cardStyle}>
-            <CardHeader className="pb-0 px-4 md:px-6">
+            <CardHeader className="pb-0 px-4 md:px-5">
               <CardTitle
-                className="flex items-center gap-2.5 text-base font-bold"
+                className="flex items-center gap-2 text-[0.9rem] font-bold"
                 style={{ color: colors.text.primary }}
               >
-                <Activity className="w-[18px] h-[18px]" style={{ color: colors.primary }} />
+                <Activity className="w-4 h-4" style={{ color: colors.primary }} />
                 Recent Activity
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-4 px-4 md:px-6">
+            <CardContent className="pt-4 px-4 md:px-5">
               {loading ? (
                 <div className="space-y-3 animate-pulse">
                   {[1, 2, 3, 4].map((i) => (
@@ -634,16 +638,16 @@ export default function DashboardPage() {
 
           {/* Upcoming Deadlines */}
           <Card className="border-0" style={cardStyle}>
-            <CardHeader className="pb-0 px-4 md:px-6">
+            <CardHeader className="pb-0 px-4 md:px-5">
               <CardTitle
-                className="flex items-center gap-2.5 text-base font-bold"
+                className="flex items-center gap-2 text-[0.9rem] font-bold"
                 style={{ color: colors.text.primary }}
               >
-                <CalendarClock className="w-[18px] h-[18px]" style={{ color: colors.primary }} />
+                <CalendarClock className="w-4 h-4" style={{ color: colors.primary }} />
                 Upcoming Deadlines
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-4 px-4 md:px-6">
+            <CardContent className="pt-4 px-4 md:px-5">
               {loading ? (
                 <div className="space-y-3 animate-pulse">
                   {[1, 2, 3].map((i) => (
@@ -742,13 +746,12 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       {!isEmptyState && (
-        <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2.5">
           <Button
             onClick={() => router.push('/dashboard/clients/add')}
-            className="text-white font-semibold py-2.5 px-5 rounded-xl border-0 transition-all duration-300 hover:-translate-y-0.5"
+            className="text-white font-semibold py-2 px-5 rounded-lg border-0 text-[0.85rem]"
             style={{
-              background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
-              boxShadow: '0 8px 24px rgba(64, 29, 108, 0.25)',
+              background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
             }}
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -757,7 +760,7 @@ export default function DashboardPage() {
           <Button
             onClick={() => router.push('/dashboard/payrolls')}
             variant="outline"
-            className="font-semibold py-2.5 px-5 rounded-xl transition-all duration-200"
+            className="font-semibold py-2 px-5 rounded-lg text-[0.85rem]"
             style={{
               borderColor: colors.border,
               color: colors.text.primary,

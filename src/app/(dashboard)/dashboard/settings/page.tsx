@@ -17,6 +17,7 @@ import {
   Plus,
   X,
   Loader2,
+  Camera,
 } from 'lucide-react'
 
 interface ChecklistDefault {
@@ -37,6 +38,8 @@ export default function SettingsPage() {
   const [userEmail, setUserEmail] = useState('')
   const [userId, setUserId] = useState('')
   const [tenantId, setTenantId] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileMessage, setProfileMessage] = useState('')
 
@@ -75,6 +78,7 @@ export default function SettingsPage() {
         setUserId(userRecord.id)
         setUserName(userRecord.name || '')
         setUserEmail(userRecord.email || '')
+        setAvatarUrl(userRecord.avatar_url || null)
         setTenantId(userRecord.tenant_id || '')
         const tenant = userRecord.tenants as { settings: TenantSettings | null } | null
         const settings = (tenant?.settings || {}) as TenantSettings
@@ -114,6 +118,55 @@ export default function SettingsPage() {
     }
   }
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !userId) return
+
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+      showMessage(setProfileMessage, 'Please select an image file.')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      showMessage(setProfileMessage, 'Image must be under 2MB.')
+      return
+    }
+
+    setUploadingAvatar(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const filePath = `${userId}/avatar.${fileExt}`
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      // Save URL to user record
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ avatar_url: publicUrl })
+        .eq('id', userId)
+
+      if (updateError) throw updateError
+
+      setAvatarUrl(publicUrl)
+      showMessage(setProfileMessage, 'Profile photo updated!')
+    } catch (err) {
+      console.error('Error uploading avatar:', err)
+      showMessage(setProfileMessage, 'Error uploading photo. Please try again.')
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
+
   const updateChecklistItem = (index: number, name: string) =>
     setChecklistItems((prev) => prev.map((item, i) => (i === index ? { ...item, name } : item)))
   const removeChecklistItem = (index: number) =>
@@ -146,7 +199,7 @@ export default function SettingsPage() {
 
   const cardStyle = {
     backgroundColor: colors.surface,
-    borderRadius: '16px',
+    borderRadius: '12px',
     border: `1px solid ${colors.border}`,
   }
 
@@ -177,10 +230,10 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold" style={{ color: colors.text.primary }}>
+        <h1 className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>
           Settings
         </h1>
-        <p className="text-[0.9rem] mt-1" style={{ color: colors.text.muted }}>
+        <p className="text-[0.82rem] mt-0.5" style={{ color: colors.text.muted }}>
           Manage your profile, defaults, and preferences.
         </p>
       </div>
@@ -196,6 +249,50 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-4">
+          {/* Avatar */}
+          <div className="flex items-center gap-4 mb-5">
+            <div className="relative group">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt="Profile"
+                  className="w-16 h-16 rounded-xl object-cover"
+                />
+              ) : (
+                <div
+                  className="w-16 h-16 rounded-xl flex items-center justify-center text-white text-lg font-bold"
+                  style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+                >
+                  {userName?.[0]?.toUpperCase() || userEmail?.[0]?.toUpperCase() || 'U'}
+                </div>
+              )}
+              <label className="absolute inset-0 flex items-center justify-center rounded-xl cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                style={{ background: 'rgba(0,0,0,0.5)' }}
+              >
+                {uploadingAvatar ? (
+                  <Loader2 className="w-5 h-5 text-white animate-spin" />
+                ) : (
+                  <Camera className="w-5 h-5 text-white" />
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                  disabled={uploadingAvatar}
+                />
+              </label>
+            </div>
+            <div>
+              <p className="text-[0.85rem] font-semibold" style={{ color: colors.text.primary }}>
+                Profile photo
+              </p>
+              <p className="text-[0.75rem]" style={{ color: colors.text.muted }}>
+                Click the image to upload. Max 2MB.
+              </p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <Label htmlFor="profile-name" className="text-[0.78rem] font-semibold uppercase tracking-[0.04em]" style={{ color: colors.text.muted }}>
