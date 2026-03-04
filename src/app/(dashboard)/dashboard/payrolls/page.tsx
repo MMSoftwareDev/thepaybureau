@@ -1,24 +1,34 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { getPayrollStatus, type PayrollStatus } from '@/lib/hmrc-deadlines'
-import { format, differenceInDays, parseISO } from 'date-fns'
+import { format, differenceInDays, parseISO, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet'
 import {
   Calendar,
+  CalendarPlus,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Clock,
   FileText,
+  GripVertical,
+  LayoutGrid,
+  List,
   Loader2,
+  MoreHorizontal,
   Plus,
   AlertTriangle,
-  ListChecks,
-  StickyNote,
   Search,
   X,
 } from 'lucide-react'
@@ -60,10 +70,10 @@ interface PayrollRun {
   checklist_items: ChecklistItem[]
 }
 
-type FilterTab = 'active' | 'due_this_week' | 'overdue' | 'complete' | 'all'
-type FrequencyFilter = 'all' | 'weekly' | 'fortnightly' | 'four_weekly' | 'monthly' | 'annually'
+type ViewMode = 'board' | 'list'
+type StatusFilter = 'all' | 'complete' | 'in_progress' | 'overdue'
 
-// ── Status Config (Monday.com style) ────────────────────────────────────────
+// ── Status Helpers ─────────────────────────────────────────────────────────────
 
 interface StatusConfig {
   label: string
@@ -78,18 +88,18 @@ function getStatusConfig(status: PayrollStatus, isDark: boolean): StatusConfig {
     case 'complete':
       return {
         label: 'Complete',
-        bg: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
-        text: isDark ? '#34D399' : '#059669',
-        border: isDark ? 'rgba(16, 185, 129, 0.3)' : '#A7F3D0',
-        dot: '#10B981',
+        bg: isDark ? 'rgba(34, 197, 94, 0.15)' : '#F0FDF4',
+        text: isDark ? '#4ADE80' : '#16A34A',
+        border: isDark ? 'rgba(34, 197, 94, 0.3)' : '#BBF7D0',
+        dot: '#22C55E',
       }
     case 'in_progress':
       return {
         label: 'In Progress',
-        bg: isDark ? 'rgba(59, 130, 246, 0.15)' : '#EFF6FF',
-        text: isDark ? '#60A5FA' : '#2563EB',
-        border: isDark ? 'rgba(59, 130, 246, 0.3)' : '#BFDBFE',
-        dot: '#3B82F6',
+        bg: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
+        text: isDark ? '#FBBF24' : '#D97706',
+        border: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+        dot: '#F59E0B',
       }
     case 'due_soon':
       return {
@@ -119,23 +129,7 @@ function getStatusConfig(status: PayrollStatus, isDark: boolean): StatusConfig {
   }
 }
 
-// All statuses for the dropdown
-const ALL_STATUSES: { value: PayrollStatus; label: string }[] = [
-  { value: 'not_started', label: 'Not Started' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'due_soon', label: 'Due Soon' },
-  { value: 'overdue', label: 'Overdue' },
-  { value: 'complete', label: 'Complete' },
-]
-
-const FREQUENCY_OPTIONS: { value: FrequencyFilter; label: string }[] = [
-  { value: 'all', label: 'All Frequencies' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'fortnightly', label: 'Fortnightly' },
-  { value: 'four_weekly', label: 'Four-Weekly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'annually', label: 'Annually' },
-]
+const ALL_STATUSES: PayrollStatus[] = ['not_started', 'in_progress', 'due_soon', 'overdue', 'complete']
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -175,30 +169,64 @@ function formatDateShort(dateStr: string | null): string {
   }
 }
 
-// ── Component ──────────────────────────────────────────────────────────────────
+/** Sort priority: overdue first, then due soonest, then by status weight */
+function sortByUrgency(a: PayrollRun, b: PayrollRun): number {
+  const statusWeight: Record<PayrollStatus, number> = {
+    overdue: 0,
+    due_soon: 1,
+    in_progress: 2,
+    not_started: 3,
+    complete: 4,
+  }
+  const sa = computeStatus(a)
+  const sb = computeStatus(b)
+  if (statusWeight[sa] !== statusWeight[sb]) return statusWeight[sa] - statusWeight[sb]
+  return new Date(a.pay_date).getTime() - new Date(b.pay_date).getTime()
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function PayrollsPage() {
   const [runs, setRuns] = useState<PayrollRun[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeFilter, setActiveFilter] = useState<FilterTab>('active')
-  const [expandedRunId, setExpandedRunId] = useState<string | null>(null)
-  const [savingNotes, setSavingNotes] = useState<string | null>(null)
-  const [togglingItem, setTogglingItem] = useState<string | null>(null)
-  const [markingAll, setMarkingAll] = useState<string | null>(null)
-  const [generating, setGenerating] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
+
+  // View & filters
+  const [viewMode, setViewMode] = useState<ViewMode>('board')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [currentPeriod, setCurrentPeriod] = useState(startOfMonth(new Date()))
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
-  const [frequencyFilter, setFrequencyFilter] = useState<FrequencyFilter>('all')
+
+  // Checklist panel
+  const [selectedRun, setSelectedRun] = useState<PayrollRun | null>(null)
+  const [panelOpen, setPanelOpen] = useState(false)
+
+  // Action states
+  const [togglingItem, setTogglingItem] = useState<string | null>(null)
+  const [savingNotes, setSavingNotes] = useState<string | null>(null)
+  const [generating, setGenerating] = useState<string | null>(null)
+  const [addingStep, setAddingStep] = useState(false)
+  const [newStepName, setNewStepName] = useState('')
 
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
   const searchParams = useSearchParams()
   const router = useRouter()
   const clientFilter = searchParams.get('client')
-
   const supabase = createClientSupabaseClient()
+
+  // Persist view mode
+  useEffect(() => {
+    setMounted(true)
+    const saved = localStorage.getItem('payroll-runs-view')
+    if (saved === 'board' || saved === 'list') setViewMode(saved)
+  }, [])
+
+  useEffect(() => {
+    if (mounted) localStorage.setItem('payroll-runs-view', viewMode)
+  }, [viewMode, mounted])
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -207,9 +235,14 @@ export default function PayrollsPage() {
       setLoading(true)
       setError(null)
 
+      const periodStart = format(currentPeriod, 'yyyy-MM-dd')
+      const periodEnd = format(endOfMonth(currentPeriod), 'yyyy-MM-dd')
+
       let query = supabase
         .from('payroll_runs')
         .select('*, clients(name, pay_frequency), checklist_items(*)')
+        .gte('pay_date', periodStart)
+        .lte('pay_date', periodEnd)
         .order('pay_date', { ascending: true })
 
       if (clientFilter) {
@@ -217,9 +250,7 @@ export default function PayrollsPage() {
       }
 
       const { data, error: fetchError } = await query
-
       if (fetchError) throw fetchError
-
       setRuns((data as unknown as PayrollRun[]) ?? [])
     } catch (err) {
       console.error('Error fetching payroll runs:', err)
@@ -227,94 +258,47 @@ export default function PayrollsPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase, clientFilter])
+  }, [supabase, clientFilter, currentPeriod])
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    fetchRuns()
+    if (mounted) fetchRuns()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientFilter])
+  }, [clientFilter, currentPeriod, mounted])
 
-  // ── Filter + search logic ─────────────────────────────────────────────────
+  // ── Filtering & sorting ─────────────────────────────────────────────────────
 
   const filteredRuns = useMemo(() => {
     let result = runs
 
-    // Apply search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
-      result = result.filter(
-        (run) =>
-          run.clients?.name?.toLowerCase().includes(q) ||
-          formatPayFrequency(run.clients?.pay_frequency ?? null)
-            .toLowerCase()
-            .includes(q)
-      )
+      result = result.filter((run) => run.clients?.name?.toLowerCase().includes(q))
     }
 
-    // Apply frequency filter
-    if (frequencyFilter !== 'all') {
-      result = result.filter((run) => run.clients?.pay_frequency === frequencyFilter)
+    if (statusFilter !== 'all') {
+      result = result.filter((run) => {
+        const s = computeStatus(run)
+        if (statusFilter === 'in_progress') return s === 'in_progress' || s === 'due_soon' || s === 'not_started'
+        if (statusFilter === 'overdue') return s === 'overdue'
+        if (statusFilter === 'complete') return s === 'complete'
+        return true
+      })
     }
 
-    // Apply filter tab
-    result = result.filter((run) => {
-      const status = computeStatus(run)
-      switch (activeFilter) {
-        case 'active':
-          return status !== 'complete'
-        case 'due_this_week': {
-          if (status === 'complete') return false
-          const daysUntil = differenceInDays(parseISO(run.pay_date), new Date())
-          return daysUntil >= 0 && daysUntil <= 7
-        }
-        case 'overdue':
-          return status === 'overdue'
-        case 'complete':
-          return status === 'complete'
-        case 'all':
-        default:
-          return true
-      }
-    })
+    return [...result].sort(sortByUrgency)
+  }, [runs, statusFilter, searchQuery])
 
-    return result
-  }, [runs, activeFilter, searchQuery, frequencyFilter])
-
-  // Status counts for filter badges
-  const statusCounts = useMemo(() => {
-    let filtered = runs
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      filtered = filtered.filter(
-        (run) =>
-          run.clients?.name?.toLowerCase().includes(q) ||
-          formatPayFrequency(run.clients?.pay_frequency ?? null).toLowerCase().includes(q)
-      )
+  // Status counts
+  const counts = useMemo(() => {
+    const c = { total: runs.length, complete: 0, in_progress: 0, overdue: 0 }
+    for (const run of runs) {
+      const s = computeStatus(run)
+      if (s === 'complete') c.complete++
+      else if (s === 'overdue') c.overdue++
+      else c.in_progress++
     }
-
-    if (frequencyFilter !== 'all') {
-      filtered = filtered.filter((run) => run.clients?.pay_frequency === frequencyFilter)
-    }
-
-    const counts = { active: 0, due_this_week: 0, overdue: 0, complete: 0, all: filtered.length }
-    for (const run of filtered) {
-      const status = computeStatus(run)
-      if (status === 'complete') {
-        counts.complete++
-      } else {
-        counts.active++
-        if (status === 'overdue') counts.overdue++
-        const daysUntil = differenceInDays(parseISO(run.pay_date), new Date())
-        if (daysUntil >= 0 && daysUntil <= 7) counts.due_this_week++
-      }
-    }
-    return counts
-  }, [runs, searchQuery, frequencyFilter])
+    return c
+  }, [runs])
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -328,54 +312,101 @@ export default function PayrollsPage() {
           completed_at: !item.is_completed ? new Date().toISOString() : null,
         })
         .eq('id', item.id)
-
       if (updateError) throw updateError
-      await fetchRuns()
+
+      // Optimistic update
+      setRuns((prev) =>
+        prev.map((r) =>
+          r.id === item.payroll_run_id
+            ? {
+                ...r,
+                checklist_items: r.checklist_items.map((ci) =>
+                  ci.id === item.id
+                    ? { ...ci, is_completed: !item.is_completed, completed_at: !item.is_completed ? new Date().toISOString() : null }
+                    : ci
+                ),
+              }
+            : r
+        )
+      )
+      // Also update selectedRun if open
+      setSelectedRun((prev) =>
+        prev && prev.id === item.payroll_run_id
+          ? {
+              ...prev,
+              checklist_items: prev.checklist_items.map((ci) =>
+                ci.id === item.id
+                  ? { ...ci, is_completed: !item.is_completed, completed_at: !item.is_completed ? new Date().toISOString() : null }
+                  : ci
+              ),
+            }
+          : prev
+      )
     } catch (err) {
       console.error('Error toggling checklist item:', err)
+      await fetchRuns()
     } finally {
       setTogglingItem(null)
     }
   }
 
   const markAllComplete = async (run: PayrollRun) => {
-    setMarkingAll(run.id)
+    const incompleteIds = run.checklist_items.filter((i) => !i.is_completed).map((i) => i.id)
+    if (incompleteIds.length === 0) return
     try {
-      const incompleteItems = run.checklist_items.filter((i) => !i.is_completed)
-      const ids = incompleteItems.map((i) => i.id)
-      if (ids.length === 0) return
-
       const { error: updateError } = await supabase
         .from('checklist_items')
-        .update({
-          is_completed: true,
-          completed_at: new Date().toISOString(),
-        })
-        .in('id', ids)
-
+        .update({ is_completed: true, completed_at: new Date().toISOString() })
+        .in('id', incompleteIds)
       if (updateError) throw updateError
       await fetchRuns()
+      // Update selectedRun
+      if (selectedRun?.id === run.id) {
+        setSelectedRun((prev) =>
+          prev
+            ? { ...prev, checklist_items: prev.checklist_items.map((ci) => ({ ...ci, is_completed: true, completed_at: ci.completed_at ?? new Date().toISOString() })) }
+            : prev
+        )
+      }
     } catch (err) {
       console.error('Error marking all complete:', err)
-    } finally {
-      setMarkingAll(null)
     }
   }
 
   const saveNotes = async (runId: string, newNotes: string) => {
     setSavingNotes(runId)
     try {
-      const { error: updateError } = await supabase
-        .from('payroll_runs')
-        .update({ notes: newNotes })
-        .eq('id', runId)
-
+      const { error: updateError } = await supabase.from('payroll_runs').update({ notes: newNotes }).eq('id', runId)
       if (updateError) throw updateError
-      await fetchRuns()
     } catch (err) {
       console.error('Error saving notes:', err)
     } finally {
       setSavingNotes(null)
+    }
+  }
+
+  const addStep = async (runId: string) => {
+    if (!newStepName.trim()) return
+    setAddingStep(true)
+    try {
+      const run = runs.find((r) => r.id === runId)
+      const maxOrder = run ? Math.max(0, ...run.checklist_items.map((i) => i.sort_order)) : 0
+      const { error: insertError } = await supabase.from('checklist_items').insert({
+        payroll_run_id: runId,
+        name: newStepName.trim(),
+        is_completed: false,
+        sort_order: maxOrder + 1,
+      })
+      if (insertError) throw insertError
+      setNewStepName('')
+      await fetchRuns()
+      // Refresh selectedRun
+      const updated = runs.find((r) => r.id === runId)
+      if (updated) setSelectedRun(updated)
+    } catch (err) {
+      console.error('Error adding step:', err)
+    } finally {
+      setAddingStep(false)
     }
   }
 
@@ -399,154 +430,377 @@ export default function PayrollsPage() {
     }
   }
 
-  // ── Render helpers ─────────────────────────────────────────────────────────
-
-  const clientFilterName = useMemo(() => {
-    if (!clientFilter || runs.length === 0) return null
-    return runs[0]?.clients?.name ?? null
-  }, [clientFilter, runs])
-
-  const clearClientFilter = () => {
-    router.push('/dashboard/payrolls')
+  const openChecklist = (run: PayrollRun) => {
+    setSelectedRun(run)
+    setPanelOpen(true)
   }
 
-  const filterTabs: { key: FilterTab; label: string; count: number }[] = [
-    { key: 'active', label: 'Active', count: statusCounts.active },
-    { key: 'due_this_week', label: 'This Week', count: statusCounts.due_this_week },
-    { key: 'overdue', label: 'Overdue', count: statusCounts.overdue },
-    { key: 'complete', label: 'Complete', count: statusCounts.complete },
-    { key: 'all', label: 'All', count: statusCounts.all },
-  ]
+  // Keep selectedRun in sync with runs data
+  useEffect(() => {
+    if (selectedRun) {
+      const updated = runs.find((r) => r.id === selectedRun.id)
+      if (updated) setSelectedRun(updated)
+    }
+  }, [runs, selectedRun])
 
-  const cardStyle = {
+  // ── Period navigation ────────────────────────────────────────────────────────
+
+  const periodLabel = format(currentPeriod, 'MMMM yyyy')
+  const goToPrevPeriod = () => setCurrentPeriod(subMonths(currentPeriod, 1))
+  const goToNextPeriod = () => setCurrentPeriod(addMonths(currentPeriod, 1))
+
+  // ── Styles ──────────────────────────────────────────────────────────────────
+
+  const cardBase: React.CSSProperties = {
     backgroundColor: colors.surface,
-    borderRadius: '12px',
+    borderRadius: '8px',
     border: `1px solid ${colors.border}`,
+    padding: '16px',
+    transition: 'transform 150ms ease-in-out, box-shadow 150ms ease-in-out',
+    cursor: 'pointer',
   }
 
-  // Prevent hydration mismatch
+  // ── Prevent hydration mismatch ──────────────────────────────────────────────
+
   if (!mounted) {
     return (
       <div className="space-y-5 animate-pulse">
         <div className="h-14 rounded-xl" style={{ background: colors.border }} />
         <div className="h-12 rounded-xl" style={{ background: colors.border }} />
-        <div className="h-96 rounded-xl" style={{ background: colors.border }} />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-52 rounded-lg" style={{ background: colors.border }} />
+          ))}
+        </div>
       </div>
     )
   }
 
+  // ── Loading: Skeleton cards ─────────────────────────────────────────────────
+
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: colors.primary }} />
+      <div className="space-y-4">
+        {/* Skeleton header */}
+        <div className="flex items-center justify-between">
+          <div className="h-8 w-40 rounded-lg animate-pulse" style={{ background: colors.border }} />
+          <div className="h-9 w-44 rounded-lg animate-pulse" style={{ background: colors.border }} />
+        </div>
+        {/* Skeleton summary bar */}
+        <div className="flex gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex-1 h-16 rounded-lg animate-pulse" style={{ background: colors.border }} />
+          ))}
+        </div>
+        {/* Skeleton cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-52 rounded-lg animate-pulse" style={{ background: colors.border }} />
+          ))}
+        </div>
       </div>
     )
   }
+
+  // ── Error State ─────────────────────────────────────────────────────────────
 
   if (error) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Card className="max-w-md border-0" style={cardStyle}>
-          <CardContent className="p-8 text-center">
-            <AlertTriangle className="w-12 h-12 mx-auto mb-4" style={{ color: colors.error }} />
-            <h3 className="text-lg font-bold mb-2" style={{ color: colors.text.primary }}>
-              Error Loading Payrolls
-            </h3>
-            <p className="text-sm mb-4" style={{ color: colors.text.secondary }}>{error}</p>
-            <Button
-              onClick={fetchRuns}
-              className="text-white font-semibold px-5 py-2 rounded-lg border-0"
-              style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
-            >
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (runs.length === 0) {
-    return (
-      <div className="space-y-5">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>Payrolls</h1>
-          <p className="text-[0.82rem] mt-0.5" style={{ color: colors.text.muted }}>{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
-        </div>
-        <Card className="border-0" style={cardStyle}>
-          <CardContent className="p-10 text-center">
-            <div className="w-14 h-14 mx-auto mb-4 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${colors.primary}12` }}>
-              <Calendar className="w-7 h-7" style={{ color: colors.primary }} />
-            </div>
-            <h3 className="text-lg font-bold mb-2" style={{ color: colors.text.primary }}>No payroll runs yet</h3>
-            <p className="text-sm mb-5" style={{ color: colors.text.secondary }}>Add a client to get started.</p>
-            <Link href="/dashboard/clients/add">
-              <Button
-                className="text-white font-semibold px-5 py-2 rounded-lg border-0"
-                style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add a Client
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  // ── Main content ───────────────────────────────────────────────────────────
-
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>Payrolls</h1>
-          <p className="text-[0.82rem] mt-0.5" style={{ color: colors.text.muted }}>
-            {format(new Date(), 'EEEE, d MMMM yyyy')}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Search toggle */}
+        <div className="text-center p-8 rounded-xl" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
+          <AlertTriangle className="w-12 h-12 mx-auto mb-4" style={{ color: '#F59E0B' }} />
+          <h3 className="text-base font-semibold mb-2" style={{ color: colors.text.primary }}>
+            Could not load payroll runs
+          </h3>
+          <p className="text-sm mb-4" style={{ color: colors.text.secondary }}>Try refreshing.</p>
           <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setShowSearch(!showSearch)
-              if (showSearch) setSearchQuery('')
-            }}
-            className="h-8 w-8 p-0 rounded-lg"
-            style={{ color: showSearch ? colors.primary : colors.text.muted }}
+            onClick={fetchRuns}
+            className="text-white font-semibold px-5 py-2 rounded-md border-0"
+            style={{ backgroundColor: '#F59E0B' }}
           >
-            {showSearch ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
+            Refresh
           </Button>
         </div>
       </div>
+    )
+  }
+
+  // ── Empty State ─────────────────────────────────────────────────────────────
+
+  if (runs.length === 0 && !loading) {
+    return (
+      <div className="space-y-4">
+        {/* Header still shows */}
+        <PageHeader
+          periodLabel={periodLabel}
+          viewMode={viewMode}
+          onViewChange={setViewMode}
+          onPrevPeriod={goToPrevPeriod}
+          onNextPeriod={goToNextPeriod}
+          colors={colors}
+          isDark={isDark}
+        />
+        <div className="min-h-[50vh] flex items-center justify-center">
+          <div className="text-center p-10">
+            <div
+              className="w-16 h-16 mx-auto mb-5 rounded-2xl flex items-center justify-center"
+              style={{ backgroundColor: `${colors.primary}12` }}
+            >
+              <CalendarPlus className="w-8 h-8" style={{ color: colors.primary }} />
+            </div>
+            <h3 className="text-base font-semibold mb-2" style={{ color: colors.text.primary }}>
+              No payroll runs for {periodLabel}
+            </h3>
+            <p className="text-sm mb-5" style={{ color: colors.text.muted }}>
+              Add your first run to start tracking this period.
+            </p>
+            <Link href="/dashboard/clients/add">
+              <Button
+                className="text-white font-semibold px-5 py-2.5 rounded-md border-0"
+                style={{ backgroundColor: colors.primary }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Payroll Run
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Main content ─────────────────────────────────────────────────────────────
+
+  return (
+    <div className="space-y-4">
+      {/* Zone A — Header */}
+      <PageHeader
+        periodLabel={periodLabel}
+        viewMode={viewMode}
+        onViewChange={setViewMode}
+        onPrevPeriod={goToPrevPeriod}
+        onNextPeriod={goToNextPeriod}
+        colors={colors}
+        isDark={isDark}
+        showSearch={showSearch}
+        searchQuery={searchQuery}
+        onToggleSearch={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery('') }}
+        onSearchChange={setSearchQuery}
+      />
 
       {/* Client filter banner */}
-      {clientFilterName && (
+      {clientFilter && runs.length > 0 && (
         <div
           className="flex items-center justify-between px-4 py-2.5 rounded-lg"
           style={{ backgroundColor: `${colors.primary}08`, border: `1px solid ${colors.primary}20` }}
         >
           <p className="text-[0.82rem] font-semibold" style={{ color: colors.text.primary }}>
-            Showing payrolls for <span style={{ color: colors.primary }}>{clientFilterName}</span>
+            Showing payrolls for <span style={{ color: colors.primary }}>{runs[0]?.clients?.name}</span>
           </p>
-          <Button variant="ghost" size="sm" onClick={clearClientFilter} className="rounded-lg text-xs font-semibold h-7 px-2" style={{ color: colors.primary }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push('/dashboard/payrolls')}
+            className="rounded-lg text-xs font-semibold h-7 px-2"
+            style={{ color: colors.primary }}
+          >
             Show All
           </Button>
         </div>
       )}
 
+      {/* Zone B — Summary Bar */}
+      <SummaryBar
+        counts={counts}
+        statusFilter={statusFilter}
+        onFilterChange={(f) => setStatusFilter(statusFilter === f ? 'all' : f)}
+        colors={colors}
+        isDark={isDark}
+      />
+
+      {/* Zone C — Board or List */}
+      {viewMode === 'board' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filteredRuns.map((run) => (
+            <RunCard
+              key={run.id}
+              run={run}
+              colors={colors}
+              isDark={isDark}
+              onOpenChecklist={() => openChecklist(run)}
+              onMarkComplete={() => markAllComplete(run)}
+              generating={generating}
+              onGenerateNext={() => generateNextPeriod(run)}
+            />
+          ))}
+        </div>
+      ) : (
+        <RunListView
+          runs={filteredRuns}
+          colors={colors}
+          isDark={isDark}
+          onOpenChecklist={openChecklist}
+          onMarkComplete={markAllComplete}
+        />
+      )}
+
+      {filteredRuns.length === 0 && runs.length > 0 && (
+        <div className="text-center py-16">
+          <FileText className="w-10 h-10 mx-auto mb-3" style={{ color: colors.text.muted }} />
+          <p className="text-sm font-medium" style={{ color: colors.text.secondary }}>
+            No payroll runs match this filter.
+          </p>
+          <button
+            onClick={() => setStatusFilter('all')}
+            className="mt-2 text-xs font-semibold"
+            style={{ color: colors.primary }}
+          >
+            Show all runs
+          </button>
+        </div>
+      )}
+
+      {/* Summary footer */}
+      <p className="text-[0.72rem] font-medium text-center" style={{ color: colors.text.muted }}>
+        Showing {filteredRuns.length} of {runs.length} payroll runs
+      </p>
+
+      {/* Checklist Side Panel */}
+      <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-[420px] overflow-y-auto p-0" style={{ backgroundColor: colors.surface }}>
+          {selectedRun && (
+            <ChecklistPanel
+              run={selectedRun}
+              colors={colors}
+              isDark={isDark}
+              togglingItem={togglingItem}
+              savingNotes={savingNotes}
+              addingStep={addingStep}
+              newStepName={newStepName}
+              generating={generating}
+              onToggleItem={toggleChecklistItem}
+              onMarkAllComplete={() => markAllComplete(selectedRun)}
+              onSaveNotes={saveNotes}
+              onNewStepNameChange={setNewStepName}
+              onAddStep={() => addStep(selectedRun.id)}
+              onGenerateNext={() => generateNextPeriod(selectedRun)}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Sub-components
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Page Header ────────────────────────────────────────────────────────────────
+
+interface PageHeaderProps {
+  periodLabel: string
+  viewMode: ViewMode
+  onViewChange: (v: ViewMode) => void
+  onPrevPeriod: () => void
+  onNextPeriod: () => void
+  colors: ReturnType<typeof getThemeColors>
+  isDark: boolean
+  showSearch?: boolean
+  searchQuery?: string
+  onToggleSearch?: () => void
+  onSearchChange?: (q: string) => void
+}
+
+function PageHeader({
+  periodLabel,
+  viewMode,
+  onViewChange,
+  onPrevPeriod,
+  onNextPeriod,
+  colors,
+  isDark,
+  showSearch,
+  searchQuery,
+  onToggleSearch,
+  onSearchChange,
+}: PageHeaderProps) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>
+          Payroll Runs
+        </h1>
+        <div className="flex items-center gap-2">
+          {/* Period navigation */}
+          <div className="flex items-center gap-1 rounded-lg px-1 py-0.5" style={{ border: `1px solid ${colors.border}` }}>
+            <button onClick={onPrevPeriod} className="p-1.5 rounded-md hover:opacity-70 transition-opacity" style={{ color: colors.text.secondary }}>
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-[0.82rem] font-semibold px-2 min-w-[120px] text-center" style={{ color: colors.text.primary }}>
+              {periodLabel}
+            </span>
+            <button onClick={onNextPeriod} className="p-1.5 rounded-md hover:opacity-70 transition-opacity" style={{ color: colors.text.secondary }}>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* View toggle */}
+          <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${colors.border}` }}>
+            <button
+              onClick={() => onViewChange('board')}
+              className="p-1.5 transition-all"
+              style={{
+                backgroundColor: viewMode === 'board' ? colors.primary : 'transparent',
+                color: viewMode === 'board' ? '#FFFFFF' : colors.text.muted,
+              }}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onViewChange('list')}
+              className="p-1.5 transition-all"
+              style={{
+                backgroundColor: viewMode === 'list' ? colors.primary : 'transparent',
+                color: viewMode === 'list' ? '#FFFFFF' : colors.text.muted,
+              }}
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Search toggle */}
+          {onToggleSearch && (
+            <button
+              onClick={onToggleSearch}
+              className="p-1.5 rounded-lg transition-opacity hover:opacity-70"
+              style={{ color: showSearch ? colors.primary : colors.text.muted }}
+            >
+              {showSearch ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
+            </button>
+          )}
+
+          {/* Add button */}
+          <Link href="/dashboard/clients/add">
+            <Button
+              className="text-white font-semibold text-xs rounded-md border-0 h-8 px-3"
+              style={{ backgroundColor: colors.primary }}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Add Payroll Run
+            </Button>
+          </Link>
+        </div>
+      </div>
+
       {/* Search bar */}
-      {showSearch && (
+      {showSearch && onSearchChange && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchQuery ?? ''}
+            onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search by client name..."
             autoFocus
             className="w-full pl-9 pr-4 py-2 rounded-lg text-sm font-medium focus:outline-none transition-all"
@@ -560,593 +814,621 @@ export default function PayrollsPage() {
           />
         </div>
       )}
-
-      {/* Filter tabs + frequency filter */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {filterTabs.map((tab) => {
-          const isActive = activeFilter === tab.key
-          const isOverdue = tab.key === 'overdue' && tab.count > 0
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveFilter(tab.key)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[0.78rem] font-semibold transition-all duration-150"
-              style={{
-                backgroundColor: isActive ? colors.primary : 'transparent',
-                color: isActive ? '#FFFFFF' : colors.text.secondary,
-                border: `1px solid ${isActive ? colors.primary : colors.border}`,
-              }}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <span
-                  className="text-[0.65rem] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"
-                  style={{
-                    backgroundColor: isActive
-                      ? 'rgba(255,255,255,0.25)'
-                      : isOverdue
-                        ? `${colors.error}15`
-                        : `${colors.text.muted}12`,
-                    color: isActive
-                      ? '#FFFFFF'
-                      : isOverdue
-                        ? colors.error
-                        : colors.text.muted,
-                  }}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          )
-        })}
-
-        {/* Frequency filter */}
-        <div className="ml-auto relative">
-          <select
-            value={frequencyFilter}
-            onChange={(e) => setFrequencyFilter(e.target.value as FrequencyFilter)}
-            className="appearance-none pl-3 pr-7 py-1.5 rounded-lg text-[0.78rem] font-semibold cursor-pointer focus:outline-none transition-all"
-            style={{
-              backgroundColor: frequencyFilter !== 'all' ? `${colors.primary}10` : 'transparent',
-              color: frequencyFilter !== 'all' ? colors.primary : colors.text.secondary,
-              border: `1px solid ${frequencyFilter !== 'all' ? colors.primary : colors.border}`,
-            }}
-          >
-            {FREQUENCY_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <ChevronDown
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none"
-            style={{ color: frequencyFilter !== 'all' ? colors.primary : colors.text.muted }}
-          />
-        </div>
-      </div>
-
-      {/* Table */}
-      <Card className="border-0 overflow-hidden" style={cardStyle}>
-        <CardContent className="p-0">
-          {filteredRuns.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="w-10 h-10 mx-auto mb-3" style={{ color: colors.text.muted }} />
-              <p className="text-sm font-medium" style={{ color: colors.text.secondary }}>
-                {activeFilter === 'active'
-                  ? 'All payroll runs are complete!'
-                  : 'No payroll runs match this filter.'}
-              </p>
-              {activeFilter !== 'all' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setActiveFilter('all')}
-                  className="mt-2 text-xs font-semibold"
-                  style={{ color: colors.primary }}
-                >
-                  Show all runs
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div>
-              {/* Table header */}
-              <div
-                className="hidden lg:grid px-4 py-2.5"
-                style={{
-                  gridTemplateColumns: '1fr 140px 130px 100px',
-                  gap: '12px',
-                  borderBottom: `1px solid ${colors.border}`,
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
-                }}
-              >
-                {['Client', 'Progress', 'Status', 'Pay Date'].map(
-                  (header) => (
-                    <p
-                      key={header}
-                      className="text-[0.68rem] font-bold uppercase tracking-[0.06em]"
-                      style={{ color: colors.text.muted }}
-                    >
-                      {header}
-                    </p>
-                  )
-                )}
-              </div>
-
-              {/* Rows */}
-              <div>
-                {filteredRuns.map((run) => {
-                  const status = computeStatus(run)
-                  const statusConfig = getStatusConfig(status, isDark)
-                  const items = run.checklist_items ?? []
-                  const completedCount = items.filter((i) => i.is_completed).length
-                  const totalCount = items.length
-                  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
-                  const isExpanded = expandedRunId === run.id
-
-                  return (
-                    <div key={run.id}>
-                      {/* Row */}
-                      <div
-                        className="transition-colors duration-100 cursor-pointer"
-                        style={{
-                          backgroundColor: isExpanded
-                            ? isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
-                            : 'transparent',
-                          borderBottom: `1px solid ${colors.border}`,
-                        }}
-                        onClick={() => setExpandedRunId(isExpanded ? null : run.id)}
-                        onMouseEnter={(e) => {
-                          if (!isExpanded) e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)'
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isExpanded) e.currentTarget.style.backgroundColor = 'transparent'
-                        }}
-                      >
-                        {/* Desktop row */}
-                        <div
-                          className="hidden lg:grid px-4 py-3 items-center"
-                          style={{
-                            gridTemplateColumns: '1fr 140px 130px 100px',
-                            gap: '12px',
-                          }}
-                        >
-                          {/* Client name */}
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            {isExpanded ? (
-                              <ChevronDown className="w-4 h-4 flex-shrink-0" style={{ color: colors.text.muted }} />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: colors.text.muted }} />
-                            )}
-                            <div className="min-w-0">
-                              <p className="text-[0.85rem] font-semibold truncate" style={{ color: colors.text.primary }}>
-                                {run.clients?.name ?? 'Unknown Client'}
-                              </p>
-                              <p className="text-[0.68rem] font-medium" style={{ color: colors.text.muted }}>
-                                {formatPayFrequency(run.clients?.pay_frequency ?? null)}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Progress bar */}
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="flex-1 h-2 rounded-full overflow-hidden"
-                              style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}
-                            >
-                              <div
-                                className="h-full rounded-full transition-all duration-300"
-                                style={{
-                                  width: `${progressPercent}%`,
-                                  backgroundColor: statusConfig.dot,
-                                }}
-                              />
-                            </div>
-                            <span className="text-[0.68rem] font-semibold w-[32px] text-right" style={{ color: colors.text.muted }}>
-                              {completedCount}/{totalCount}
-                            </span>
-                          </div>
-
-                          {/* Status badge — clickable dropdown */}
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <StatusBadge
-                              run={run}
-                              status={status}
-                              statusConfig={statusConfig}
-                              items={items}
-                              isDark={isDark}
-                              colors={colors}
-                              supabase={supabase}
-                              onRefresh={fetchRuns}
-                            />
-                          </div>
-
-                          {/* Pay date (moved to end) */}
-                          <p className="text-[0.82rem] font-medium" style={{ color: colors.text.primary }}>
-                            {formatDateShort(run.pay_date)}
-                          </p>
-                        </div>
-
-                        {/* Mobile row */}
-                        <div className="lg:hidden p-4 space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 min-w-0">
-                              {isExpanded ? (
-                                <ChevronDown className="w-4 h-4 flex-shrink-0" style={{ color: colors.text.muted }} />
-                              ) : (
-                                <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: colors.text.muted }} />
-                              )}
-                              <p className="text-[0.88rem] font-semibold truncate" style={{ color: colors.text.primary }}>
-                                {run.clients?.name ?? 'Unknown Client'}
-                              </p>
-                            </div>
-                            <div onClick={(e) => e.stopPropagation()}>
-                              <StatusBadge
-                                run={run}
-                                status={status}
-                                statusConfig={statusConfig}
-                                items={items}
-                                isDark={isDark}
-                                colors={colors}
-                                supabase={supabase}
-                                onRefresh={fetchRuns}
-                              />
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 pl-6">
-                            <span className="text-[0.75rem]" style={{ color: colors.text.muted }}>
-                              {formatDateShort(run.pay_date)}
-                            </span>
-                            <div className="flex-1 flex items-center gap-1.5">
-                              <div
-                                className="flex-1 h-1.5 rounded-full overflow-hidden"
-                                style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}
-                              >
-                                <div
-                                  className="h-full rounded-full transition-all duration-300"
-                                  style={{ width: `${progressPercent}%`, backgroundColor: statusConfig.dot }}
-                                />
-                              </div>
-                              <span className="text-[0.65rem] font-semibold" style={{ color: colors.text.muted }}>
-                                {completedCount}/{totalCount}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Expanded panel */}
-                      {isExpanded && (
-                        <ExpandedPanel
-                          run={run}
-                          status={status}
-                          colors={colors}
-                          isDark={isDark}
-                          togglingItem={togglingItem}
-                          savingNotes={savingNotes}
-                          markingAll={markingAll}
-                          generating={generating}
-                          onToggleItem={toggleChecklistItem}
-                          onMarkAllComplete={markAllComplete}
-                          onSaveNotes={saveNotes}
-                          onGenerateNext={generateNextPeriod}
-                        />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Summary footer */}
-      <p className="text-[0.72rem] font-medium text-center" style={{ color: colors.text.muted }}>
-        Showing {filteredRuns.length} of {runs.length} payroll runs
-      </p>
     </div>
   )
 }
 
-// ── Status Badge (Dropdown) ─────────────────────────────────────────────────
+// ── Summary Bar ────────────────────────────────────────────────────────────────
 
-interface StatusBadgeProps {
-  run: PayrollRun
-  status: PayrollStatus
-  statusConfig: StatusConfig
-  items: ChecklistItem[]
-  isDark: boolean
+interface SummaryBarProps {
+  counts: { total: number; complete: number; in_progress: number; overdue: number }
+  statusFilter: StatusFilter
+  onFilterChange: (f: StatusFilter) => void
   colors: ReturnType<typeof getThemeColors>
-  supabase: ReturnType<typeof createClientSupabaseClient>
-  onRefresh: () => Promise<void>
+  isDark: boolean
 }
 
-function StatusBadge({ run, status, statusConfig, items, isDark, colors, supabase, onRefresh }: StatusBadgeProps) {
-  const [updating, setUpdating] = useState(false)
-  const [showDropdown, setShowDropdown] = useState(false)
+function SummaryBar({ counts, statusFilter, onFilterChange, colors, isDark }: SummaryBarProps) {
+  const pills: { key: StatusFilter; label: string; count: number; color: string }[] = [
+    { key: 'all', label: 'Total Runs', count: counts.total, color: colors.primary },
+    { key: 'complete', label: 'Complete', count: counts.complete, color: '#22C55E' },
+    { key: 'in_progress', label: 'In Progress', count: counts.in_progress, color: '#F59E0B' },
+    { key: 'overdue', label: 'Overdue', count: counts.overdue, color: '#EF4444' },
+  ]
 
-  const applyStatus = async (targetStatus: PayrollStatus) => {
-    if (updating || targetStatus === status) {
-      setShowDropdown(false)
-      return
-    }
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {pills.map((pill) => {
+        const isActive = statusFilter === pill.key
+        return (
+          <button
+            key={pill.key}
+            onClick={() => onFilterChange(pill.key)}
+            className="flex flex-col items-center py-3 px-5 rounded-lg transition-all duration-150"
+            style={{
+              backgroundColor: colors.surface,
+              border: `2px solid ${isActive ? pill.color : colors.border}`,
+              ...(isActive ? { backgroundColor: isDark ? `${pill.color}10` : `${pill.color}08` } : {}),
+            }}
+          >
+            <span className="text-2xl font-bold" style={{ color: pill.color }}>
+              {pill.count}
+            </span>
+            <span className="text-[0.78rem] font-medium mt-0.5" style={{ color: colors.text.muted }}>
+              {pill.label}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
-    setUpdating(true)
-    setShowDropdown(false)
-    try {
-      if (targetStatus === 'complete') {
-        // Mark all items as done
-        const incompleteIds = items.filter((i) => !i.is_completed).map((i) => i.id)
-        if (incompleteIds.length > 0) {
-          await supabase
-            .from('checklist_items')
-            .update({ is_completed: true, completed_at: new Date().toISOString() })
-            .in('id', incompleteIds)
-        }
-      } else if (targetStatus === 'in_progress' && status === 'not_started') {
-        // Mark first item as done to trigger in_progress
-        const firstIncomplete = items.find((i) => !i.is_completed)
-        if (firstIncomplete) {
-          await supabase
-            .from('checklist_items')
-            .update({ is_completed: true, completed_at: new Date().toISOString() })
-            .eq('id', firstIncomplete.id)
-        }
-      } else if (targetStatus === 'not_started') {
-        // Uncheck all items
-        const completedIds = items.filter((i) => i.is_completed).map((i) => i.id)
-        if (completedIds.length > 0) {
-          await supabase
-            .from('checklist_items')
-            .update({ is_completed: false, completed_at: null })
-            .in('id', completedIds)
-        }
-      }
-      await onRefresh()
-    } catch (err) {
-      console.error('Error updating status:', err)
-    } finally {
-      setUpdating(false)
-    }
+// ── Run Card (Board View) ──────────────────────────────────────────────────────
+
+interface RunCardProps {
+  run: PayrollRun
+  colors: ReturnType<typeof getThemeColors>
+  isDark: boolean
+  onOpenChecklist: () => void
+  onMarkComplete: () => void
+  generating: string | null
+  onGenerateNext: () => void
+}
+
+function RunCard({ run, colors, isDark, onOpenChecklist, onMarkComplete, generating, onGenerateNext }: RunCardProps) {
+  const status = computeStatus(run)
+  const config = getStatusConfig(status, isDark)
+  const items = run.checklist_items ?? []
+  const completedCount = items.filter((i) => i.is_completed).length
+  const totalCount = items.length
+  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+  const isOverdue = status === 'overdue'
+  const isComplete = status === 'complete'
+
+  const daysUntil = differenceInDays(parseISO(run.pay_date), new Date())
+  const isDueToday = daysUntil === 0
+  const isPast = daysUntil < 0
+
+  // Due date display
+  let dueDateLabel = `Due ${formatDateShort(run.pay_date)}`
+  let dueDateColor = colors.text.muted
+  if (isOverdue) {
+    dueDateLabel = `OVERDUE · Due ${formatDateShort(run.pay_date)}`
+    dueDateColor = '#EF4444'
+  } else if (isDueToday && !isComplete) {
+    dueDateLabel = `Due Today`
+    dueDateColor = '#F59E0B'
   }
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => setShowDropdown(!showDropdown)}
-        disabled={updating}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[0.72rem] font-bold transition-all duration-150 hover:scale-105 cursor-pointer"
-        style={{
-          backgroundColor: statusConfig.bg,
-          color: statusConfig.text,
-          border: `1px solid ${statusConfig.border}`,
-        }}
-      >
-        {updating ? (
-          <Loader2 className="w-3 h-3 animate-spin" />
-        ) : (
-          <div
-            className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ backgroundColor: statusConfig.dot }}
-          />
-        )}
-        {statusConfig.label}
-        <ChevronDown className="w-3 h-3 ml-0.5" />
-      </button>
+    <div
+      className="relative group"
+      style={{
+        backgroundColor: colors.surface,
+        borderRadius: '8px',
+        border: `1px solid ${isOverdue ? '#EF444440' : colors.border}`,
+        borderLeft: isOverdue ? '4px solid #EF4444' : `1px solid ${isOverdue ? '#EF444440' : colors.border}`,
+        opacity: isComplete ? 0.75 : 1,
+        boxShadow: isOverdue
+          ? `0 4px 12px rgba(239, 68, 68, 0.15)`
+          : `0 1px 3px ${colors.shadow.light}`,
+        transition: 'transform 150ms ease-in-out, box-shadow 150ms ease-in-out',
+        ...(isOverdue ? { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.05)' : '#FFF5F5' } : {}),
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-2px)'
+        e.currentTarget.style.boxShadow = isOverdue
+          ? '0 8px 20px rgba(239, 68, 68, 0.2)'
+          : `0 4px 12px ${colors.shadow.medium}`
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.boxShadow = isOverdue
+          ? '0 4px 12px rgba(239, 68, 68, 0.15)'
+          : `0 1px 3px ${colors.shadow.light}`
+      }}
+    >
+      {/* Status bar at top */}
+      <div
+        className="rounded-t-lg"
+        style={{ height: '4px', backgroundColor: config.dot }}
+      />
 
-      {showDropdown && (
-        <>
-          {/* Backdrop */}
-          <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
-          {/* Dropdown menu */}
-          <div
-            className="absolute top-full left-0 mt-1 z-50 rounded-lg shadow-lg py-1 min-w-[140px]"
-            style={{
-              backgroundColor: colors.surface,
-              border: `1px solid ${colors.border}`,
-            }}
-          >
-            {ALL_STATUSES.map((s) => {
-              const config = getStatusConfig(s.value, isDark)
-              const isActive = s.value === status
-              return (
-                <button
-                  key={s.value}
-                  onClick={() => applyStatus(s.value)}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-[0.78rem] font-semibold transition-colors"
-                  style={{
-                    color: isActive ? config.text : colors.text.secondary,
-                    backgroundColor: isActive ? config.bg : 'transparent',
-                  }}
-                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}
-                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent' }}
-                >
-                  <div
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: config.dot }}
-                  />
-                  {s.label}
-                  {isActive && <CheckCircle2 className="w-3 h-3 ml-auto" style={{ color: config.text }} />}
-                </button>
-              )
-            })}
+      <div className="p-4 space-y-3">
+        {/* Client name + Status badge */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <Link
+              href={`/dashboard/clients/${run.client_id}`}
+              className="text-[0.95rem] font-semibold truncate block hover:underline"
+              style={{ color: colors.text.primary }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {run.clients?.name ?? 'Unknown Client'}
+            </Link>
+            <p className="text-[0.78rem] mt-0.5" style={{ color: colors.text.muted }}>
+              {format(parseISO(run.period_start), 'MMM yyyy')} · {formatPayFrequency(run.clients?.pay_frequency ?? null)}
+            </p>
           </div>
-        </>
-      )}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {isOverdue && (
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+              </span>
+            )}
+            <span
+              className="inline-flex items-center px-2.5 py-1 rounded-full text-[0.72rem] font-bold"
+              style={{
+                backgroundColor: config.bg,
+                color: config.text,
+                border: `1px solid ${config.border}`,
+              }}
+            >
+              {config.label}
+            </span>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div>
+          <div
+            className="w-full h-1.5 rounded-full overflow-hidden"
+            style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}
+          >
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{ width: `${progressPercent}%`, backgroundColor: config.dot }}
+            />
+          </div>
+          <p className="text-[0.72rem] font-medium mt-1" style={{ color: colors.text.muted }}>
+            {completedCount} of {totalCount} steps
+          </p>
+        </div>
+
+        {/* Due date */}
+        <p
+          className="text-[0.78rem]"
+          style={{ color: dueDateColor, fontWeight: isOverdue || isDueToday ? 700 : 400 }}
+        >
+          {dueDateLabel}
+        </p>
+
+        {/* Card footer */}
+        <div className="flex items-center justify-between pt-1" style={{ borderTop: `1px solid ${colors.border}` }}>
+          {isComplete ? (
+            <>
+              <button
+                onClick={onOpenChecklist}
+                className="text-[0.78rem] font-semibold px-3 py-1.5 rounded-md transition-opacity hover:opacity-80"
+                style={{ color: colors.primary }}
+              >
+                View Details
+              </button>
+              <button
+                onClick={onGenerateNext}
+                disabled={generating === run.id}
+                className="text-[0.78rem] font-semibold px-3 py-1.5 rounded-md text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: colors.primary }}
+              >
+                {generating === run.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Next Period'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={onOpenChecklist}
+                className="text-[0.78rem] font-semibold px-3 py-1.5 rounded-md transition-opacity hover:opacity-80"
+                style={{ color: colors.primary }}
+              >
+                Open Checklist
+              </button>
+              <button
+                onClick={onMarkComplete}
+                className="text-[0.78rem] font-semibold px-3 py-1.5 rounded-md text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: '#22C55E' }}
+              >
+                Mark Complete
+              </button>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
 
-// ── Expanded Panel Sub-component ─────────────────────────────────────────────
+// ── List View ──────────────────────────────────────────────────────────────────
 
-interface ExpandedPanelProps {
+interface RunListViewProps {
+  runs: PayrollRun[]
+  colors: ReturnType<typeof getThemeColors>
+  isDark: boolean
+  onOpenChecklist: (run: PayrollRun) => void
+  onMarkComplete: (run: PayrollRun) => void
+}
+
+function RunListView({ runs, colors, isDark, onOpenChecklist, onMarkComplete }: RunListViewProps) {
+  const [sortField, setSortField] = useState<'client' | 'status' | 'progress' | 'pay_date'>('pay_date')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+
+  const sorted = useMemo(() => {
+    return [...runs].sort((a, b) => {
+      const dir = sortDir === 'asc' ? 1 : -1
+      switch (sortField) {
+        case 'client':
+          return dir * (a.clients?.name ?? '').localeCompare(b.clients?.name ?? '')
+        case 'status': {
+          const w: Record<PayrollStatus, number> = { overdue: 0, due_soon: 1, in_progress: 2, not_started: 3, complete: 4 }
+          return dir * (w[computeStatus(a)] - w[computeStatus(b)])
+        }
+        case 'progress': {
+          const pa = a.checklist_items?.length ? a.checklist_items.filter((i) => i.is_completed).length / a.checklist_items.length : 0
+          const pb = b.checklist_items?.length ? b.checklist_items.filter((i) => i.is_completed).length / b.checklist_items.length : 0
+          return dir * (pa - pb)
+        }
+        case 'pay_date':
+        default:
+          return dir * (new Date(a.pay_date).getTime() - new Date(b.pay_date).getTime())
+      }
+    })
+  }, [runs, sortField, sortDir])
+
+  const handleSort = (field: typeof sortField) => {
+    if (field === sortField) setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+    else { setSortField(field); setSortDir('asc') }
+  }
+
+  const thStyle: React.CSSProperties = {
+    color: colors.text.muted,
+    fontSize: '0.68rem',
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    cursor: 'pointer',
+    userSelect: 'none',
+    padding: '10px 12px',
+  }
+
+  const SortArrow = ({ field }: { field: typeof sortField }) => {
+    if (sortField !== field) return null
+    return <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-lg" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
+      <table className="w-full">
+        <thead>
+          <tr style={{ borderBottom: `1px solid ${colors.border}`, backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)' }}>
+            <th style={thStyle} className="text-left" onClick={() => handleSort('client')}>
+              Client<SortArrow field="client" />
+            </th>
+            <th style={thStyle} className="text-left hidden md:table-cell">Period</th>
+            <th style={thStyle} className="text-left" onClick={() => handleSort('status')}>
+              Status<SortArrow field="status" />
+            </th>
+            <th style={thStyle} className="text-left hidden sm:table-cell" onClick={() => handleSort('progress')}>
+              Progress<SortArrow field="progress" />
+            </th>
+            <th style={thStyle} className="text-left" onClick={() => handleSort('pay_date')}>
+              Due Date<SortArrow field="pay_date" />
+            </th>
+            <th style={{ ...thStyle, width: '48px' }} />
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((run) => {
+            const status = computeStatus(run)
+            const config = getStatusConfig(status, isDark)
+            const items = run.checklist_items ?? []
+            const completedCount = items.filter((i) => i.is_completed).length
+            const totalCount = items.length
+            const isOverdue = status === 'overdue'
+            const daysUntil = differenceInDays(parseISO(run.pay_date), new Date())
+
+            return (
+              <tr
+                key={run.id}
+                className="group transition-colors cursor-pointer"
+                style={{ borderBottom: `1px solid ${colors.border}` }}
+                onClick={() => onOpenChecklist(run)}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.02)' : '#F9FAFB' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+              >
+                <td className="px-3 py-3">
+                  <Link
+                    href={`/dashboard/clients/${run.client_id}`}
+                    className="text-[0.85rem] font-semibold hover:underline"
+                    style={{ color: colors.primary }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {run.clients?.name ?? 'Unknown'} ↗
+                  </Link>
+                </td>
+                <td className="px-3 py-3 hidden md:table-cell">
+                  <span className="text-[0.82rem]" style={{ color: colors.text.secondary }}>
+                    {format(parseISO(run.period_start), 'MMM yyyy')}
+                  </span>
+                </td>
+                <td className="px-3 py-3">
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.72rem] font-bold"
+                    style={{ backgroundColor: config.bg, color: config.text, border: `1px solid ${config.border}` }}
+                  >
+                    {isOverdue && (
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                      </span>
+                    )}
+                    {config.label}
+                  </span>
+                </td>
+                <td className="px-3 py-3 hidden sm:table-cell">
+                  <span className="text-[0.82rem] font-medium" style={{ color: colors.text.secondary }}>
+                    {completedCount} / {totalCount}
+                  </span>
+                </td>
+                <td className="px-3 py-3">
+                  <span
+                    className="text-[0.82rem]"
+                    style={{
+                      color: isOverdue ? '#EF4444' : daysUntil === 0 ? '#F59E0B' : colors.text.secondary,
+                      fontWeight: isOverdue || daysUntil === 0 ? 700 : 400,
+                    }}
+                  >
+                    {isOverdue && '⚠ '}{formatDateShort(run.pay_date)}
+                  </span>
+                </td>
+                <td className="px-3 py-3">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onOpenChecklist(run) }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded"
+                    style={{ color: colors.text.muted }}
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ── Checklist Side Panel ───────────────────────────────────────────────────────
+
+interface ChecklistPanelProps {
   run: PayrollRun
-  status: PayrollStatus
   colors: ReturnType<typeof getThemeColors>
   isDark: boolean
   togglingItem: string | null
   savingNotes: string | null
-  markingAll: string | null
+  addingStep: boolean
+  newStepName: string
   generating: string | null
   onToggleItem: (item: ChecklistItem) => void
-  onMarkAllComplete: (run: PayrollRun) => void
+  onMarkAllComplete: () => void
   onSaveNotes: (runId: string, notes: string) => void
-  onGenerateNext: (run: PayrollRun) => void
+  onNewStepNameChange: (name: string) => void
+  onAddStep: () => void
+  onGenerateNext: () => void
 }
 
-function ExpandedPanel({
+function ChecklistPanel({
   run,
-  status,
   colors,
   isDark,
   togglingItem,
   savingNotes,
-  markingAll,
+  addingStep,
+  newStepName,
   generating,
   onToggleItem,
   onMarkAllComplete,
   onSaveNotes,
+  onNewStepNameChange,
+  onAddStep,
   onGenerateNext,
-}: ExpandedPanelProps) {
+}: ChecklistPanelProps) {
   const [localNotes, setLocalNotes] = useState(run.notes ?? '')
   const items = [...(run.checklist_items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
   const completedCount = items.filter((i) => i.is_completed).length
-  const allComplete = items.length > 0 && completedCount === items.length
+  const totalCount = items.length
+  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+  const allComplete = totalCount > 0 && completedCount === totalCount
+  const status = computeStatus(run)
+  const config = getStatusConfig(status, isDark)
+
+  // Sync localNotes when run changes
+  useEffect(() => {
+    setLocalNotes(run.notes ?? '')
+  }, [run.notes])
 
   return (
-    <div
-      className="px-4 pb-4 pt-2 space-y-4"
-      style={{
-        backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
-        borderBottom: `1px solid ${colors.border}`,
-      }}
-    >
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Left: Checklist */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-[0.82rem] font-bold flex items-center gap-2" style={{ color: colors.text.primary }}>
-              <ListChecks className="w-4 h-4" style={{ color: colors.primary }} />
-              Checklist
-            </h4>
-            {items.length > 0 && !allComplete && (
-              <Button
-                size="sm"
-                onClick={(e) => { e.stopPropagation(); onMarkAllComplete(run) }}
-                disabled={markingAll === run.id}
-                className="text-white font-semibold rounded-lg text-[0.7rem] h-7 px-2.5"
-                style={{ background: `linear-gradient(135deg, ${colors.success}, ${colors.success}CC)` }}
-              >
-                {markingAll === run.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <CheckCircle2 className="w-3 h-3 mr-1" />}
-                Complete All
-              </Button>
-            )}
-          </div>
+    <div className="flex flex-col h-full">
+      {/* Panel header */}
+      <div className="p-6 pb-4" style={{ borderBottom: `1px solid ${colors.border}` }}>
+        <SheetHeader className="p-0">
+          <SheetTitle className="text-lg font-bold" style={{ color: colors.text.primary }}>
+            {run.clients?.name ?? 'Unknown Client'}
+          </SheetTitle>
+          <SheetDescription className="text-[0.82rem] font-medium" style={{ color: colors.text.muted }}>
+            {format(parseISO(run.period_start), 'MMMM yyyy')} · {formatPayFrequency(run.clients?.pay_frequency ?? null)}
+          </SheetDescription>
+        </SheetHeader>
 
-          {items.length === 0 ? (
-            <p className="text-[0.82rem] italic" style={{ color: colors.text.muted }}>No checklist items.</p>
-          ) : (
-            <div className="space-y-1">
-              {items.map((item) => (
-                <label
-                  key={item.id}
-                  className="flex items-center gap-2.5 py-2 px-2.5 rounded-lg cursor-pointer transition-colors duration-100"
-                  style={{
-                    backgroundColor: item.is_completed
-                      ? isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.04)'
-                      : 'transparent',
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="relative flex-shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={item.is_completed}
-                      onChange={() => onToggleItem(item)}
-                      disabled={togglingItem === item.id}
-                      className="w-4 h-4 rounded cursor-pointer accent-emerald-600"
-                    />
-                    {togglingItem === item.id && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.primary }} />
-                      </div>
-                    )}
-                  </div>
-                  <span
-                    className={`text-[0.82rem] font-medium ${item.is_completed ? 'line-through' : ''}`}
-                    style={{ color: item.is_completed ? colors.text.muted : colors.text.primary }}
-                  >
-                    {item.name}
-                  </span>
-                  {item.is_completed && item.completed_at && (
-                    <span className="text-[0.68rem] ml-auto flex-shrink-0" style={{ color: colors.text.muted }}>
-                      {formatDateShort(item.completed_at)}
-                    </span>
-                  )}
-                </label>
-              ))}
-            </div>
-          )}
+        {/* Status + Progress */}
+        <div className="mt-4 flex items-center gap-3">
+          <span
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.72rem] font-bold"
+            style={{ backgroundColor: config.bg, color: config.text, border: `1px solid ${config.border}` }}
+          >
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: config.dot }} />
+            {config.label}
+          </span>
+          <span className="text-[0.82rem] font-medium" style={{ color: colors.text.muted }}>
+            {completedCount} of {totalCount} steps complete
+          </span>
         </div>
 
-        {/* Right: Notes + Deadlines */}
-        <div className="space-y-4">
-          <div>
-            <h4 className="text-[0.82rem] font-bold flex items-center gap-2 mb-2" style={{ color: colors.text.primary }}>
-              <StickyNote className="w-4 h-4" style={{ color: colors.primary }} />
-              Notes
-              {savingNotes === run.id && (
-                <span className="text-[0.68rem] font-normal ml-1" style={{ color: colors.text.muted }}>Saving...</span>
-              )}
-            </h4>
-            <textarea
-              value={localNotes}
-              onChange={(e) => setLocalNotes(e.target.value)}
-              onBlur={() => { if (localNotes !== (run.notes ?? '')) onSaveNotes(run.id, localNotes) }}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="Add notes..."
-              rows={3}
-              className="w-full rounded-lg p-2.5 text-[0.82rem] font-medium resize-none focus:outline-none transition-all"
-              style={{
-                backgroundColor: colors.surface,
-                color: colors.text.primary,
-                border: `1px solid ${colors.border}`,
-              }}
-              onFocus={(e) => { e.target.style.borderColor = `${colors.primary}60` }}
-              onBlurCapture={(e) => { e.target.style.borderColor = colors.border }}
+        {/* Progress bar */}
+        <div className="mt-3">
+          <div
+            className="w-full h-2 rounded-full overflow-hidden"
+            style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}
+          >
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{ width: `${progressPercent}%`, backgroundColor: config.dot }}
             />
           </div>
+          <p className="text-[0.72rem] font-bold text-right mt-1" style={{ color: config.text }}>
+            {progressPercent}%
+          </p>
+        </div>
+      </div>
 
-          <div>
-            <h4 className="text-[0.82rem] font-bold flex items-center gap-2 mb-2" style={{ color: colors.text.primary }}>
-              <Clock className="w-4 h-4" style={{ color: colors.primary }} />
-              Deadlines
-            </h4>
-            <div className="rounded-lg p-3 space-y-2" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
-              {[
-                { label: 'FPS Due', value: formatDate(run.rti_due_date) },
-                { label: 'EPS Due', value: formatDate(run.eps_due_date) },
-                { label: 'Pay Date', value: formatDate(run.pay_date) },
-              ].map((d, i) => (
-                <div key={d.label}>
-                  {i > 0 && <div className="h-px mb-2" style={{ backgroundColor: colors.border }} />}
-                  <div className="flex items-center justify-between">
-                    <span className="text-[0.78rem] font-medium" style={{ color: colors.text.secondary }}>{d.label}</span>
-                    <span className="text-[0.78rem] font-bold" style={{ color: colors.text.primary }}>{d.value}</span>
+      {/* Checklist items */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-1">
+        {items.length === 0 ? (
+          <p className="text-[0.82rem] italic" style={{ color: colors.text.muted }}>No checklist items yet.</p>
+        ) : (
+          items.map((item) => (
+            <label
+              key={item.id}
+              className="flex items-center gap-3 py-2.5 px-3 rounded-lg cursor-pointer transition-colors duration-100"
+              style={{
+                backgroundColor: item.is_completed
+                  ? isDark ? 'rgba(34, 197, 94, 0.08)' : 'rgba(34, 197, 94, 0.04)'
+                  : 'transparent',
+              }}
+              onMouseEnter={(e) => {
+                if (!item.is_completed) e.currentTarget.style.backgroundColor = isDark ? 'rgba(124, 92, 191, 0.08)' : '#F5F3FF'
+              }}
+              onMouseLeave={(e) => {
+                if (!item.is_completed) e.currentTarget.style.backgroundColor = 'transparent'
+              }}
+            >
+              <div className="relative flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={item.is_completed}
+                  onChange={() => onToggleItem(item)}
+                  disabled={togglingItem === item.id}
+                  className="w-4.5 h-4.5 rounded cursor-pointer accent-emerald-600"
+                  style={{ width: '18px', height: '18px' }}
+                />
+                {togglingItem === item.id && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin" style={{ color: colors.primary }} />
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                )}
+              </div>
+              <span
+                className={`text-[0.85rem] font-medium flex-1 ${item.is_completed ? 'line-through' : ''}`}
+                style={{ color: item.is_completed ? '#22C55E' : colors.text.primary }}
+              >
+                {item.name}
+              </span>
+              {item.is_completed && item.completed_at && (
+                <span className="text-[0.68rem] flex-shrink-0" style={{ color: colors.text.muted }}>
+                  {formatDateShort(item.completed_at)}
+                </span>
+              )}
+            </label>
+          ))
+        )}
 
+        {/* Add step input */}
+        <div className="flex items-center gap-2 mt-3 pt-3" style={{ borderTop: `1px solid ${colors.border}` }}>
+          <input
+            type="text"
+            value={newStepName}
+            onChange={(e) => onNewStepNameChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onAddStep() }}
+            placeholder="Add a step..."
+            className="flex-1 text-[0.82rem] font-medium px-3 py-2 rounded-lg focus:outline-none transition-all"
+            style={{
+              backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#F9FAFB',
+              color: colors.text.primary,
+              border: `1px solid ${colors.border}`,
+            }}
+            onFocus={(e) => { e.target.style.borderColor = `${colors.primary}60` }}
+            onBlur={(e) => { e.target.style.borderColor = colors.border }}
+          />
+          <Button
+            onClick={onAddStep}
+            disabled={addingStep || !newStepName.trim()}
+            className="text-white font-semibold text-xs rounded-md border-0 h-8 px-3"
+            style={{ backgroundColor: colors.primary }}
+          >
+            {addingStep ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Panel footer */}
+      <div className="p-6 pt-4 space-y-2" style={{ borderTop: `1px solid ${colors.border}` }}>
+        {/* Notes */}
+        <div>
+          <p className="text-[0.72rem] font-bold uppercase tracking-wider mb-1.5" style={{ color: colors.text.muted }}>
+            Notes {savingNotes === run.id && <span className="font-normal normal-case">· Saving...</span>}
+          </p>
+          <textarea
+            value={localNotes}
+            onChange={(e) => setLocalNotes(e.target.value)}
+            onBlur={() => { if (localNotes !== (run.notes ?? '')) onSaveNotes(run.id, localNotes) }}
+            placeholder="Add notes..."
+            rows={2}
+            className="w-full rounded-lg p-2.5 text-[0.82rem] font-medium resize-none focus:outline-none transition-all"
+            style={{
+              backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#F9FAFB',
+              color: colors.text.primary,
+              border: `1px solid ${colors.border}`,
+            }}
+            onFocus={(e) => { e.target.style.borderColor = `${colors.primary}60` }}
+            onBlurCapture={(e) => { e.target.style.borderColor = colors.border }}
+          />
+        </div>
+
+        {/* Deadlines */}
+        <div className="rounded-lg p-3 space-y-1.5" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F9FAFB', border: `1px solid ${colors.border}` }}>
+          {[
+            { label: 'FPS Due', value: formatDate(run.rti_due_date) },
+            { label: 'EPS Due', value: formatDate(run.eps_due_date) },
+            { label: 'Pay Date', value: formatDate(run.pay_date) },
+          ].map((d) => (
+            <div key={d.label} className="flex items-center justify-between">
+              <span className="text-[0.75rem] font-medium" style={{ color: colors.text.muted }}>{d.label}</span>
+              <span className="text-[0.75rem] font-bold" style={{ color: colors.text.primary }}>{d.value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-2 pt-1">
+          {!allComplete && totalCount > 0 && (
+            <Button
+              onClick={onMarkAllComplete}
+              className="flex-1 text-white font-semibold text-[0.82rem] rounded-md border-0"
+              style={{ backgroundColor: '#22C55E' }}
+            >
+              <CheckCircle2 className="w-4 h-4 mr-1.5" />
+              Mark All Complete
+            </Button>
+          )}
           {status === 'complete' && (
             <Button
-              onClick={(e) => { e.stopPropagation(); onGenerateNext(run) }}
+              onClick={onGenerateNext}
               disabled={generating === run.id}
-              className="w-full text-white font-semibold rounded-lg text-[0.82rem]"
-              style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+              className="flex-1 text-white font-semibold text-[0.82rem] rounded-md border-0"
+              style={{ backgroundColor: colors.primary }}
             >
-              {generating === run.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+              {generating === run.id ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Plus className="w-4 h-4 mr-1.5" />}
               Generate Next Period
             </Button>
           )}
