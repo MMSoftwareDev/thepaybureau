@@ -72,7 +72,17 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    return NextResponse.json(client)
+    // Fetch payroll runs for this client
+    const { data: payrollRuns } = await supabase
+      .from('payroll_runs')
+      .select('id, period_start, period_end, pay_date, status, rti_due_date, eps_due_date, created_at, updated_at')
+      .eq('client_id', id)
+      .order('pay_date', { ascending: false })
+
+    return NextResponse.json({
+      ...client,
+      payroll_runs: payrollRuns || [],
+    })
   } catch (error) {
     console.error('Server error in GET /api/clients/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
