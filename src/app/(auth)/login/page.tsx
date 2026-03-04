@@ -27,28 +27,12 @@ export default function LoginPage() {
   const router = useRouter()
   const supabase = createClientSupabaseClient()
 
-  // OAuth providers — greyed out until env vars are configured in Supabase
-  const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === 'true'
-  const microsoftEnabled = process.env.NEXT_PUBLIC_MICROSOFT_OAUTH_ENABLED === 'true'
+  const [comingSoonMsg, setComingSoonMsg] = useState('')
 
-  const handleOAuth = async (provider: 'google' | 'azure') => {
-    setLoginError('')
-    setLoading(true)
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-      if (error) {
-        setLoginError(error.message)
-        setLoading(false)
-      }
-    } catch {
-      setLoginError('An unexpected error occurred. Please try again.')
-      setLoading(false)
-    }
+  const handleOAuth = (provider: 'google' | 'azure') => {
+    const name = provider === 'google' ? 'Google' : 'Microsoft'
+    setComingSoonMsg(`${name} sign-in is coming soon! Please use email and password for now.`)
+    setTimeout(() => setComingSoonMsg(''), 4000)
   }
 
   useEffect(() => {
@@ -467,19 +451,29 @@ export default function LoginPage() {
             <div className="h-px flex-1 bg-[var(--login-border)]" />
           </div>
 
+          {/* Coming soon message */}
+          {comingSoonMsg && (
+            <div
+              className="mb-4 flex items-center gap-2 rounded-[10px] border border-[var(--login-purple)]/10 px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-purple)]"
+              style={{
+                background: 'var(--login-focus)',
+                animation: 'loginSlideDown 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              }}
+              role="status"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
+                <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
+              </svg>
+              <span>{comingSoonMsg}</span>
+            </div>
+          )}
+
           {/* OAuth buttons */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button
               type="button"
-              disabled={!googleEnabled || loading}
-              title={googleEnabled ? 'Sign in with Google' : 'Coming soon'}
-              onClick={() => googleEnabled && handleOAuth('google')}
-              className={cn(
-                'flex items-center justify-center gap-2.5 rounded-xl border-2 border-[var(--login-border)] bg-white px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--login-text-2)] dark:bg-[#1A1B2E]',
-                googleEnabled
-                  ? 'cursor-pointer transition-all duration-200 hover:border-[var(--login-purple)] hover:shadow-sm'
-                  : 'cursor-not-allowed opacity-50'
-              )}
+              onClick={() => handleOAuth('google')}
+              className="relative flex items-center justify-center gap-2.5 rounded-xl border-2 border-[var(--login-border)] bg-white px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--login-text-2)] transition-all duration-200 hover:border-[var(--login-purple)] hover:shadow-sm dark:bg-[#1A1B2E]"
             >
               <svg className="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -488,18 +482,14 @@ export default function LoginPage() {
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
               </svg>
               Google
+              <span className="absolute -right-1 -top-1 rounded-full bg-[var(--login-purple)] px-1.5 py-0.5 font-[family-name:var(--font-body)] text-[0.6rem] font-bold uppercase tracking-wider text-white">
+                Soon
+              </span>
             </button>
             <button
               type="button"
-              disabled={!microsoftEnabled || loading}
-              title={microsoftEnabled ? 'Sign in with Microsoft' : 'Coming soon'}
-              onClick={() => microsoftEnabled && handleOAuth('azure')}
-              className={cn(
-                'flex items-center justify-center gap-2.5 rounded-xl border-2 border-[var(--login-border)] bg-white px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--login-text-2)] dark:bg-[#1A1B2E]',
-                microsoftEnabled
-                  ? 'cursor-pointer transition-all duration-200 hover:border-[var(--login-purple)] hover:shadow-sm'
-                  : 'cursor-not-allowed opacity-50'
-              )}
+              onClick={() => handleOAuth('azure')}
+              className="relative flex items-center justify-center gap-2.5 rounded-xl border-2 border-[var(--login-border)] bg-white px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--login-text-2)] transition-all duration-200 hover:border-[var(--login-purple)] hover:shadow-sm dark:bg-[#1A1B2E]"
             >
               <svg className="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24">
                 <path fill="#F25022" d="M1 1h10v10H1z" />
@@ -508,6 +498,9 @@ export default function LoginPage() {
                 <path fill="#FFB900" d="M13 13h10v10H13z" />
               </svg>
               Microsoft
+              <span className="absolute -right-1 -top-1 rounded-full bg-[var(--login-purple)] px-1.5 py-0.5 font-[family-name:var(--font-body)] text-[0.6rem] font-bold uppercase tracking-wider text-white">
+                Soon
+              </span>
             </button>
           </div>
 
