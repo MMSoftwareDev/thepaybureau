@@ -765,8 +765,9 @@ function ClientsContent() {
                   return (
                     <TableRow
                       key={client.id}
-                      className="transition-all duration-300 hover:scale-[1.01] group"
+                      className="transition-all duration-300 hover:scale-[1.01] group cursor-pointer"
                       style={{ borderColor: colors.border }}
+                      onClick={() => router.push(`/dashboard/clients/${client.id}`)}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.05)' : '#F5F0FF'
                         e.currentTarget.style.boxShadow = `0 4px 15px ${colors.shadow.light}`
@@ -785,7 +786,11 @@ function ClientsContent() {
                             <Building2 className="w-5 h-5" style={{ color: colors.primary }} />
                           </div>
                           <div>
-                            <div className="font-bold transition-colors duration-300" style={{ color: colors.text.primary }}>
+                            <div
+                              className="font-bold transition-colors duration-300 cursor-pointer hover:underline"
+                              style={{ color: colors.text.primary }}
+                              onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/clients/${client.id}`) }}
+                            >
                               {client.name}
                             </div>
                             {client.paye_reference && (
@@ -854,7 +859,7 @@ function ClientsContent() {
                         )}
                       </TableCell>
 
-                      <TableCell className="text-right">
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end space-x-2">
                           <Button
                             variant="outline"
