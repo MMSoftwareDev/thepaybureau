@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
@@ -14,15 +14,11 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import {
-  Calendar,
   CalendarPlus,
   CheckCircle2,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Clock,
   FileText,
-  GripVertical,
   LayoutGrid,
   List,
   Loader2,
@@ -129,8 +125,6 @@ function getStatusConfig(status: PayrollStatus, isDark: boolean): StatusConfig {
   }
 }
 
-const ALL_STATUSES: PayrollStatus[] = ['not_started', 'in_progress', 'due_soon', 'overdue', 'complete']
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function formatPayFrequency(freq: string | null): string {
@@ -206,7 +200,6 @@ export default function PayrollsPage() {
   // Action states
   const [togglingItem, setTogglingItem] = useState<string | null>(null)
   const [savingNotes, setSavingNotes] = useState<string | null>(null)
-  const [generating, setGenerating] = useState<string | null>(null)
   const [addingStep, setAddingStep] = useState(false)
   const [newStepName, setNewStepName] = useState('')
 
@@ -275,15 +268,15 @@ export default function PayrollsPage() {
       result = result.filter((run) => run.clients?.name?.toLowerCase().includes(q))
     }
 
-    if (statusFilter !== 'all') {
-      result = result.filter((run) => {
-        const s = computeStatus(run)
-        if (statusFilter === 'in_progress') return s === 'in_progress' || s === 'due_soon' || s === 'not_started'
-        if (statusFilter === 'overdue') return s === 'overdue'
-        if (statusFilter === 'complete') return s === 'complete'
-        return true
-      })
-    }
+    // Filter by status — default ('all') hides completed runs
+    result = result.filter((run) => {
+      const s = computeStatus(run)
+      if (statusFilter === 'all') return s !== 'complete'
+      if (statusFilter === 'in_progress') return s === 'in_progress' || s === 'due_soon' || s === 'not_started'
+      if (statusFilter === 'overdue') return s === 'overdue'
+      if (statusFilter === 'complete') return s === 'complete'
+      return true
+    })
 
     return [...result].sort(sortByUrgency)
   }, [runs, statusFilter, searchQuery])
@@ -315,33 +308,48 @@ export default function PayrollsPage() {
       if (updateError) throw updateError
 
       // Optimistic update
+      const updatedChecklist = (runItems: ChecklistItem[]) =>
+        runItems.map((ci) =>
+          ci.id === item.id
+            ? { ...ci, is_completed: !item.is_completed, completed_at: !item.is_completed ? new Date().toISOString() : null }
+            : ci
+        )
+
       setRuns((prev) =>
         prev.map((r) =>
           r.id === item.payroll_run_id
-            ? {
-                ...r,
-                checklist_items: r.checklist_items.map((ci) =>
-                  ci.id === item.id
-                    ? { ...ci, is_completed: !item.is_completed, completed_at: !item.is_completed ? new Date().toISOString() : null }
-                    : ci
-                ),
-              }
+            ? { ...r, checklist_items: updatedChecklist(r.checklist_items) }
             : r
         )
       )
-      // Also update selectedRun if open
       setSelectedRun((prev) =>
         prev && prev.id === item.payroll_run_id
-          ? {
-              ...prev,
-              checklist_items: prev.checklist_items.map((ci) =>
-                ci.id === item.id
-                  ? { ...ci, is_completed: !item.is_completed, completed_at: !item.is_completed ? new Date().toISOString() : null }
-                  : ci
-              ),
-            }
+          ? { ...prev, checklist_items: updatedChecklist(prev.checklist_items) }
           : prev
       )
+
+      // Check if this was the last item — auto-generate next period
+      if (!item.is_completed) {
+        const parentRun = runs.find((r) => r.id === item.payroll_run_id)
+        if (parentRun) {
+          const allItems = parentRun.checklist_items
+          const otherIncomplete = allItems.filter((ci) => ci.id !== item.id && !ci.is_completed)
+          if (otherIncomplete.length === 0) {
+            // All items now complete — close panel and auto-generate
+            setPanelOpen(false)
+            setSelectedRun(null)
+            try {
+              await fetch('/api/payroll-runs/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ client_id: parentRun.client_id }),
+              })
+            } catch {
+              // Non-critical
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error('Error toggling checklist item:', err)
       await fetchRuns()
@@ -359,15 +367,25 @@ export default function PayrollsPage() {
         .update({ is_completed: true, completed_at: new Date().toISOString() })
         .in('id', incompleteIds)
       if (updateError) throw updateError
-      await fetchRuns()
-      // Update selectedRun
+
+      // Close side panel if open for this run
       if (selectedRun?.id === run.id) {
-        setSelectedRun((prev) =>
-          prev
-            ? { ...prev, checklist_items: prev.checklist_items.map((ci) => ({ ...ci, is_completed: true, completed_at: ci.completed_at ?? new Date().toISOString() })) }
-            : prev
-        )
+        setPanelOpen(false)
+        setSelectedRun(null)
       }
+
+      // Auto-generate next period
+      try {
+        await fetch('/api/payroll-runs/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ client_id: run.client_id }),
+        })
+      } catch {
+        // Non-critical — next period generation can fail silently
+      }
+
+      await fetchRuns()
     } catch (err) {
       console.error('Error marking all complete:', err)
     }
@@ -410,26 +428,6 @@ export default function PayrollsPage() {
     }
   }
 
-  const generateNextPeriod = async (run: PayrollRun) => {
-    setGenerating(run.id)
-    try {
-      const res = await fetch('/api/payroll-runs/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: run.client_id }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error || 'Failed to generate next period')
-      }
-      await fetchRuns()
-    } catch (err) {
-      console.error('Error generating next period:', err)
-    } finally {
-      setGenerating(null)
-    }
-  }
-
   const openChecklist = (run: PayrollRun) => {
     setSelectedRun(run)
     setPanelOpen(true)
@@ -448,17 +446,6 @@ export default function PayrollsPage() {
   const periodLabel = format(currentPeriod, 'MMMM yyyy')
   const goToPrevPeriod = () => setCurrentPeriod(subMonths(currentPeriod, 1))
   const goToNextPeriod = () => setCurrentPeriod(addMonths(currentPeriod, 1))
-
-  // ── Styles ──────────────────────────────────────────────────────────────────
-
-  const cardBase: React.CSSProperties = {
-    backgroundColor: colors.surface,
-    borderRadius: '8px',
-    border: `1px solid ${colors.border}`,
-    padding: '16px',
-    transition: 'transform 150ms ease-in-out, box-shadow 150ms ease-in-out',
-    cursor: 'pointer',
-  }
 
   // ── Prevent hydration mismatch ──────────────────────────────────────────────
 
@@ -629,8 +616,6 @@ export default function PayrollsPage() {
               isDark={isDark}
               onOpenChecklist={() => openChecklist(run)}
               onMarkComplete={() => markAllComplete(run)}
-              generating={generating}
-              onGenerateNext={() => generateNextPeriod(run)}
             />
           ))}
         </div>
@@ -677,13 +662,11 @@ export default function PayrollsPage() {
               savingNotes={savingNotes}
               addingStep={addingStep}
               newStepName={newStepName}
-              generating={generating}
               onToggleItem={toggleChecklistItem}
               onMarkAllComplete={() => markAllComplete(selectedRun)}
               onSaveNotes={saveNotes}
               onNewStepNameChange={setNewStepName}
               onAddStep={() => addStep(selectedRun.id)}
-              onGenerateNext={() => generateNextPeriod(selectedRun)}
             />
           )}
         </SheetContent>
@@ -830,10 +813,10 @@ interface SummaryBarProps {
 
 function SummaryBar({ counts, statusFilter, onFilterChange, colors, isDark }: SummaryBarProps) {
   const pills: { key: StatusFilter; label: string; count: number; color: string }[] = [
-    { key: 'all', label: 'Total Runs', count: counts.total, color: colors.primary },
-    { key: 'complete', label: 'Complete', count: counts.complete, color: '#22C55E' },
+    { key: 'all', label: 'Active', count: counts.total - counts.complete, color: colors.primary },
     { key: 'in_progress', label: 'In Progress', count: counts.in_progress, color: '#F59E0B' },
     { key: 'overdue', label: 'Overdue', count: counts.overdue, color: '#EF4444' },
+    { key: 'complete', label: 'Complete', count: counts.complete, color: colors.success },
   ]
 
   return (
@@ -872,11 +855,9 @@ interface RunCardProps {
   isDark: boolean
   onOpenChecklist: () => void
   onMarkComplete: () => void
-  generating: string | null
-  onGenerateNext: () => void
 }
 
-function RunCard({ run, colors, isDark, onOpenChecklist, onMarkComplete, generating, onGenerateNext }: RunCardProps) {
+function RunCard({ run, colors, isDark, onOpenChecklist, onMarkComplete }: RunCardProps) {
   const status = computeStatus(run)
   const config = getStatusConfig(status, isDark)
   const items = run.checklist_items ?? []
@@ -888,17 +869,19 @@ function RunCard({ run, colors, isDark, onOpenChecklist, onMarkComplete, generat
 
   const daysUntil = differenceInDays(parseISO(run.pay_date), new Date())
   const isDueToday = daysUntil === 0
-  const isPast = daysUntil < 0
 
-  // Due date display
-  let dueDateLabel = `Due ${formatDateShort(run.pay_date)}`
-  let dueDateColor = colors.text.muted
+  // Pay period display
+  const payPeriod = `${formatDateShort(run.period_start)} – ${formatDateShort(run.period_end)}`
+
+  // Pay date display
+  let payDateLabel = `Pay Date: ${formatDateShort(run.pay_date)}`
+  let payDateColor = colors.text.muted
   if (isOverdue) {
-    dueDateLabel = `OVERDUE · Due ${formatDateShort(run.pay_date)}`
-    dueDateColor = '#EF4444'
+    payDateLabel = `OVERDUE · ${formatDateShort(run.pay_date)}`
+    payDateColor = '#EF4444'
   } else if (isDueToday && !isComplete) {
-    dueDateLabel = `Due Today`
-    dueDateColor = '#F59E0B'
+    payDateLabel = `Pay Date: Today`
+    payDateColor = '#F59E0B'
   }
 
   return (
@@ -948,7 +931,7 @@ function RunCard({ run, colors, isDark, onOpenChecklist, onMarkComplete, generat
               {run.clients?.name ?? 'Unknown Client'}
             </Link>
             <p className="text-[0.78rem] mt-0.5" style={{ color: colors.text.muted }}>
-              {format(parseISO(run.period_start), 'MMM yyyy')} · {formatPayFrequency(run.clients?.pay_frequency ?? null)}
+              {payPeriod} · {formatPayFrequency(run.clients?.pay_frequency ?? null)}
             </p>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -987,51 +970,31 @@ function RunCard({ run, colors, isDark, onOpenChecklist, onMarkComplete, generat
           </p>
         </div>
 
-        {/* Due date */}
+        {/* Pay date */}
         <p
           className="text-[0.78rem]"
-          style={{ color: dueDateColor, fontWeight: isOverdue || isDueToday ? 700 : 400 }}
+          style={{ color: payDateColor, fontWeight: isOverdue || isDueToday ? 700 : 400 }}
         >
-          {dueDateLabel}
+          {payDateLabel}
         </p>
 
         {/* Card footer */}
         <div className="flex items-center justify-between pt-1" style={{ borderTop: `1px solid ${colors.border}` }}>
-          {isComplete ? (
-            <>
-              <button
-                onClick={onOpenChecklist}
-                className="text-[0.78rem] font-semibold px-3 py-1.5 rounded-md transition-opacity hover:opacity-80"
-                style={{ color: colors.primary }}
-              >
-                View Details
-              </button>
-              <button
-                onClick={onGenerateNext}
-                disabled={generating === run.id}
-                className="text-[0.78rem] font-semibold px-3 py-1.5 rounded-md text-white transition-opacity hover:opacity-90"
-                style={{ backgroundColor: colors.primary }}
-              >
-                {generating === run.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Next Period'}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={onOpenChecklist}
-                className="text-[0.78rem] font-semibold px-3 py-1.5 rounded-md transition-opacity hover:opacity-80"
-                style={{ color: colors.primary }}
-              >
-                Open Checklist
-              </button>
-              <button
-                onClick={onMarkComplete}
-                className="text-[0.78rem] font-semibold px-3 py-1.5 rounded-md text-white transition-opacity hover:opacity-90"
-                style={{ backgroundColor: '#22C55E' }}
-              >
-                Mark Complete
-              </button>
-            </>
+          <button
+            onClick={onOpenChecklist}
+            className="text-[0.78rem] font-semibold px-3 py-1.5 rounded-md transition-opacity hover:opacity-80"
+            style={{ color: colors.primary }}
+          >
+            {isComplete ? 'View Details' : 'Open Checklist'}
+          </button>
+          {!isComplete && (
+            <button
+              onClick={onMarkComplete}
+              className="text-[0.78rem] font-semibold px-3 py-1.5 rounded-md text-white transition-opacity hover:opacity-90"
+              style={{ backgroundColor: colors.success }}
+            >
+              Mark Complete
+            </button>
           )}
         </div>
       </div>
@@ -1104,7 +1067,7 @@ function RunListView({ runs, colors, isDark, onOpenChecklist, onMarkComplete }: 
             <th style={thStyle} className="text-left" onClick={() => handleSort('client')}>
               Client<SortArrow field="client" />
             </th>
-            <th style={thStyle} className="text-left hidden md:table-cell">Period</th>
+            <th style={thStyle} className="text-left hidden md:table-cell">Pay Period</th>
             <th style={thStyle} className="text-left" onClick={() => handleSort('status')}>
               Status<SortArrow field="status" />
             </th>
@@ -1112,7 +1075,7 @@ function RunListView({ runs, colors, isDark, onOpenChecklist, onMarkComplete }: 
               Progress<SortArrow field="progress" />
             </th>
             <th style={thStyle} className="text-left" onClick={() => handleSort('pay_date')}>
-              Due Date<SortArrow field="pay_date" />
+              Pay Date<SortArrow field="pay_date" />
             </th>
             <th style={{ ...thStyle, width: '48px' }} />
           </tr>
@@ -1148,7 +1111,7 @@ function RunListView({ runs, colors, isDark, onOpenChecklist, onMarkComplete }: 
                 </td>
                 <td className="px-3 py-3 hidden md:table-cell">
                   <span className="text-[0.82rem]" style={{ color: colors.text.secondary }}>
-                    {format(parseISO(run.period_start), 'MMM yyyy')}
+                    {formatDateShort(run.period_start)} – {formatDateShort(run.period_end)}
                   </span>
                 </td>
                 <td className="px-3 py-3">
@@ -1209,13 +1172,11 @@ interface ChecklistPanelProps {
   savingNotes: string | null
   addingStep: boolean
   newStepName: string
-  generating: string | null
   onToggleItem: (item: ChecklistItem) => void
   onMarkAllComplete: () => void
   onSaveNotes: (runId: string, notes: string) => void
   onNewStepNameChange: (name: string) => void
   onAddStep: () => void
-  onGenerateNext: () => void
 }
 
 function ChecklistPanel({
@@ -1226,13 +1187,11 @@ function ChecklistPanel({
   savingNotes,
   addingStep,
   newStepName,
-  generating,
   onToggleItem,
   onMarkAllComplete,
   onSaveNotes,
   onNewStepNameChange,
   onAddStep,
-  onGenerateNext,
 }: ChecklistPanelProps) {
   const [localNotes, setLocalNotes] = useState(run.notes ?? '')
   const items = [...(run.checklist_items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
@@ -1257,7 +1216,7 @@ function ChecklistPanel({
             {run.clients?.name ?? 'Unknown Client'}
           </SheetTitle>
           <SheetDescription className="text-[0.82rem] font-medium" style={{ color: colors.text.muted }}>
-            {format(parseISO(run.period_start), 'MMMM yyyy')} · {formatPayFrequency(run.clients?.pay_frequency ?? null)}
+            {formatDateShort(run.period_start)} – {formatDateShort(run.period_end)} · {formatPayFrequency(run.clients?.pay_frequency ?? null)}
           </SheetDescription>
         </SheetHeader>
 
@@ -1410,29 +1369,16 @@ function ChecklistPanel({
         </div>
 
         {/* Action buttons */}
-        <div className="flex gap-2 pt-1">
-          {!allComplete && totalCount > 0 && (
-            <Button
-              onClick={onMarkAllComplete}
-              className="flex-1 text-white font-semibold text-[0.82rem] rounded-md border-0"
-              style={{ backgroundColor: '#22C55E' }}
-            >
-              <CheckCircle2 className="w-4 h-4 mr-1.5" />
-              Mark All Complete
-            </Button>
-          )}
-          {status === 'complete' && (
-            <Button
-              onClick={onGenerateNext}
-              disabled={generating === run.id}
-              className="flex-1 text-white font-semibold text-[0.82rem] rounded-md border-0"
-              style={{ backgroundColor: colors.primary }}
-            >
-              {generating === run.id ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Plus className="w-4 h-4 mr-1.5" />}
-              Generate Next Period
-            </Button>
-          )}
-        </div>
+        {!allComplete && totalCount > 0 && (
+          <Button
+            onClick={onMarkAllComplete}
+            className="w-full text-white font-semibold text-[0.82rem] rounded-md border-0"
+            style={{ backgroundColor: colors.success }}
+          >
+            <CheckCircle2 className="w-4 h-4 mr-1.5" />
+            Mark All Complete
+          </Button>
+        )}
       </div>
     </div>
   )
