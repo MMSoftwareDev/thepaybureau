@@ -128,28 +128,8 @@ export default function LandingPage() {
         }}
       >
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, #401D6C, #5B2D99)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" width={20} height={20}>
-                <path d="M4 4h6v6H4V4z" fill="rgba(255,255,255,0.9)" />
-                <path d="M14 4h6v6h-6V4z" fill="rgba(255,255,255,0.5)" />
-                <path d="M4 14h6v6H4v-6z" fill="rgba(255,255,255,0.5)" />
-                <path d="M14 14h6v6h-6v-6z" fill="rgba(255,255,255,0.3)" />
-              </svg>
-            </div>
-            <span style={{ fontSize: '1.2rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#1a1a2e' }}>
-              ThePayBureau
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <img src="/logo-full.png" alt="ThePayBureau" style={{ height: 36 }} />
           </div>
           <div className="landing-nav-actions">
             <Link

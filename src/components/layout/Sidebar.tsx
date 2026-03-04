@@ -154,17 +154,7 @@ export default function Sidebar({ user, avatarUrl, mobileOpen = false, onMobileC
           onClick={() => navigate('/dashboard')}
           className="flex items-center gap-2.5 group"
         >
-          <div
-            className="flex h-7 w-7 items-center justify-center rounded-md flex-shrink-0"
-            style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
-          >
-            <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5">
-              <path d="M4 4h6v6H4V4z" fill="rgba(255,255,255,0.95)" />
-              <path d="M14 4h6v6h-6V4z" fill="rgba(255,255,255,0.6)" />
-              <path d="M4 14h6v6H4v-6z" fill="rgba(255,255,255,0.6)" />
-              <path d="M14 14h6v6h-6v-6z" fill="rgba(255,255,255,0.35)" />
-            </svg>
-          </div>
+          <img src="/logo.png" alt="ThePayBureau" className="h-7 w-7 rounded-md flex-shrink-0" />
           <span
             className="text-[0.875rem] font-semibold tracking-tight"
             style={{ color: colors.text.primary }}
