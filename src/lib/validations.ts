@@ -81,9 +81,12 @@ export const clientOnboardingSchema = z.object({
   employee_count: z.number().int().positive().optional(),
 
   // Step 2: Payroll config
-  pay_frequency: z.enum(['weekly', 'fortnightly', 'four_weekly', 'monthly', 'annually']),
+  pay_frequency: z.enum(['weekly', 'two_weekly', 'four_weekly', 'monthly', 'quarterly', 'biannually', 'annually']),
   pay_day: z.string().min(1, 'Pay day is required'),
+  period_start: z.string().optional(),
+  period_end: z.string().optional(),
   payroll_software: z.string().optional(),
+  employment_allowance: z.boolean().optional(),
 
   // Step 3: Pension
   pension_provider: z.string().optional(),

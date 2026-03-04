@@ -46,7 +46,10 @@ interface FormData {
   // Step 2
   pay_frequency: string
   pay_day: string
+  period_start: string
+  period_end: string
   payroll_software: string
+  employment_allowance: string
   // Step 3
   pension_provider: string
   pension_staging_date: string
@@ -90,18 +93,21 @@ const WEEKDAYS = [
 ]
 
 const MONTHLY_PAY_DAYS = [
-  { value: 'last_working_day', label: 'Last Working Day of the Month' },
+  { value: 'last_day_of_month', label: 'Last Day of the Month' },
+  { value: 'last_monday', label: 'Last Monday of the Month' },
+  { value: 'last_tuesday', label: 'Last Tuesday of the Month' },
+  { value: 'last_wednesday', label: 'Last Wednesday of the Month' },
+  { value: 'last_thursday', label: 'Last Thursday of the Month' },
+  { value: 'last_friday', label: 'Last Friday of the Month' },
+  { value: 'last_saturday', label: 'Last Saturday of the Month' },
+  { value: 'last_sunday', label: 'Last Sunday of the Month' },
+  { value: '2nd_from_last_working_day', label: '2nd from Last Working Day of the Month' },
+  { value: '3rd_from_last_working_day', label: '3rd from Last Working Day of the Month' },
+  { value: '2nd_from_last_friday', label: '2nd from Last Friday of the Month' },
   ...Array.from({ length: 31 }, (_, i) => ({
     value: String(i + 1),
-    label: String(i + 1),
+    label: `${i + 1}${i + 1 === 1 ? 'st' : i + 1 === 2 ? 'nd' : i + 1 === 3 ? 'rd' : i + 1 === 21 ? 'st' : i + 1 === 22 ? 'nd' : i + 1 === 23 ? 'rd' : i + 1 === 31 ? 'st' : 'th'} of the Month`,
   })),
-  { value: 'last_monday', label: 'Last Monday' },
-  { value: 'last_tuesday', label: 'Last Tuesday' },
-  { value: 'last_wednesday', label: 'Last Wednesday' },
-  { value: 'last_thursday', label: 'Last Thursday' },
-  { value: 'last_friday', label: 'Last Friday' },
-  { value: 'last_saturday', label: 'Last Saturday' },
-  { value: 'last_sunday', label: 'Last Sunday' },
 ]
 
 const PENSION_PROVIDERS = [
@@ -142,7 +148,10 @@ export default function AddClientPage() {
     employee_count: '',
     pay_frequency: '',
     pay_day: '',
+    period_start: '',
+    period_end: '',
     payroll_software: '',
+    employment_allowance: '',
     pension_provider: '',
     pension_staging_date: '',
     pension_reenrolment_date: '',
@@ -287,7 +296,10 @@ export default function AddClientPage() {
           : undefined,
         pay_frequency: formData.pay_frequency,
         pay_day: formData.pay_day,
+        period_start: formData.period_start || undefined,
+        period_end: formData.period_end || undefined,
         payroll_software: formData.payroll_software || undefined,
+        employment_allowance: formData.employment_allowance === 'yes' ? true : formData.employment_allowance === 'no' ? false : undefined,
         pension_provider: formData.pension_provider || undefined,
         pension_staging_date: formData.pension_staging_date || undefined,
         pension_reenrolment_date: formData.pension_reenrolment_date || undefined,
@@ -466,9 +478,7 @@ export default function AddClientPage() {
   // ─── Step 2: Payroll Configuration ───────────────────────────────
 
   const renderStep2 = () => {
-    const isMonthly = formData.pay_frequency === 'monthly'
-    const isAnnually = formData.pay_frequency === 'annually'
-    const showMonthlyOptions = isMonthly || isAnnually
+    const showMonthlyOptions = ['monthly', 'quarterly', 'biannually', 'annually'].includes(formData.pay_frequency)
 
     return (
       <div className="space-y-6">
@@ -488,9 +498,11 @@ export default function AddClientPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="fortnightly">Fortnightly</SelectItem>
-              <SelectItem value="four_weekly">4-Weekly</SelectItem>
+              <SelectItem value="two_weekly">Two Weekly</SelectItem>
+              <SelectItem value="four_weekly">Four Weekly</SelectItem>
               <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="quarterly">Quarterly</SelectItem>
+              <SelectItem value="biannually">Biannually</SelectItem>
               <SelectItem value="annually">Annually</SelectItem>
             </SelectContent>
           </Select>
@@ -500,15 +512,14 @@ export default function AddClientPage() {
         {formData.pay_frequency && (
           <div>
             <Label className="font-semibold" style={{ color: colors.text.primary }}>
-              {showMonthlyOptions ? 'Pay Day (day of month or last weekday)' : 'Pay Day (day of week)'}{' '}
-              <span style={{ color: colors.error }}>*</span>
+              Pay Date <span style={{ color: colors.error }}>*</span>
             </Label>
             <Select
               value={formData.pay_day}
               onValueChange={(value) => updateField('pay_day', value)}
             >
               <SelectTrigger className={inputClassName} style={inputStyle}>
-                <SelectValue placeholder={showMonthlyOptions ? 'Select day of month' : 'Select day of week'} />
+                <SelectValue placeholder={showMonthlyOptions ? 'Select pay date' : 'Select day of week'} />
               </SelectTrigger>
               <SelectContent>
                 {showMonthlyOptions
@@ -528,6 +539,35 @@ export default function AddClientPage() {
           </div>
         )}
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <Label htmlFor="period_start" className="font-semibold" style={{ color: colors.text.primary }}>
+              Pay Period Start
+            </Label>
+            <Input
+              id="period_start"
+              type="date"
+              value={formData.period_start}
+              onChange={(e) => updateField('period_start', e.target.value)}
+              className={inputClassName}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <Label htmlFor="period_end" className="font-semibold" style={{ color: colors.text.primary }}>
+              Pay Period End
+            </Label>
+            <Input
+              id="period_end"
+              type="date"
+              value={formData.period_end}
+              onChange={(e) => updateField('period_end', e.target.value)}
+              className={inputClassName}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
         <div>
           <Label htmlFor="payroll_software" className="font-semibold" style={{ color: colors.text.primary }}>
             Payroll Software
@@ -542,10 +582,25 @@ export default function AddClientPage() {
             style={inputStyle}
           />
           <datalist id="payroll-software-list">
-            {['BrightPay', 'Sage 50', 'Moneysoft', 'IRIS', 'Xero Payroll', 'QuickBooks Payroll', 'Staffology', 'PayDashboard', 'FreeAgent'].map((sw) => (
+            {['BrightPay', 'Sage 50', 'Moneysoft', 'IRIS', 'Xero Payroll', 'QuickBooks Payroll', 'Staffology', 'Paycircle', 'Brain', 'Buddy', 'FreeAgent'].map((sw) => (
               <option key={sw} value={sw} />
             ))}
           </datalist>
+        </div>
+
+        <div>
+          <Label className="font-semibold" style={{ color: colors.text.primary }}>
+            Entitled to Employment Allowance
+          </Label>
+          <Select value={formData.employment_allowance} onValueChange={(value) => updateField('employment_allowance', value)}>
+            <SelectTrigger className={inputClassName} style={inputStyle}>
+              <SelectValue placeholder="Select..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="yes">Yes</SelectItem>
+              <SelectItem value="no">No</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
     )
