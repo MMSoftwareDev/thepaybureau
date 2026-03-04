@@ -4,11 +4,9 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { getPayrollStatus, type PayrollStatus } from '@/lib/hmrc-deadlines'
 import { format, differenceInDays, parseISO } from 'date-fns'
-import { cn } from '@/lib/utils'
 import {
   Calendar,
   CheckCircle2,
@@ -21,9 +19,6 @@ import {
   AlertTriangle,
   ListChecks,
   StickyNote,
-  Filter,
-  Eye,
-  EyeOff,
   Search,
   X,
 } from 'lucide-react'
@@ -66,6 +61,7 @@ interface PayrollRun {
 }
 
 type FilterTab = 'active' | 'due_this_week' | 'overdue' | 'complete' | 'all'
+type FrequencyFilter = 'all' | 'weekly' | 'fortnightly' | 'four_weekly' | 'monthly' | 'annually'
 
 // ── Status Config (Monday.com style) ────────────────────────────────────────
 
@@ -123,8 +119,23 @@ function getStatusConfig(status: PayrollStatus, isDark: boolean): StatusConfig {
   }
 }
 
-// Status order for the cycle when clicking
-const STATUS_CYCLE: PayrollStatus[] = ['not_started', 'in_progress', 'due_soon', 'complete']
+// All statuses for the dropdown
+const ALL_STATUSES: { value: PayrollStatus; label: string }[] = [
+  { value: 'not_started', label: 'Not Started' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'due_soon', label: 'Due Soon' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'complete', label: 'Complete' },
+]
+
+const FREQUENCY_OPTIONS: { value: FrequencyFilter; label: string }[] = [
+  { value: 'all', label: 'All Frequencies' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'fortnightly', label: 'Fortnightly' },
+  { value: 'four_weekly', label: 'Four-Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'annually', label: 'Annually' },
+]
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -179,6 +190,7 @@ export default function PayrollsPage() {
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
+  const [frequencyFilter, setFrequencyFilter] = useState<FrequencyFilter>('all')
 
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
@@ -243,6 +255,11 @@ export default function PayrollsPage() {
       )
     }
 
+    // Apply frequency filter
+    if (frequencyFilter !== 'all') {
+      result = result.filter((run) => run.clients?.pay_frequency === frequencyFilter)
+    }
+
     // Apply filter tab
     result = result.filter((run) => {
       const status = computeStatus(run)
@@ -265,24 +282,27 @@ export default function PayrollsPage() {
     })
 
     return result
-  }, [runs, activeFilter, searchQuery])
+  }, [runs, activeFilter, searchQuery, frequencyFilter])
 
   // Status counts for filter badges
   const statusCounts = useMemo(() => {
-    const searchFiltered = searchQuery.trim()
-      ? runs.filter(
-          (run) =>
-            run.clients?.name
-              ?.toLowerCase()
-              .includes(searchQuery.toLowerCase()) ||
-            formatPayFrequency(run.clients?.pay_frequency ?? null)
-              .toLowerCase()
-              .includes(searchQuery.toLowerCase())
-        )
-      : runs
+    let filtered = runs
 
-    const counts = { active: 0, due_this_week: 0, overdue: 0, complete: 0, all: searchFiltered.length }
-    for (const run of searchFiltered) {
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      filtered = filtered.filter(
+        (run) =>
+          run.clients?.name?.toLowerCase().includes(q) ||
+          formatPayFrequency(run.clients?.pay_frequency ?? null).toLowerCase().includes(q)
+      )
+    }
+
+    if (frequencyFilter !== 'all') {
+      filtered = filtered.filter((run) => run.clients?.pay_frequency === frequencyFilter)
+    }
+
+    const counts = { active: 0, due_this_week: 0, overdue: 0, complete: 0, all: filtered.length }
+    for (const run of filtered) {
       const status = computeStatus(run)
       if (status === 'complete') {
         counts.complete++
@@ -294,7 +314,7 @@ export default function PayrollsPage() {
       }
     }
     return counts
-  }, [runs, searchQuery])
+  }, [runs, searchQuery, frequencyFilter])
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -541,8 +561,8 @@ export default function PayrollsPage() {
         </div>
       )}
 
-      {/* Filter tabs */}
-      <div className="flex flex-wrap gap-1.5">
+      {/* Filter tabs + frequency filter */}
+      <div className="flex flex-wrap items-center gap-1.5">
         {filterTabs.map((tab) => {
           const isActive = activeFilter === tab.key
           const isOverdue = tab.key === 'overdue' && tab.count > 0
@@ -580,6 +600,28 @@ export default function PayrollsPage() {
             </button>
           )
         })}
+
+        {/* Frequency filter */}
+        <div className="ml-auto relative">
+          <select
+            value={frequencyFilter}
+            onChange={(e) => setFrequencyFilter(e.target.value as FrequencyFilter)}
+            className="appearance-none pl-3 pr-7 py-1.5 rounded-lg text-[0.78rem] font-semibold cursor-pointer focus:outline-none transition-all"
+            style={{
+              backgroundColor: frequencyFilter !== 'all' ? `${colors.primary}10` : 'transparent',
+              color: frequencyFilter !== 'all' ? colors.primary : colors.text.secondary,
+              border: `1px solid ${frequencyFilter !== 'all' ? colors.primary : colors.border}`,
+            }}
+          >
+            {FREQUENCY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <ChevronDown
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none"
+            style={{ color: frequencyFilter !== 'all' ? colors.primary : colors.text.muted }}
+          />
+        </div>
       </div>
 
       {/* Table */}
@@ -611,13 +653,13 @@ export default function PayrollsPage() {
               <div
                 className="hidden lg:grid px-4 py-2.5"
                 style={{
-                  gridTemplateColumns: '1fr 100px 140px 120px 90px 90px',
+                  gridTemplateColumns: '1fr 140px 130px 100px',
                   gap: '12px',
                   borderBottom: `1px solid ${colors.border}`,
                   backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
                 }}
               >
-                {['Client', 'Pay Date', 'Progress', 'Status', 'FPS', 'EPS'].map(
+                {['Client', 'Progress', 'Status', 'Pay Date'].map(
                   (header) => (
                     <p
                       key={header}
@@ -664,7 +706,7 @@ export default function PayrollsPage() {
                         <div
                           className="hidden lg:grid px-4 py-3 items-center"
                           style={{
-                            gridTemplateColumns: '1fr 100px 140px 120px 90px 90px',
+                            gridTemplateColumns: '1fr 140px 130px 100px',
                             gap: '12px',
                           }}
                         >
@@ -685,11 +727,6 @@ export default function PayrollsPage() {
                             </div>
                           </div>
 
-                          {/* Pay date */}
-                          <p className="text-[0.82rem] font-medium" style={{ color: colors.text.primary }}>
-                            {formatDateShort(run.pay_date)}
-                          </p>
-
                           {/* Progress bar */}
                           <div className="flex items-center gap-2">
                             <div
@@ -709,26 +746,23 @@ export default function PayrollsPage() {
                             </span>
                           </div>
 
-                          {/* Status badge — clickable Monday.com style */}
+                          {/* Status badge — clickable dropdown */}
                           <div onClick={(e) => e.stopPropagation()}>
                             <StatusBadge
                               run={run}
                               status={status}
                               statusConfig={statusConfig}
                               items={items}
+                              isDark={isDark}
+                              colors={colors}
                               supabase={supabase}
                               onRefresh={fetchRuns}
                             />
                           </div>
 
-                          {/* FPS */}
-                          <p className="text-[0.78rem] font-medium" style={{ color: colors.text.secondary }}>
-                            {formatDateShort(run.rti_due_date)}
-                          </p>
-
-                          {/* EPS */}
-                          <p className="text-[0.78rem] font-medium" style={{ color: colors.text.secondary }}>
-                            {formatDateShort(run.eps_due_date)}
+                          {/* Pay date (moved to end) */}
+                          <p className="text-[0.82rem] font-medium" style={{ color: colors.text.primary }}>
+                            {formatDateShort(run.pay_date)}
                           </p>
                         </div>
 
@@ -751,6 +785,8 @@ export default function PayrollsPage() {
                                 status={status}
                                 statusConfig={statusConfig}
                                 items={items}
+                                isDark={isDark}
+                                colors={colors}
                                 supabase={supabase}
                                 onRefresh={fetchRuns}
                               />
@@ -812,40 +848,34 @@ export default function PayrollsPage() {
   )
 }
 
-// ── Status Badge (Monday.com style clickable) ──────────────────────────────
+// ── Status Badge (Dropdown) ─────────────────────────────────────────────────
 
 interface StatusBadgeProps {
   run: PayrollRun
   status: PayrollStatus
   statusConfig: StatusConfig
   items: ChecklistItem[]
+  isDark: boolean
+  colors: ReturnType<typeof getThemeColors>
   supabase: ReturnType<typeof createClientSupabaseClient>
   onRefresh: () => Promise<void>
 }
 
-function StatusBadge({ run, status, statusConfig, items, supabase, onRefresh }: StatusBadgeProps) {
+function StatusBadge({ run, status, statusConfig, items, isDark, colors, supabase, onRefresh }: StatusBadgeProps) {
   const [updating, setUpdating] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
 
-  const handleClick = async () => {
-    if (updating) return
+  const applyStatus = async (targetStatus: PayrollStatus) => {
+    if (updating || targetStatus === status) {
+      setShowDropdown(false)
+      return
+    }
 
-    // If clicking a "complete" badge, we can't uncomplete easily
-    // If clicking "not_started", mark first item as done to trigger in_progress
-    // If clicking "in_progress", mark all as done to trigger complete
-    // For "overdue" / "due_soon", same as in_progress behavior
     setUpdating(true)
+    setShowDropdown(false)
     try {
-      if (status === 'not_started' || status === 'due_soon') {
-        // Mark first incomplete item as done
-        const firstIncomplete = items.find((i) => !i.is_completed)
-        if (firstIncomplete) {
-          await supabase
-            .from('checklist_items')
-            .update({ is_completed: true, completed_at: new Date().toISOString() })
-            .eq('id', firstIncomplete.id)
-        }
-      } else if (status === 'in_progress' || status === 'overdue') {
-        // Mark all incomplete items as done
+      if (targetStatus === 'complete') {
+        // Mark all items as done
         const incompleteIds = items.filter((i) => !i.is_completed).map((i) => i.id)
         if (incompleteIds.length > 0) {
           await supabase
@@ -853,8 +883,25 @@ function StatusBadge({ run, status, statusConfig, items, supabase, onRefresh }: 
             .update({ is_completed: true, completed_at: new Date().toISOString() })
             .in('id', incompleteIds)
         }
+      } else if (targetStatus === 'in_progress' && status === 'not_started') {
+        // Mark first item as done to trigger in_progress
+        const firstIncomplete = items.find((i) => !i.is_completed)
+        if (firstIncomplete) {
+          await supabase
+            .from('checklist_items')
+            .update({ is_completed: true, completed_at: new Date().toISOString() })
+            .eq('id', firstIncomplete.id)
+        }
+      } else if (targetStatus === 'not_started') {
+        // Uncheck all items
+        const completedIds = items.filter((i) => i.is_completed).map((i) => i.id)
+        if (completedIds.length > 0) {
+          await supabase
+            .from('checklist_items')
+            .update({ is_completed: false, completed_at: null })
+            .in('id', completedIds)
+        }
       }
-      // For 'complete' — no action needed
       await onRefresh()
     } catch (err) {
       console.error('Error updating status:', err)
@@ -863,34 +910,70 @@ function StatusBadge({ run, status, statusConfig, items, supabase, onRefresh }: 
     }
   }
 
-  const isClickable = status !== 'complete'
-
   return (
-    <button
-      onClick={isClickable ? handleClick : undefined}
-      disabled={updating || !isClickable}
-      className={cn(
-        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[0.72rem] font-bold transition-all duration-150',
-        isClickable && 'hover:scale-105 cursor-pointer',
-        !isClickable && 'cursor-default'
+    <div className="relative">
+      <button
+        onClick={() => setShowDropdown(!showDropdown)}
+        disabled={updating}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[0.72rem] font-bold transition-all duration-150 hover:scale-105 cursor-pointer"
+        style={{
+          backgroundColor: statusConfig.bg,
+          color: statusConfig.text,
+          border: `1px solid ${statusConfig.border}`,
+        }}
+      >
+        {updating ? (
+          <Loader2 className="w-3 h-3 animate-spin" />
+        ) : (
+          <div
+            className="w-2 h-2 rounded-full flex-shrink-0"
+            style={{ backgroundColor: statusConfig.dot }}
+          />
+        )}
+        {statusConfig.label}
+        <ChevronDown className="w-3 h-3 ml-0.5" />
+      </button>
+
+      {showDropdown && (
+        <>
+          {/* Backdrop */}
+          <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
+          {/* Dropdown menu */}
+          <div
+            className="absolute top-full left-0 mt-1 z-50 rounded-lg shadow-lg py-1 min-w-[140px]"
+            style={{
+              backgroundColor: colors.surface,
+              border: `1px solid ${colors.border}`,
+            }}
+          >
+            {ALL_STATUSES.map((s) => {
+              const config = getStatusConfig(s.value, isDark)
+              const isActive = s.value === status
+              return (
+                <button
+                  key={s.value}
+                  onClick={() => applyStatus(s.value)}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-[0.78rem] font-semibold transition-colors"
+                  style={{
+                    color: isActive ? config.text : colors.text.secondary,
+                    backgroundColor: isActive ? config.bg : 'transparent',
+                  }}
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}
+                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <div
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: config.dot }}
+                  />
+                  {s.label}
+                  {isActive && <CheckCircle2 className="w-3 h-3 ml-auto" style={{ color: config.text }} />}
+                </button>
+              )
+            })}
+          </div>
+        </>
       )}
-      style={{
-        backgroundColor: statusConfig.bg,
-        color: statusConfig.text,
-        border: `1px solid ${statusConfig.border}`,
-      }}
-      title={isClickable ? `Click to advance status` : 'Complete'}
-    >
-      {updating ? (
-        <Loader2 className="w-3 h-3 animate-spin" />
-      ) : (
-        <div
-          className="w-2 h-2 rounded-full flex-shrink-0"
-          style={{ backgroundColor: statusConfig.dot }}
-        />
-      )}
-      {statusConfig.label}
-    </button>
+    </div>
   )
 }
 
@@ -990,7 +1073,7 @@ function ExpandedPanel({
                     )}
                   </div>
                   <span
-                    className={cn('text-[0.82rem] font-medium', item.is_completed && 'line-through')}
+                    className={`text-[0.82rem] font-medium ${item.is_completed ? 'line-through' : ''}`}
                     style={{ color: item.is_completed ? colors.text.muted : colors.text.primary }}
                   >
                     {item.name}
