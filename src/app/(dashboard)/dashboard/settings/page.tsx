@@ -33,7 +33,6 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Profile state
   const [userName, setUserName] = useState('')
   const [userEmail, setUserEmail] = useState('')
   const [userId, setUserId] = useState('')
@@ -41,7 +40,6 @@ export default function SettingsPage() {
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileMessage, setProfileMessage] = useState('')
 
-  // Checklist defaults state
   const [checklistItems, setChecklistItems] = useState<ChecklistDefault[]>([])
   const [tenantSettings, setTenantSettings] = useState<TenantSettings>({})
   const [savingChecklist, setSavingChecklist] = useState(false)
@@ -49,7 +47,6 @@ export default function SettingsPage() {
 
   const { isDark, toggleTheme } = useTheme()
   const colors = getThemeColors(isDark)
-
   const supabase = createClientSupabaseClient()
 
   const DEFAULT_CHECKLIST: ChecklistDefault[] = [
@@ -62,11 +59,9 @@ export default function SettingsPage() {
     { name: 'Pension submission', sort_order: 6 },
   ]
 
-  // Fetch user data and tenant settings
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
-
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) return
 
@@ -81,13 +76,10 @@ export default function SettingsPage() {
         setUserName(userRecord.name || '')
         setUserEmail(userRecord.email || '')
         setTenantId(userRecord.tenant_id || '')
-
         const tenant = userRecord.tenants as { settings: TenantSettings | null } | null
         const settings = (tenant?.settings || {}) as TenantSettings
         setTenantSettings(settings)
-
-        const defaults = settings.default_checklist || DEFAULT_CHECKLIST
-        setChecklistItems(defaults)
+        setChecklistItems(settings.default_checklist || DEFAULT_CHECKLIST)
       }
     } catch (err) {
       console.error('Error fetching settings data:', err)
@@ -102,26 +94,16 @@ export default function SettingsPage() {
     fetchData()
   }, [fetchData])
 
-  // Show a temporary success/error message
-  const showMessage = (
-    setter: (msg: string) => void,
-    message: string,
-    duration = 3000
-  ) => {
+  const showMessage = (setter: (msg: string) => void, message: string, duration = 3000) => {
     setter(message)
     setTimeout(() => setter(''), duration)
   }
 
-  // Save profile name
   const handleSaveProfile = async () => {
     if (!userId) return
     setSavingProfile(true)
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ name: userName })
-        .eq('id', userId)
-
+      const { error } = await supabase.from('users').update({ name: userName }).eq('id', userId)
       if (error) throw error
       showMessage(setProfileMessage, 'Profile saved!')
     } catch (err) {
@@ -132,63 +114,54 @@ export default function SettingsPage() {
     }
   }
 
-  // Checklist item handlers
-  const updateChecklistItem = (index: number, name: string) => {
-    setChecklistItems(prev =>
-      prev.map((item, i) => (i === index ? { ...item, name } : item))
-    )
-  }
+  const updateChecklistItem = (index: number, name: string) =>
+    setChecklistItems((prev) => prev.map((item, i) => (i === index ? { ...item, name } : item)))
+  const removeChecklistItem = (index: number) =>
+    setChecklistItems((prev) => prev.filter((_, i) => i !== index))
+  const addChecklistItem = () =>
+    setChecklistItems((prev) => [...prev, { name: '', sort_order: prev.length }])
 
-  const removeChecklistItem = (index: number) => {
-    setChecklistItems(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const addChecklistItem = () => {
-    setChecklistItems(prev => [
-      ...prev,
-      { name: '', sort_order: prev.length },
-    ])
-  }
-
-  // Save checklist defaults
   const handleSaveChecklist = async () => {
     if (!tenantId) return
     setSavingChecklist(true)
     try {
-      const currentSettings = tenantSettings || {}
       const { error } = await supabase
         .from('tenants')
         .update({
           settings: {
-            ...currentSettings,
-            default_checklist: checklistItems.map((item, idx) => ({
-              name: item.name,
-              sort_order: idx,
-            })),
+            ...tenantSettings,
+            default_checklist: checklistItems.map((item, idx) => ({ name: item.name, sort_order: idx })),
           },
         })
         .eq('id', tenantId)
-
       if (error) throw error
       showMessage(setChecklistMessage, 'Defaults saved!')
     } catch (err) {
       console.error('Error saving checklist defaults:', err)
-      showMessage(
-        setChecklistMessage,
-        'Error saving defaults. Please try again.'
-      )
+      showMessage(setChecklistMessage, 'Error saving defaults. Please try again.')
     } finally {
       setSavingChecklist(false)
     }
   }
 
-  // Prevent hydration mismatch
+  const cardStyle = {
+    backgroundColor: colors.surface,
+    borderRadius: '16px',
+    border: `1px solid ${colors.border}`,
+  }
+
+  const inputStyle = {
+    background: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
+    color: colors.text.primary,
+    border: `1px solid ${colors.border}`,
+  }
+
   if (!mounted) {
     return (
-      <div className="space-y-8 animate-pulse">
-        <div className="h-20 rounded-xl bg-gray-200" />
-        <div className="h-64 rounded-xl bg-gray-200" />
-        <div className="h-64 rounded-xl bg-gray-200" />
+      <div className="space-y-6 max-w-3xl mx-auto animate-pulse">
+        <div className="h-14 rounded-2xl" style={{ background: colors.border }} />
+        <div className="h-52 rounded-2xl" style={{ background: colors.border }} />
+        <div className="h-52 rounded-2xl" style={{ background: colors.border }} />
       </div>
     )
   }
@@ -196,290 +169,143 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center">
-          <div
-            className="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-xl flex items-center justify-center"
-            style={{
-              background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-              boxShadow: isDark
-                ? `0 25px 50px ${colors.shadow.heavy}`
-                : `0 20px 40px ${colors.primary}30`,
-            }}
-          >
-            <Loader2 className="w-10 h-10 text-white animate-spin" />
-          </div>
-          <p
-            className="text-xl font-semibold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            Loading settings...
-          </p>
-        </div>
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: colors.primary }} />
       </div>
     )
   }
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
-      {/* Header */}
+    <div className="space-y-6 max-w-3xl mx-auto">
       <div>
-        <h1
-          className="text-3xl md:text-4xl font-bold transition-colors duration-300"
-          style={{ color: colors.text.primary }}
-        >
+        <h1 className="text-2xl md:text-3xl font-bold" style={{ color: colors.text.primary }}>
           Settings
         </h1>
-        <p
-          className="text-base md:text-lg transition-colors duration-300 mt-2"
-          style={{ color: colors.text.secondary }}
-        >
+        <p className="text-[0.9rem] mt-1" style={{ color: colors.text.muted }}>
           Manage your profile, defaults, and preferences.
         </p>
       </div>
 
-      {/* Section 1: Profile */}
-      <Card
-        className="border-0 shadow-xl"
-        style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 15px 35px ${colors.shadow.medium}`
-            : `0 10px 25px ${colors.shadow.light}`,
-        }}
-      >
-        <CardHeader className="pb-6">
-          <CardTitle
-            className="flex items-center text-xl md:text-2xl font-bold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mr-4 shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                boxShadow: `0 8px 25px ${colors.primary}30`,
-              }}
-            >
-              <User className="w-6 h-6 text-white" />
+      {/* Profile */}
+      <Card className="border-0" style={cardStyle}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-3 text-base font-bold" style={{ color: colors.text.primary }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.primary}12` }}>
+              <User className="w-[18px] h-[18px]" style={{ color: colors.primary }} />
             </div>
             Profile
           </CardTitle>
         </CardHeader>
-
-        <CardContent className="p-6 md:p-8">
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
-                <Label
-                  htmlFor="profile-name"
-                  className="font-semibold"
-                  style={{ color: colors.text.primary }}
-                >
-                  Name
-                </Label>
-                <Input
-                  id="profile-name"
-                  value={userName}
-                  onChange={(e) => setUserName(e.target.value)}
-                  placeholder="Your name"
-                  className="mt-2 rounded-xl border-0 shadow-lg transition-all duration-300"
-                  style={{
-                    background: colors.glass.surface,
-                    color: colors.text.primary,
-                    border: `1px solid ${colors.borderElevated}`,
-                  }}
-                />
-              </div>
-
-              <div>
-                <Label
-                  htmlFor="profile-email"
-                  className="font-semibold"
-                  style={{ color: colors.text.primary }}
-                >
-                  Email
-                </Label>
-                <Input
-                  id="profile-email"
-                  value={userEmail}
-                  readOnly
-                  className="mt-2 rounded-xl border-0 shadow-lg transition-all duration-300 opacity-70 cursor-not-allowed"
-                  style={{
-                    background: colors.glass.surface,
-                    color: colors.text.secondary,
-                    border: `1px solid ${colors.borderElevated}`,
-                  }}
-                />
-              </div>
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <Label htmlFor="profile-name" className="text-[0.78rem] font-semibold uppercase tracking-[0.04em]" style={{ color: colors.text.muted }}>
+                Name
+              </Label>
+              <Input
+                id="profile-name"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Your name"
+                className="mt-1.5 h-10 rounded-xl border-0 text-[0.88rem] font-medium"
+                style={inputStyle}
+              />
             </div>
-
-            <div className="flex items-center gap-4 pt-2">
-              <Button
-                onClick={handleSaveProfile}
-                disabled={savingProfile}
-                className="text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] border-0"
-                style={{
-                  background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-                  boxShadow: `0 10px 25px ${colors.primary}30`,
-                }}
-              >
-                {savingProfile ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Profile
-                  </>
-                )}
-              </Button>
-
-              {profileMessage && (
-                <span
-                  className="text-sm font-semibold transition-opacity duration-300"
-                  style={{
-                    color: profileMessage.includes('Error')
-                      ? colors.error
-                      : colors.success,
-                  }}
-                >
-                  {profileMessage}
-                </span>
-              )}
+            <div>
+              <Label htmlFor="profile-email" className="text-[0.78rem] font-semibold uppercase tracking-[0.04em]" style={{ color: colors.text.muted }}>
+                Email
+              </Label>
+              <Input
+                id="profile-email"
+                value={userEmail}
+                readOnly
+                className="mt-1.5 h-10 rounded-xl border-0 text-[0.88rem] font-medium opacity-60 cursor-not-allowed"
+                style={inputStyle}
+              />
             </div>
+          </div>
+          <div className="flex items-center gap-3 mt-5">
+            <Button
+              onClick={handleSaveProfile}
+              disabled={savingProfile}
+              className="text-white font-semibold py-2 px-5 rounded-xl border-0 transition-all duration-300 hover:-translate-y-0.5"
+              style={{
+                background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
+                boxShadow: '0 8px 24px rgba(64, 29, 108, 0.25)',
+              }}
+            >
+              {savingProfile ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Profile</>}
+            </Button>
+            {profileMessage && (
+              <span className="text-[0.82rem] font-semibold" style={{ color: profileMessage.includes('Error') ? colors.error : colors.success }}>
+                {profileMessage}
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Section 2: Default Checklist Template */}
-      <Card
-        className="border-0 shadow-xl"
-        style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 15px 35px ${colors.shadow.medium}`
-            : `0 10px 25px ${colors.shadow.light}`,
-        }}
-      >
-        <CardHeader className="pb-6">
-          <CardTitle
-            className="flex items-center text-xl md:text-2xl font-bold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mr-4 shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                boxShadow: `0 8px 25px ${colors.primary}30`,
-              }}
-            >
-              <ListChecks className="w-6 h-6 text-white" />
+      {/* Default Checklist */}
+      <Card className="border-0" style={cardStyle}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-3 text-base font-bold" style={{ color: colors.text.primary }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.primary}12` }}>
+              <ListChecks className="w-[18px] h-[18px]" style={{ color: colors.primary }} />
             </div>
             Default Checklist Template
           </CardTitle>
         </CardHeader>
-
-        <CardContent className="p-6 md:p-8">
-          <p
-            className="text-sm mb-6 transition-colors duration-300"
-            style={{ color: colors.text.secondary }}
-          >
-            Define the default checklist steps that are pre-populated when
-            creating a new client.
+        <CardContent className="pt-4">
+          <p className="text-[0.82rem] mb-5" style={{ color: colors.text.secondary }}>
+            Define the default checklist steps that are pre-populated when creating a new client.
           </p>
-
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {checklistItems.map((item, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <span
-                  className="text-sm font-bold w-8 text-center flex-shrink-0"
-                  style={{ color: colors.text.muted }}
-                >
+              <div key={index} className="flex items-center gap-2.5">
+                <span className="text-[0.75rem] font-bold w-7 text-center flex-shrink-0" style={{ color: colors.text.muted }}>
                   {index + 1}
                 </span>
                 <Input
                   value={item.name}
                   onChange={(e) => updateChecklistItem(index, e.target.value)}
                   placeholder="Step name"
-                  className="flex-1 rounded-xl border-0 shadow-lg transition-all duration-300"
-                  style={{
-                    background: colors.glass.surface,
-                    color: colors.text.primary,
-                    border: `1px solid ${colors.borderElevated}`,
-                  }}
+                  className="flex-1 h-9 rounded-lg border-0 text-[0.85rem] font-medium"
+                  style={inputStyle}
                 />
                 <button
                   onClick={() => removeChecklistItem(index)}
-                  className="w-9 h-9 flex-shrink-0 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
-                  style={{
-                    backgroundColor: `${colors.error}15`,
-                    color: colors.error,
-                    border: `1px solid ${colors.error}30`,
-                  }}
-                  title="Remove step"
+                  className="w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
+                  style={{ color: colors.error }}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             ))}
           </div>
+          <Button
+            onClick={addChecklistItem}
+            variant="outline"
+            size="sm"
+            className="mt-3 rounded-lg font-semibold text-[0.82rem]"
+            style={{ borderColor: colors.border, color: colors.text.secondary }}
+          >
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
+            Add Step
+          </Button>
 
-          <div className="mt-4">
-            <Button
-              onClick={addChecklistItem}
-              variant="outline"
-              className="rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-md"
-              style={{
-                borderColor: colors.borderElevated,
-                color: colors.text.secondary,
-                backgroundColor: colors.glass.surface,
-                backdropFilter: 'blur(10px)',
-              }}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Step
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-4 pt-6 mt-6 border-t" style={{ borderColor: colors.borderElevated }}>
+          <div className="flex items-center gap-3 mt-6 pt-5 border-t" style={{ borderColor: colors.border }}>
             <Button
               onClick={handleSaveChecklist}
               disabled={savingChecklist}
-              className="text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] border-0"
+              className="text-white font-semibold py-2 px-5 rounded-xl border-0 transition-all duration-300 hover:-translate-y-0.5"
               style={{
-                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-                boxShadow: `0 10px 25px ${colors.primary}30`,
+                background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
+                boxShadow: '0 8px 24px rgba(64, 29, 108, 0.25)',
               }}
             >
-              {savingChecklist ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Defaults
-                </>
-              )}
+              {savingChecklist ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Defaults</>}
             </Button>
-
             {checklistMessage && (
-              <span
-                className="text-sm font-semibold transition-opacity duration-300"
-                style={{
-                  color: checklistMessage.includes('Error')
-                    ? colors.error
-                    : colors.success,
-                }}
-              >
+              <span className="text-[0.82rem] font-semibold" style={{ color: checklistMessage.includes('Error') ? colors.error : colors.success }}>
                 {checklistMessage}
               </span>
             )}
@@ -487,131 +313,63 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Section 3: Theme */}
-      <Card
-        className="border-0 shadow-xl"
-        style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 15px 35px ${colors.shadow.medium}`
-            : `0 10px 25px ${colors.shadow.light}`,
-        }}
-      >
-        <CardHeader className="pb-6">
-          <CardTitle
-            className="flex items-center text-xl md:text-2xl font-bold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mr-4 shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                boxShadow: `0 8px 25px ${colors.primary}30`,
-              }}
-            >
-              {isDark ? (
-                <Moon className="w-6 h-6 text-white" />
-              ) : (
-                <Sun className="w-6 h-6 text-white" />
-              )}
+      {/* Theme */}
+      <Card className="border-0" style={cardStyle}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-3 text-base font-bold" style={{ color: colors.text.primary }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.primary}12` }}>
+              {isDark ? <Moon className="w-[18px] h-[18px]" style={{ color: colors.primary }} /> : <Sun className="w-[18px] h-[18px]" style={{ color: colors.primary }} />}
             </div>
-            Theme
+            Appearance
           </CardTitle>
         </CardHeader>
-
-        <CardContent className="p-6 md:p-8">
+        <CardContent className="pt-4">
           <div className="flex items-center justify-between">
             <div>
-              <p
-                className="text-base font-semibold transition-colors duration-300"
-                style={{ color: colors.text.primary }}
-              >
+              <p className="text-[0.88rem] font-semibold" style={{ color: colors.text.primary }}>
                 {isDark ? 'Dark Mode' : 'Light Mode'}
               </p>
-              <p
-                className="text-sm transition-colors duration-300 mt-1"
-                style={{ color: colors.text.secondary }}
-              >
+              <p className="text-[0.78rem] mt-0.5" style={{ color: colors.text.muted }}>
                 Switch between light and dark appearance.
               </p>
             </div>
-
             <button
               onClick={toggleTheme}
-              className="relative w-16 h-9 rounded-full transition-all duration-300 shadow-lg"
+              className="relative w-14 h-8 rounded-full transition-all duration-300"
               style={{
                 backgroundColor: isDark ? colors.primary : colors.border,
-                boxShadow: isDark
-                  ? `0 4px 15px ${colors.primary}40`
-                  : `0 4px 15px ${colors.shadow.light}`,
               }}
-              title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
             >
               <div
-                className="absolute top-1 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 shadow-md"
+                className="absolute top-1 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm"
                 style={{
-                  left: isDark ? '32px' : '4px',
+                  left: isDark ? '28px' : '4px',
                   backgroundColor: isDark ? colors.surface : '#FFFFFF',
                 }}
               >
-                {isDark ? (
-                  <Moon className="w-4 h-4" style={{ color: colors.primary }} />
-                ) : (
-                  <Sun className="w-4 h-4" style={{ color: '#F59E0B' }} />
-                )}
+                {isDark ? <Moon className="w-3.5 h-3.5" style={{ color: colors.primary }} /> : <Sun className="w-3.5 h-3.5" style={{ color: '#F59E0B' }} />}
               </div>
             </button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Section 4: About */}
-      <Card
-        className="border-0 shadow-xl"
-        style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 15px 35px ${colors.shadow.medium}`
-            : `0 10px 25px ${colors.shadow.light}`,
-        }}
-      >
-        <CardHeader className="pb-6">
-          <CardTitle
-            className="flex items-center text-xl md:text-2xl font-bold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mr-4 shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                boxShadow: `0 8px 25px ${colors.primary}30`,
-              }}
-            >
-              <Info className="w-6 h-6 text-white" />
+      {/* About */}
+      <Card className="border-0" style={cardStyle}>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.primary}12` }}>
+              <Info className="w-[18px] h-[18px]" style={{ color: colors.primary }} />
             </div>
-            About
-          </CardTitle>
-        </CardHeader>
-
-        <CardContent className="p-6 md:p-8">
-          <p
-            className="text-base font-semibold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            ThePayBureau Pro v1.0
-          </p>
-          <p
-            className="text-sm transition-colors duration-300 mt-1"
-            style={{ color: colors.text.secondary }}
-          >
-            Payroll bureau management made simple.
-          </p>
+            <div>
+              <p className="text-[0.88rem] font-bold" style={{ color: colors.text.primary }}>
+                ThePayBureau Pro v2.1
+              </p>
+              <p className="text-[0.78rem]" style={{ color: colors.text.muted }}>
+                Payroll bureau management made simple.
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
