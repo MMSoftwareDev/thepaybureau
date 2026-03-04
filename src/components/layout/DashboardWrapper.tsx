@@ -2,34 +2,40 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import Sidebar from '@/components/layout/Sidebar'
 import Navbar from '@/components/layout/Navbar'
 
 interface DashboardWrapperProps {
   children: React.ReactNode
-  user: any
+  user: { email?: string; user_metadata?: { name?: string } }
 }
 
 export default function DashboardWrapper({ children, user }: DashboardWrapperProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
+  const pathname = usePathname()
 
   useEffect(() => { setMounted(true) }, [])
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false)
+  }, [pathname])
 
   if (!mounted) {
     return (
       <div className="flex h-screen overflow-hidden">
-        <div className="hidden md:block w-[260px] h-screen" style={{ background: '#2A1145' }} />
+        <div className="hidden md:block w-[260px] h-screen border-r" style={{ background: colors.surface, borderColor: colors.border }} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="h-[60px] bg-white border-b animate-pulse" />
-          <main className="flex-1 overflow-y-auto p-6" style={{ background: '#FAF7FF' }}>
+          <div className="h-[52px] border-b animate-pulse" style={{ background: colors.surface, borderColor: colors.border }} />
+          <main className="flex-1 overflow-y-auto p-6" style={{ background: colors.lightBg }}>
             <div className="space-y-4 max-w-5xl mx-auto">
-              <div className="h-8 bg-gray-100 rounded-xl animate-pulse" />
-              <div className="h-32 bg-gray-100 rounded-xl animate-pulse" />
+              <div className="h-8 rounded-xl animate-pulse" style={{ background: colors.border }} />
+              <div className="h-32 rounded-xl animate-pulse" style={{ background: colors.border }} />
             </div>
           </main>
         </div>
@@ -48,26 +54,21 @@ export default function DashboardWrapper({ children, user }: DashboardWrapperPro
       )}
 
       <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        user={user}
         mobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Navbar
-          user={user}
           onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
         />
 
         <main
           className="flex-1 overflow-x-hidden overflow-y-auto transition-colors duration-300"
-          style={{
-            background: isDark ? colors.lightBg : colors.lightBg,
-            padding: '2rem 2rem',
-          }}
+          style={{ background: colors.lightBg }}
         >
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-6xl mx-auto px-4 py-6 md:px-8 md:py-8">
             {children}
           </div>
         </main>
