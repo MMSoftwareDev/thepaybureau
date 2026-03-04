@@ -297,28 +297,8 @@ export default function PayrollsPage() {
 
   if (loading) {
     return (
-      <div
-        className="min-h-[60vh] flex items-center justify-center transition-colors duration-300"
-      >
-        <div className="text-center">
-          <div
-            className="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-xl flex items-center justify-center"
-            style={{
-              background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-              boxShadow: isDark
-                ? `0 25px 50px ${colors.shadow.heavy}`
-                : `0 20px 40px ${colors.primary}30`,
-            }}
-          >
-            <ListChecks className="w-10 h-10 text-white animate-pulse" />
-          </div>
-          <p
-            className="text-xl font-semibold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            Loading payrolls...
-          </p>
-        </div>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: colors.primary }} />
       </div>
     )
   }
@@ -329,15 +309,11 @@ export default function PayrollsPage() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center transition-colors duration-300">
         <Card
-          className="max-w-md border-0 shadow-2xl"
+          className="max-w-md border-0"
           style={{
-            backgroundColor: colors.glass.card,
-            backdropFilter: 'blur(20px)',
-            borderRadius: '20px',
-            border: `1px solid ${colors.borderElevated}`,
-            boxShadow: isDark
-              ? `0 25px 50px ${colors.shadow.heavy}`
-              : `0 20px 40px ${colors.primary}20`,
+            backgroundColor: colors.surface,
+            borderRadius: '16px',
+            border: `1px solid ${colors.border}`,
           }}
         >
           <CardContent className="p-8 text-center">
@@ -381,14 +357,14 @@ export default function PayrollsPage() {
         {/* Header */}
         <div>
           <h1
-            className="text-4xl font-bold mb-2 transition-colors duration-300"
+            className="text-2xl md:text-3xl font-bold"
             style={{ color: colors.text.primary }}
           >
             Payrolls
           </h1>
           <p
-            className="text-lg transition-colors duration-300"
-            style={{ color: colors.text.secondary }}
+            className="text-[0.9rem] mt-1"
+            style={{ color: colors.text.muted }}
           >
             {format(new Date(), 'MMMM yyyy')}
           </p>
@@ -472,13 +448,9 @@ export default function PayrollsPage() {
       <Card
         className="border-0 shadow-xl transition-all duration-300"
         style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 10px 30px ${colors.shadow.medium}`
-            : `0 10px 25px ${colors.shadow.light}`,
+          backgroundColor: colors.surface,
+          borderRadius: '16px',
+          border: `1px solid ${colors.border}`,
         }}
       >
         <CardContent className="p-4">
@@ -489,19 +461,11 @@ export default function PayrollsPage() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveFilter(tab.key)}
-                  className={cn(
-                    'px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300',
-                    isActive ? 'shadow-lg' : 'hover:shadow-md'
-                  )}
+                  className="px-4 py-2 rounded-lg text-[0.82rem] font-semibold transition-all duration-200"
                   style={{
-                    backgroundColor: isActive
-                      ? colors.primary
-                      : colors.glass.surface,
+                    backgroundColor: isActive ? colors.primary : 'transparent',
                     color: isActive ? '#FFFFFF' : colors.text.secondary,
-                    border: `1px solid ${isActive ? colors.primary : colors.borderElevated}`,
-                    boxShadow: isActive
-                      ? `0 4px 15px ${colors.primary}40`
-                      : 'none',
+                    border: `1px solid ${isActive ? colors.primary : colors.border}`,
                   }}
                 >
                   {tab.label}
@@ -522,13 +486,9 @@ export default function PayrollsPage() {
       <Card
         className="border-0 shadow-xl transition-all duration-300"
         style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 15px 35px ${colors.shadow.medium}`
-            : `0 10px 25px ${colors.shadow.light}`,
+          backgroundColor: colors.surface,
+          borderRadius: '16px',
+          border: `1px solid ${colors.border}`,
         }}
       >
         <CardHeader>

@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { Inter, DM_Serif_Display, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import { ToastProvider } from '@/components/ui/toast'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
@@ -36,7 +37,9 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ThemeProvider defaultTheme="light" storageKey="thepaybureau-theme">
-          {children}
+          <ToastProvider>
+            {children}
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

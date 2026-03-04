@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -29,6 +29,7 @@ import {
   Calendar
 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useToast } from '@/components/ui/toast'
 
 // Interface for the latestRun attached to each client
 interface LatestRun {
@@ -114,6 +115,14 @@ function formatDate(dateStr: string | null | undefined): string {
 }
 
 export default function ClientsPage() {
+  return (
+    <Suspense>
+      <ClientsContent />
+    </Suspense>
+  )
+}
+
+function ClientsContent() {
   const searchParams = useSearchParams()
   const [clients, setClients] = useState<Client[]>([])
   const [filteredClients, setFilteredClients] = useState<Client[]>([])
@@ -127,6 +136,7 @@ export default function ClientsPage() {
   const [sortOrder, setSortOrder] = useState('asc')
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
+  const { toast } = useToast()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
 
@@ -176,11 +186,10 @@ export default function ClientsPage() {
       }
       
       setClients(prev => prev.filter(client => client.id !== clientId))
-      // TODO: Replace with proper toast notification
-      alert('Client deleted successfully!')
+      toast('Client deleted successfully')
     } catch (err) {
       console.error('Error deleting client:', err)
-      alert(err instanceof Error ? err.message : 'Failed to delete client')
+      toast(err instanceof Error ? err.message : 'Failed to delete client', 'error')
     }
   }
 
@@ -289,14 +298,14 @@ export default function ClientsPage() {
   if (!mounted) {
     return (
       <div className="space-y-8 animate-pulse">
-        <div className="h-20 rounded-xl" style={{ backgroundColor: colors.glass.surface }}></div>
+        <div className="h-20 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
         <div className="grid grid-cols-4 gap-8">
-          <div className="h-32 rounded-xl" style={{ backgroundColor: colors.glass.surface }}></div>
-          <div className="h-32 rounded-xl" style={{ backgroundColor: colors.glass.surface }}></div>
-          <div className="h-32 rounded-xl" style={{ backgroundColor: colors.glass.surface }}></div>
-          <div className="h-32 rounded-xl" style={{ backgroundColor: colors.glass.surface }}></div>
+          <div className="h-32 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
+          <div className="h-32 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
+          <div className="h-32 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
+          <div className="h-32 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
         </div>
-        <div className="h-96 rounded-xl" style={{ backgroundColor: colors.glass.surface }}></div>
+        <div className="h-96 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
       </div>
     )
   }
@@ -309,7 +318,7 @@ export default function ClientsPage() {
       >
         <div className="text-center">
           <div 
-            className="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-xl flex items-center justify-center"
+            className="w-20 h-20 mx-auto mb-6 rounded-2xl  flex items-center justify-center"
             style={{ 
               background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
               boxShadow: isDark 
@@ -334,12 +343,12 @@ export default function ClientsPage() {
         style={{ backgroundColor: colors.lightBg }}
       >
         <Card 
-          className="max-w-md border-0 shadow-2xl"
+          className="max-w-md border-0 "
           style={{
-            backgroundColor: colors.glass.card,
-            backdropFilter: 'blur(20px)',
-            borderRadius: '20px',
-            border: `1px solid ${colors.borderElevated}`,
+            backgroundColor: colors.surface,
+            
+            borderRadius: '16px',
+            border: `1px solid ${colors.border}`,
             boxShadow: isDark 
               ? `0 25px 50px ${colors.shadow.heavy}` 
               : `0 20px 40px ${colors.primary}20`
@@ -374,12 +383,12 @@ export default function ClientsPage() {
       {/* Enhanced Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold mb-2 transition-colors duration-300" style={{ 
+          <h1 className="text-2xl md:text-3xl font-bold" style={{ 
             color: colors.text.primary 
           }}>
             Client Management
           </h1>
-          <p className="text-lg transition-colors duration-300" style={{ 
+          <p className="text-[0.9rem] mt-1" style={{ 
             color: colors.text.secondary 
           }}>
             Manage all your payroll bureau clients efficiently.
@@ -387,7 +396,7 @@ export default function ClientsPage() {
         </div>
         <Button 
           onClick={() => router.push('/dashboard/clients/add')}
-          className="text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl border-0"
+          className="text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover: border-0"
           style={{ 
             background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
             boxShadow: isDark 
@@ -446,12 +455,12 @@ export default function ClientsPage() {
         ].map((stat, index) => (
           <Card
             key={index}
-            className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] group"
+            className="border-0  transition-all duration-300 transform hover:scale-[1.02] group"
             style={{
-              backgroundColor: colors.glass.card,
-              backdropFilter: 'blur(20px)',
-              borderRadius: '20px',
-              border: `1px solid ${colors.borderElevated}`,
+              backgroundColor: colors.surface,
+              
+              borderRadius: '16px',
+              border: `1px solid ${colors.border}`,
               boxShadow: isDark
                 ? `0 10px 30px ${colors.shadow.medium}`
                 : `0 10px 25px ${colors.shadow.light}`
@@ -488,12 +497,12 @@ export default function ClientsPage() {
 
       {/* Enhanced Search and Filters */}
       <Card 
-        className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300"
+        className="border-0  transition-all duration-300"
         style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
+          backgroundColor: colors.surface,
+          
+          borderRadius: '16px',
+          border: `1px solid ${colors.border}`,
           boxShadow: isDark 
             ? `0 15px 35px ${colors.shadow.medium}` 
             : `0 10px 25px ${colors.shadow.light}`
@@ -512,30 +521,30 @@ export default function ClientsPage() {
                 placeholder="Search clients by name, email, company number, or industry..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-12 h-12 text-sm border-0 shadow-lg transition-all duration-300 focus:shadow-2xl rounded-xl font-medium"
+                className="pl-12 h-12 text-sm border-0 shadow-lg transition-all duration-300 focus: rounded-xl font-medium"
                 style={{
-                  background: colors.glass.surface,
-                  backdropFilter: 'blur(15px)',
+                  background: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
+                  
                   color: colors.text.primary,
                   fontSize: '14px',
-                  border: `1px solid ${colors.borderElevated}`,
+                  border: `1px solid ${colors.border}`,
                   boxShadow: isDark 
                     ? `0 4px 20px ${colors.shadow.light}` 
                     : `0 4px 15px ${colors.shadow.light}`
                 }}
                 onFocus={(e) => {
-                  e.target.style.background = colors.glass.surfaceHover
+                  e.target.style.background = isDark ? 'rgba(255,255,255,0.05)' : '#F5F0FF'
                   e.target.style.boxShadow = isDark
                     ? `0 12px 35px ${colors.shadow.medium}, 0 0 0 1px ${colors.primary}40`
                     : `0 8px 25px ${colors.primary}25, 0 0 0 1px ${colors.primary}30`
                   e.target.style.borderColor = `${colors.primary}60`
                 }}
                 onBlur={(e) => {
-                  e.target.style.background = colors.glass.surface
+                  e.target.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
                   e.target.style.boxShadow = isDark 
                     ? `0 4px 20px ${colors.shadow.light}` 
                     : `0 4px 15px ${colors.shadow.light}`
-                  e.target.style.borderColor = colors.borderElevated
+                  e.target.style.borderColor = colors.border
                 }}
               />
             </div>
@@ -548,9 +557,9 @@ export default function ClientsPage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-3 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all duration-300 shadow-lg min-w-[120px]"
                 style={{
-                  backgroundColor: colors.glass.surface,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
                   color: colors.text.primary,
-                  border: `1px solid ${colors.borderElevated}`,
+                  border: `1px solid ${colors.border}`,
                   backdropFilter: 'blur(15px)'
                 }}
               >
@@ -566,9 +575,9 @@ export default function ClientsPage() {
                 onChange={(e) => setIndustryFilter(e.target.value)}
                 className="px-3 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all duration-300 shadow-lg min-w-[130px]"
                 style={{
-                  backgroundColor: colors.glass.surface,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
                   color: colors.text.primary,
-                  border: `1px solid ${colors.borderElevated}`,
+                  border: `1px solid ${colors.border}`,
                   backdropFilter: 'blur(15px)'
                 }}
               >
@@ -584,9 +593,9 @@ export default function ClientsPage() {
                 onChange={(e) => setEmployeeSizeFilter(e.target.value)}
                 className="px-3 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all duration-300 shadow-lg min-w-[120px]"
                 style={{
-                  backgroundColor: colors.glass.surface,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
                   color: colors.text.primary,
-                  border: `1px solid ${colors.borderElevated}`,
+                  border: `1px solid ${colors.border}`,
                   backdropFilter: 'blur(15px)'
                 }}
               >
@@ -603,9 +612,9 @@ export default function ClientsPage() {
                 onChange={(e) => setSortBy(e.target.value)}
                 className="px-3 py-3 rounded-xl text-sm font-medium focus:outline-none transition-all duration-300 shadow-lg min-w-[110px]"
                 style={{
-                  backgroundColor: colors.glass.surface,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
                   color: colors.text.primary,
-                  border: `1px solid ${colors.borderElevated}`,
+                  border: `1px solid ${colors.border}`,
                   backdropFilter: 'blur(15px)'
                 }}
               >
@@ -621,9 +630,9 @@ export default function ClientsPage() {
                 variant="outline"
                 className="h-12 px-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
                 style={{
-                  borderColor: colors.borderElevated,
+                  borderColor: colors.border,
                   color: colors.text.secondary,
-                  backgroundColor: colors.glass.surface,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
                   backdropFilter: 'blur(10px)'
                 }}
                 title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
@@ -639,9 +648,9 @@ export default function ClientsPage() {
                 className="h-12 px-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
                 onClick={fetchClients}
                 style={{
-                  borderColor: colors.borderElevated,
+                  borderColor: colors.border,
                   color: colors.text.secondary,
-                  backgroundColor: colors.glass.surface,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
                   backdropFilter: 'blur(10px)'
                 }}
               >
@@ -653,9 +662,9 @@ export default function ClientsPage() {
                 variant="outline" 
                 className="h-12 px-4 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
                 style={{
-                  borderColor: colors.borderElevated,
+                  borderColor: colors.border,
                   color: colors.text.secondary,
-                  backgroundColor: colors.glass.surface,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
                   backdropFilter: 'blur(10px)'
                 }}
               >
@@ -694,9 +703,9 @@ export default function ClientsPage() {
                 }}
                 className="rounded-xl font-semibold transition-all duration-300 hover:scale-105"
                 style={{
-                  borderColor: colors.borderElevated,
+                  borderColor: colors.border,
                   color: colors.text.muted,
-                  backgroundColor: colors.glass.surfaceActive
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
                 }}
               >
                 Clear All Filters
@@ -708,12 +717,12 @@ export default function ClientsPage() {
 
       {/* Enhanced Client Table */}
       <Card 
-        className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300"
+        className="border-0  transition-all duration-300"
         style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
+          backgroundColor: colors.surface,
+          
+          borderRadius: '16px',
+          border: `1px solid ${colors.border}`,
           boxShadow: isDark 
             ? `0 15px 35px ${colors.shadow.medium}` 
             : `0 10px 25px ${colors.shadow.light}`
@@ -740,7 +749,7 @@ export default function ClientsPage() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow style={{ borderColor: colors.borderElevated }}>
+                <TableRow style={{ borderColor: colors.border }}>
                   <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Client</TableHead>
                   <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Pay Frequency</TableHead>
                   <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Employees</TableHead>
@@ -757,9 +766,9 @@ export default function ClientsPage() {
                     <TableRow
                       key={client.id}
                       className="transition-all duration-300 hover:scale-[1.01] group"
-                      style={{ borderColor: colors.borderElevated }}
+                      style={{ borderColor: colors.border }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = colors.glass.surfaceHover
+                        e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.05)' : '#F5F0FF'
                         e.currentTarget.style.boxShadow = `0 4px 15px ${colors.shadow.light}`
                       }}
                       onMouseLeave={(e) => {
@@ -872,11 +881,12 @@ export default function ClientsPage() {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
                             className="rounded-xl transition-all duration-300 hover:scale-105"
                             style={{
-                              borderColor: colors.borderElevated,
+                              borderColor: colors.border,
                               color: colors.text.secondary,
-                              backgroundColor: colors.glass.surface
+                              backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
                             }}
                           >
                             <Edit className="w-4 h-4" />
@@ -915,7 +925,7 @@ export default function ClientsPage() {
           {filteredClients.length === 0 && (
             <div className="text-center py-16">
               <div 
-                className="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-xl flex items-center justify-center"
+                className="w-20 h-20 mx-auto mb-6 rounded-2xl  flex items-center justify-center"
                 style={{ 
                   backgroundColor: `${colors.primary}15`,
                   border: `2px dashed ${colors.primary}30`
@@ -934,7 +944,7 @@ export default function ClientsPage() {
               </p>
               <Button 
                 onClick={() => router.push('/dashboard/clients/add')}
-                className="text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition-all duration-300 hover:shadow-2xl"
+                className="text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition-all duration-300 hover:"
                 style={{ 
                   background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
                   boxShadow: `0 10px 25px ${colors.primary}30`
