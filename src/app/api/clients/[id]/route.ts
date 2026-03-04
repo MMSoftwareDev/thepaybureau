@@ -164,7 +164,6 @@ export async function PUT(
         .from('checklist_templates')
         .delete()
         .eq('client_id', id)
-        .eq('tenant_id', user.tenant_id)
 
       if (deleteError) {
         console.error('Database error deleting checklist templates:', deleteError)
@@ -180,7 +179,6 @@ export async function PUT(
               name: t.name,
               sort_order: t.sort_order,
               client_id: id,
-              tenant_id: user.tenant_id,
               is_active: true,
             }))
           )
