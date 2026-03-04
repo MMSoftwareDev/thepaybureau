@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,9 +10,10 @@ import {
   Search,
   AlertTriangle,
   Clock,
-  Save,
   ExternalLink,
   RefreshCw,
+  Check,
+  Loader2,
 } from 'lucide-react'
 import { parseISO, isBefore, addDays, startOfDay } from 'date-fns'
 import Link from 'next/link'
@@ -29,13 +30,7 @@ interface PensionClient {
   declaration_of_compliance_deadline: string | null
 }
 
-type DateField = 'pension_staging_date' | 'pension_reenrolment_date' | 'declaration_of_compliance_deadline'
-
-interface PendingEdit {
-  clientId: string
-  field: DateField | 'pension_provider'
-  value: string
-}
+type EditableField = 'pension_provider' | 'pension_staging_date' | 'pension_reenrolment_date' | 'declaration_of_compliance_deadline'
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -48,6 +43,10 @@ function getDateStatus(dateStr: string | null): 'overdue' | 'due_soon' | 'ok' | 
   return 'ok'
 }
 
+function isExempt(provider: string | null): boolean {
+  return provider?.toLowerCase() === 'exempt'
+}
+
 // ─── Component ───────────────────────────────────────────────────────
 
 export default function PensionDeclarationsPage() {
@@ -58,9 +57,10 @@ export default function PensionDeclarationsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
-  const [pendingEdits, setPendingEdits] = useState<PendingEdit[]>([])
-  const [saving, setSaving] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'overdue' | 'due_soon' | 'missing'>('all')
+  const [savingFields, setSavingFields] = useState<Set<string>>(new Set())
+  const [savedFields, setSavedFields] = useState<Set<string>>(new Set())
+  const debounceTimers = useRef<Map<string, NodeJS.Timeout>>(new Map())
 
   const fetchClients = useCallback(async () => {
     try {
@@ -84,41 +84,29 @@ export default function PensionDeclarationsPage() {
     fetchClients()
   }, [fetchClients])
 
-  // ─── Edit tracking ─────────────────────────────────────────────────
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      debounceTimers.current.forEach((timer) => clearTimeout(timer))
+    }
+  }, [])
 
-  const getEditValue = (clientId: string, field: DateField | 'pension_provider'): string | undefined => {
-    return pendingEdits.find((e) => e.clientId === clientId && e.field === field)?.value
-  }
+  // ─── Auto-save logic ──────────────────────────────────────────────
 
-  const setEditValue = (clientId: string, field: DateField | 'pension_provider', value: string) => {
-    setPendingEdits((prev) => {
-      const filtered = prev.filter((e) => !(e.clientId === clientId && e.field === field))
-      const client = clients.find((c) => c.id === clientId)
-      const originalValue = client ? (client[field] || '') : ''
-      if (value === originalValue) return filtered
-      return [...filtered, { clientId, field, value }]
+  const saveField = useCallback(async (clientId: string, field: EditableField, value: string) => {
+    const key = `${clientId}:${field}`
+    setSavingFields((prev) => new Set(prev).add(key))
+    setSavedFields((prev) => {
+      const next = new Set(prev)
+      next.delete(key)
+      return next
     })
-  }
 
-  const hasEditsForClient = (clientId: string): boolean => {
-    return pendingEdits.some((e) => e.clientId === clientId)
-  }
-
-  const saveClient = async (clientId: string) => {
-    const edits = pendingEdits.filter((e) => e.clientId === clientId)
-    if (edits.length === 0) return
-
-    setSaving(clientId)
     try {
-      const updates: Record<string, string | null> = {}
-      for (const edit of edits) {
-        updates[edit.field] = edit.value || null
-      }
-
       const res = await fetch('/api/pensions', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: clientId, ...updates }),
+        body: JSON.stringify({ client_id: clientId, [field]: value || null }),
       })
 
       if (!res.ok) {
@@ -128,17 +116,62 @@ export default function PensionDeclarationsPage() {
 
       const updated = await res.json()
       setClients((prev) => prev.map((c) => (c.id === clientId ? updated : c)))
-      setPendingEdits((prev) => prev.filter((e) => e.clientId !== clientId))
+
+      setSavedFields((prev) => new Set(prev).add(key))
+      setTimeout(() => {
+        setSavedFields((prev) => {
+          const next = new Set(prev)
+          next.delete(key)
+          return next
+        })
+      }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save changes')
     } finally {
-      setSaving(null)
+      setSavingFields((prev) => {
+        const next = new Set(prev)
+        next.delete(key)
+        return next
+      })
     }
+  }, [])
+
+  const handleFieldChange = useCallback((clientId: string, field: EditableField, value: string) => {
+    // Optimistically update local state
+    setClients((prev) =>
+      prev.map((c) => (c.id === clientId ? { ...c, [field]: value || null } : c))
+    )
+
+    const timerKey = `${clientId}:${field}`
+    const existing = debounceTimers.current.get(timerKey)
+    if (existing) clearTimeout(existing)
+
+    // For date fields, save immediately. For text (provider), debounce.
+    const delay = field === 'pension_provider' ? 800 : 0
+
+    if (delay === 0) {
+      saveField(clientId, field, value)
+    } else {
+      const timer = setTimeout(() => {
+        saveField(clientId, field, value)
+        debounceTimers.current.delete(timerKey)
+      }, delay)
+      debounceTimers.current.set(timerKey, timer)
+    }
+  }, [saveField])
+
+  const getFieldStatus = (clientId: string, field: EditableField): 'saving' | 'saved' | null => {
+    const key = `${clientId}:${field}`
+    if (savingFields.has(key)) return 'saving'
+    if (savedFields.has(key)) return 'saved'
+    return null
   }
 
-  // ─── Filtering ─────────────────────────────────────────────────────
+  // ─── Filtering (exclude exempt clients) ────────────────────────────
 
-  const filteredClients = clients.filter((client) => {
+  const nonExemptClients = clients.filter((c) => !isExempt(c.pension_provider))
+
+  const filteredClients = nonExemptClients.filter((client) => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       if (!client.name.toLowerCase().includes(q) && !(client.pension_provider || '').toLowerCase().includes(q)) {
@@ -167,23 +200,23 @@ export default function PensionDeclarationsPage() {
     return true
   })
 
-  // ─── Summary stats ─────────────────────────────────────────────────
+  // ─── Summary stats (non-exempt only) ──────────────────────────────
 
   const stats = {
-    total: clients.length,
-    overdue: clients.filter(
+    total: nonExemptClients.length,
+    overdue: nonExemptClients.filter(
       (c) =>
         getDateStatus(c.pension_staging_date) === 'overdue' ||
         getDateStatus(c.pension_reenrolment_date) === 'overdue' ||
         getDateStatus(c.declaration_of_compliance_deadline) === 'overdue'
     ).length,
-    dueSoon: clients.filter(
+    dueSoon: nonExemptClients.filter(
       (c) =>
         getDateStatus(c.pension_staging_date) === 'due_soon' ||
         getDateStatus(c.pension_reenrolment_date) === 'due_soon' ||
         getDateStatus(c.declaration_of_compliance_deadline) === 'due_soon'
     ).length,
-    missing: clients.filter(
+    missing: nonExemptClients.filter(
       (c) => !c.pension_provider || !c.pension_staging_date || !c.pension_reenrolment_date || !c.declaration_of_compliance_deadline
     ).length,
   }
@@ -203,15 +236,26 @@ export default function PensionDeclarationsPage() {
     return colors.text.muted
   }
 
+  const renderFieldIndicator = (clientId: string, field: EditableField) => {
+    const status = getFieldStatus(clientId, field)
+    if (status === 'saving') {
+      return <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" style={{ color: colors.text.muted }} />
+    }
+    if (status === 'saved') {
+      return <Check className="w-3 h-3 flex-shrink-0" style={{ color: colors.success }} />
+    }
+    return null
+  }
+
   // ─── Loading state ─────────────────────────────────────────────────
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="h-12 rounded-xl bg-gray-200 animate-pulse" style={{ background: colors.glass.surface }} />
-        <div className="h-16 rounded-2xl bg-gray-200 animate-pulse" style={{ background: colors.glass.surface }} />
+        <div className="h-12 rounded-xl animate-pulse" style={{ background: colors.glass.surface }} />
+        <div className="h-16 rounded-2xl animate-pulse" style={{ background: colors.glass.surface }} />
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-20 rounded-2xl bg-gray-200 animate-pulse" style={{ background: colors.glass.surface }} />
+          <div key={i} className="h-20 rounded-2xl animate-pulse" style={{ background: colors.glass.surface }} />
         ))}
       </div>
     )
@@ -258,6 +302,11 @@ export default function PensionDeclarationsPage() {
           style={{ color: colors.text.secondary }}
         >
           Manage pension dates across all clients
+          {clients.length !== nonExemptClients.length && (
+            <span style={{ color: colors.text.muted }}>
+              {' '}({clients.length - nonExemptClients.length} exempt)
+            </span>
+          )}
         </p>
       </div>
 
@@ -365,7 +414,7 @@ export default function PensionDeclarationsPage() {
                       Client
                     </th>
                     <th className="text-left px-5 py-3 text-[0.7rem] font-semibold uppercase tracking-wider" style={{ color: colors.text.muted }}>
-                      Provider
+                      Pension Provider
                     </th>
                     <th className="text-left px-5 py-3 text-[0.7rem] font-semibold uppercase tracking-wider" style={{ color: colors.text.muted }}>
                       Staging Date
@@ -376,9 +425,6 @@ export default function PensionDeclarationsPage() {
                     <th className="text-left px-5 py-3 text-[0.7rem] font-semibold uppercase tracking-wider" style={{ color: colors.text.muted }}>
                       Declaration of Compliance
                     </th>
-                    <th className="text-right px-5 py-3 text-[0.7rem] font-semibold uppercase tracking-wider" style={{ color: colors.text.muted }}>
-                      Actions
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -386,8 +432,6 @@ export default function PensionDeclarationsPage() {
                     const stagingStatus = getDateStatus(client.pension_staging_date)
                     const reenrolmentStatus = getDateStatus(client.pension_reenrolment_date)
                     const complianceStatus = getDateStatus(client.declaration_of_compliance_deadline)
-                    const hasEdits = hasEditsForClient(client.id)
-                    const isSaving = saving === client.id
 
                     return (
                       <tr
@@ -417,15 +461,19 @@ export default function PensionDeclarationsPage() {
                           )}
                         </td>
 
-                        {/* Provider */}
+                        {/* Pension Provider */}
                         <td className="px-5 py-3">
-                          <Input
-                            value={getEditValue(client.id, 'pension_provider') ?? client.pension_provider ?? ''}
-                            onChange={(e) => setEditValue(client.id, 'pension_provider', e.target.value)}
-                            placeholder="No provider"
-                            className="h-8 text-sm rounded-lg border-0 w-36"
-                            style={inputStyle}
-                          />
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              value={client.pension_provider ?? ''}
+                              onChange={(e) => handleFieldChange(client.id, 'pension_provider', e.target.value)}
+                              placeholder="No provider"
+                              list="pension-providers-list"
+                              className="h-8 text-sm rounded-lg border-0 w-36"
+                              style={inputStyle}
+                            />
+                            {renderFieldIndicator(client.id, 'pension_provider')}
+                          </div>
                         </td>
 
                         {/* Staging Date */}
@@ -438,11 +486,12 @@ export default function PensionDeclarationsPage() {
                             />
                             <Input
                               type="date"
-                              value={getEditValue(client.id, 'pension_staging_date') ?? client.pension_staging_date ?? ''}
-                              onChange={(e) => setEditValue(client.id, 'pension_staging_date', e.target.value)}
+                              value={client.pension_staging_date ?? ''}
+                              onChange={(e) => handleFieldChange(client.id, 'pension_staging_date', e.target.value)}
                               className="h-8 text-sm rounded-lg border-0 w-40"
                               style={inputStyle}
                             />
+                            {renderFieldIndicator(client.id, 'pension_staging_date')}
                           </div>
                         </td>
 
@@ -456,11 +505,12 @@ export default function PensionDeclarationsPage() {
                             />
                             <Input
                               type="date"
-                              value={getEditValue(client.id, 'pension_reenrolment_date') ?? client.pension_reenrolment_date ?? ''}
-                              onChange={(e) => setEditValue(client.id, 'pension_reenrolment_date', e.target.value)}
+                              value={client.pension_reenrolment_date ?? ''}
+                              onChange={(e) => handleFieldChange(client.id, 'pension_reenrolment_date', e.target.value)}
                               className="h-8 text-sm rounded-lg border-0 w-40"
                               style={inputStyle}
                             />
+                            {renderFieldIndicator(client.id, 'pension_reenrolment_date')}
                           </div>
                         </td>
 
@@ -474,37 +524,13 @@ export default function PensionDeclarationsPage() {
                             />
                             <Input
                               type="date"
-                              value={getEditValue(client.id, 'declaration_of_compliance_deadline') ?? client.declaration_of_compliance_deadline ?? ''}
-                              onChange={(e) => setEditValue(client.id, 'declaration_of_compliance_deadline', e.target.value)}
+                              value={client.declaration_of_compliance_deadline ?? ''}
+                              onChange={(e) => handleFieldChange(client.id, 'declaration_of_compliance_deadline', e.target.value)}
                               className="h-8 text-sm rounded-lg border-0 w-40"
                               style={inputStyle}
                             />
+                            {renderFieldIndicator(client.id, 'declaration_of_compliance_deadline')}
                           </div>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="px-5 py-3 text-right">
-                          {hasEdits && (
-                            <Button
-                              size="sm"
-                              onClick={() => saveClient(client.id)}
-                              disabled={isSaving}
-                              className="rounded-lg text-white text-xs font-semibold h-8 px-3"
-                              style={{
-                                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                                boxShadow: `0 4px 12px ${colors.primary}30`,
-                              }}
-                            >
-                              {isSaving ? (
-                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" />
-                              ) : (
-                                <>
-                                  <Save className="w-3 h-3 mr-1" />
-                                  Save
-                                </>
-                              )}
-                            </Button>
-                          )}
                         </td>
                       </tr>
                     )
@@ -512,6 +538,13 @@ export default function PensionDeclarationsPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Datalist for pension providers (shared across all rows) */}
+            <datalist id="pension-providers-list">
+              {['NEST', 'NOW Pensions', 'Smart Pension', "People's Pension", 'Aviva', 'Scottish Widows', 'Royal London', 'Penfold', 'Legal & General', 'Standard Life', 'LGPS', 'Cushon', 'Creative', 'True Potential', 'Exempt'].map((p) => (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
           </CardContent>
         </Card>
       )}
@@ -540,6 +573,14 @@ export default function PensionDeclarationsPage() {
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full" style={{ background: colors.text.muted }} />
           Not set
+        </div>
+        <div className="ml-auto flex items-center gap-1.5">
+          <Loader2 className="w-3 h-3" style={{ color: colors.text.muted }} />
+          Saving
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Check className="w-3 h-3" style={{ color: colors.success }} />
+          Saved
         </div>
       </div>
     </div>
