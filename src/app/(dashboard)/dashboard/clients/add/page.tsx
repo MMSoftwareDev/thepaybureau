@@ -46,10 +46,12 @@ interface FormData {
   // Step 2
   pay_frequency: string
   pay_day: string
-  tax_period_start: string
+  payroll_software: string
   // Step 3
   pension_provider: string
   pension_staging_date: string
+  pension_reenrolment_date: string
+  declaration_of_compliance_deadline: string
   // Step 4
   contact_name: string
   contact_email: string
@@ -88,6 +90,7 @@ const WEEKDAYS = [
 ]
 
 const MONTHLY_PAY_DAYS = [
+  { value: 'last_working_day', label: 'Last Working Day of the Month' },
   ...Array.from({ length: 31 }, (_, i) => ({
     value: String(i + 1),
     label: String(i + 1),
@@ -109,6 +112,13 @@ const PENSION_PROVIDERS = [
   'Aviva',
   'Scottish Widows',
   'Royal London',
+  'Penfold',
+  'Legal & General',
+  'Standard Life',
+  'LGPS',
+  'Cushon',
+  'Creative',
+  'True Potential',
 ]
 
 // ─── Component ───────────────────────────────────────────────────────
@@ -132,9 +142,11 @@ export default function AddClientPage() {
     employee_count: '',
     pay_frequency: '',
     pay_day: '',
-    tax_period_start: '2025-04-06',
+    payroll_software: '',
     pension_provider: '',
     pension_staging_date: '',
+    pension_reenrolment_date: '',
+    declaration_of_compliance_deadline: '',
     contact_name: '',
     contact_email: '',
     contact_phone: '',
@@ -275,9 +287,11 @@ export default function AddClientPage() {
           : undefined,
         pay_frequency: formData.pay_frequency,
         pay_day: formData.pay_day,
-        tax_period_start: formData.tax_period_start || undefined,
+        payroll_software: formData.payroll_software || undefined,
         pension_provider: formData.pension_provider || undefined,
         pension_staging_date: formData.pension_staging_date || undefined,
+        pension_reenrolment_date: formData.pension_reenrolment_date || undefined,
+        declaration_of_compliance_deadline: formData.declaration_of_compliance_deadline || undefined,
         contact_name: formData.contact_name || undefined,
         contact_email: formData.contact_email || undefined,
         contact_phone: formData.contact_phone || undefined,
@@ -370,11 +384,17 @@ export default function AddClientPage() {
           <Input
             id="accounts_office_ref"
             value={formData.accounts_office_ref}
-            onChange={(e) => updateField('accounts_office_ref', e.target.value)}
+            onChange={(e) => {
+              if (e.target.value.length <= 13) updateField('accounts_office_ref', e.target.value)
+            }}
             placeholder="123PA00012345"
+            maxLength={13}
             className={inputClassName}
             style={inputStyle}
           />
+          <p className="mt-1 text-xs" style={{ color: colors.text.muted }}>
+            {formData.accounts_office_ref.length}/13 characters
+          </p>
         </div>
       </div>
 
@@ -447,6 +467,8 @@ export default function AddClientPage() {
 
   const renderStep2 = () => {
     const isMonthly = formData.pay_frequency === 'monthly'
+    const isAnnually = formData.pay_frequency === 'annually'
+    const showMonthlyOptions = isMonthly || isAnnually
 
     return (
       <div className="space-y-6">
@@ -458,7 +480,6 @@ export default function AddClientPage() {
             value={formData.pay_frequency}
             onValueChange={(value) => {
               updateField('pay_frequency', value)
-              // Reset pay_day when frequency changes
               updateField('pay_day', '')
             }}
           >
@@ -470,6 +491,7 @@ export default function AddClientPage() {
               <SelectItem value="fortnightly">Fortnightly</SelectItem>
               <SelectItem value="four_weekly">4-Weekly</SelectItem>
               <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="annually">Annually</SelectItem>
             </SelectContent>
           </Select>
           {renderFieldError('pay_frequency')}
@@ -478,7 +500,7 @@ export default function AddClientPage() {
         {formData.pay_frequency && (
           <div>
             <Label className="font-semibold" style={{ color: colors.text.primary }}>
-              {isMonthly ? 'Pay Day (day of month or last weekday)' : 'Pay Day (day of week)'}{' '}
+              {showMonthlyOptions ? 'Pay Day (day of month or last weekday)' : 'Pay Day (day of week)'}{' '}
               <span style={{ color: colors.error }}>*</span>
             </Label>
             <Select
@@ -486,10 +508,10 @@ export default function AddClientPage() {
               onValueChange={(value) => updateField('pay_day', value)}
             >
               <SelectTrigger className={inputClassName} style={inputStyle}>
-                <SelectValue placeholder={isMonthly ? 'Select day of month' : 'Select day of week'} />
+                <SelectValue placeholder={showMonthlyOptions ? 'Select day of month' : 'Select day of week'} />
               </SelectTrigger>
               <SelectContent>
-                {isMonthly
+                {showMonthlyOptions
                   ? MONTHLY_PAY_DAYS.map((day) => (
                       <SelectItem key={day.value} value={day.value}>
                         {day.label}
@@ -506,18 +528,24 @@ export default function AddClientPage() {
           </div>
         )}
 
-        <div className="max-w-xs">
-          <Label htmlFor="tax_period_start" className="font-semibold" style={{ color: colors.text.primary }}>
-            Tax Period Start
+        <div>
+          <Label htmlFor="payroll_software" className="font-semibold" style={{ color: colors.text.primary }}>
+            Payroll Software
           </Label>
           <Input
-            id="tax_period_start"
-            type="date"
-            value={formData.tax_period_start}
-            onChange={(e) => updateField('tax_period_start', e.target.value)}
+            id="payroll_software"
+            value={formData.payroll_software}
+            onChange={(e) => updateField('payroll_software', e.target.value)}
+            placeholder="e.g. BrightPay, Sage, Moneysoft, IRIS..."
+            list="payroll-software-list"
             className={inputClassName}
             style={inputStyle}
           />
+          <datalist id="payroll-software-list">
+            {['BrightPay', 'Sage 50', 'Moneysoft', 'IRIS', 'Xero Payroll', 'QuickBooks Payroll', 'Staffology', 'PayDashboard', 'FreeAgent'].map((sw) => (
+              <option key={sw} value={sw} />
+            ))}
+          </datalist>
         </div>
       </div>
     )
@@ -545,23 +573,53 @@ export default function AddClientPage() {
             <option key={provider} value={provider} />
           ))}
         </datalist>
-        <p className="mt-1 text-xs" style={{ color: colors.text.muted }}>
-          Common providers: {PENSION_PROVIDERS.join(', ')}
-        </p>
       </div>
 
-      <div className="max-w-xs">
-        <Label htmlFor="pension_staging_date" className="font-semibold" style={{ color: colors.text.primary }}>
-          Pension Staging Date
-        </Label>
-        <Input
-          id="pension_staging_date"
-          type="date"
-          value={formData.pension_staging_date}
-          onChange={(e) => updateField('pension_staging_date', e.target.value)}
-          className={inputClassName}
-          style={inputStyle}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <Label htmlFor="pension_staging_date" className="font-semibold" style={{ color: colors.text.primary }}>
+            Pension Staging Date
+          </Label>
+          <Input
+            id="pension_staging_date"
+            type="date"
+            value={formData.pension_staging_date}
+            onChange={(e) => updateField('pension_staging_date', e.target.value)}
+            className={inputClassName}
+            style={inputStyle}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="pension_reenrolment_date" className="font-semibold" style={{ color: colors.text.primary }}>
+            Re-Enrolment Date
+          </Label>
+          <Input
+            id="pension_reenrolment_date"
+            type="date"
+            value={formData.pension_reenrolment_date}
+            onChange={(e) => updateField('pension_reenrolment_date', e.target.value)}
+            className={inputClassName}
+            style={inputStyle}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="declaration_of_compliance_deadline" className="font-semibold" style={{ color: colors.text.primary }}>
+            Declaration of Compliance
+          </Label>
+          <Input
+            id="declaration_of_compliance_deadline"
+            type="date"
+            value={formData.declaration_of_compliance_deadline}
+            onChange={(e) => updateField('declaration_of_compliance_deadline', e.target.value)}
+            className={inputClassName}
+            style={inputStyle}
+          />
+          <p className="mt-1 text-xs" style={{ color: colors.text.muted }}>
+            TPR deadline for declaration
+          </p>
+        </div>
       </div>
     </div>
   )
