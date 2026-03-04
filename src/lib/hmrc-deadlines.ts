@@ -271,6 +271,15 @@ export function calculatePeriodDates(
  * - in_progress: within 5 days with some items done, or some items done regardless
  * - not_started: otherwise
  */
+/**
+ * Parse a YYYY-MM-DD date string as a local date (not UTC).
+ * Using parseISO on date-only strings creates UTC midnight which is wrong during BST.
+ */
+export function parseDateString(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
 export function getPayrollStatus(
   payDate: Date,
   totalItems: number,

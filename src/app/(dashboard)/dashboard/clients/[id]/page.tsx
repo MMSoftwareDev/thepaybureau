@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { useToast } from '@/components/ui/toast'
 import { format, parseISO } from 'date-fns'
+import { getPayrollStatus, parseDateString } from '@/lib/hmrc-deadlines'
 import {
   ArrowLeft,
   Building2,
@@ -447,8 +448,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 </thead>
                 <tbody>
                   {payrollRuns.map((run, index) => {
-                    const payDate = parseISO(run.pay_date)
-                    const isOverdue = run.status !== 'complete' && payDate < new Date()
+                    const payDate = parseDateString(run.pay_date)
+                    const computedStatus = getPayrollStatus(payDate, 1, run.status === 'complete' ? 1 : 0)
+                    const isOverdue = computedStatus === 'overdue'
                     const statusInfo = isOverdue
                       ? { label: 'Overdue', color: colors.error, icon: AlertTriangle }
                       : PAYROLL_STATUS_CONFIG[run.status] || PAYROLL_STATUS_CONFIG.not_started

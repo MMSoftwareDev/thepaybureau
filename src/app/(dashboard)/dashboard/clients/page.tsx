@@ -735,7 +735,7 @@ function ClientsContent() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => router.push('/dashboard/payrolls')}
+                            onClick={() => router.push(`/dashboard/payrolls?client=${client.id}`)}
                             className="rounded-lg text-[0.75rem] font-medium"
                             style={{
                               borderColor: colors.border,
