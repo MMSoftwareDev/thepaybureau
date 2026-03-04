@@ -20,6 +20,12 @@ export default function DashboardLayout({
 
   useEffect(() => {
     checkUser()
+
+    const handleAvatarUpdate = (e: CustomEvent<string | null>) => {
+      setAvatarUrl(e.detail)
+    }
+    window.addEventListener('avatar-updated', handleAvatarUpdate as EventListener)
+    return () => window.removeEventListener('avatar-updated', handleAvatarUpdate as EventListener)
   }, [])
 
   const checkUser = async () => {

@@ -170,6 +170,7 @@ export default function SettingsPage() {
       if (updateError) throw updateError
 
       setAvatarUrl(urlWithCacheBust)
+      window.dispatchEvent(new CustomEvent('avatar-updated', { detail: urlWithCacheBust }))
       showMessage(setProfileMessage, 'Profile photo updated!')
     } catch (err) {
       console.error('Error uploading avatar:', err)
@@ -203,6 +204,7 @@ export default function SettingsPage() {
       if (updateError) throw updateError
 
       setAvatarUrl(null)
+      window.dispatchEvent(new CustomEvent('avatar-updated', { detail: null }))
       showMessage(setProfileMessage, 'Profile photo removed.')
     } catch (err) {
       console.error('Error removing avatar:', err)
