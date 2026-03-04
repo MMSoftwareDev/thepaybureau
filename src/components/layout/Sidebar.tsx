@@ -292,36 +292,38 @@ export default function Sidebar({ user, avatarUrl, mobileOpen = false, onMobileC
 
       {/* Bottom section */}
       <div className="px-3 pb-3 mt-auto">
-        {/* Admin Analytics */}
-        <button
-          onClick={() => navigate('/dashboard/admin/analytics')}
-          className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-px transition-all duration-150 relative"
-          style={{
-            background: pathname.startsWith('/dashboard/admin')
-              ? isDark ? 'rgba(255,255,255,0.08)' : `${colors.primary}08`
-              : 'transparent',
-            color: pathname.startsWith('/dashboard/admin') ? colors.text.primary : colors.text.secondary,
-          }}
-          onMouseEnter={(e) => {
-            if (!pathname.startsWith('/dashboard/admin')) {
-              e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : colors.lightBg
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!pathname.startsWith('/dashboard/admin')) {
-              e.currentTarget.style.background = 'transparent'
-            }
-          }}
-        >
-          {pathname.startsWith('/dashboard/admin') && (
-            <div
-              className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
-              style={{ background: `linear-gradient(180deg, ${colors.primary}, ${colors.secondary})` }}
-            />
-          )}
-          <BarChart3 className="w-4 h-4" style={{ color: colors.text.muted }} />
-          <span className="text-[0.8rem] font-medium">Analytics</span>
-        </button>
+        {/* Admin Analytics — only visible to platform admin */}
+        {user?.email?.toLowerCase() === 'minhaz.moosa@intelligentpayroll.co.uk' && (
+          <button
+            onClick={() => navigate('/dashboard/admin/analytics')}
+            className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-px transition-all duration-150 relative"
+            style={{
+              background: pathname.startsWith('/dashboard/admin')
+                ? isDark ? 'rgba(255,255,255,0.08)' : `${colors.primary}08`
+                : 'transparent',
+              color: pathname.startsWith('/dashboard/admin') ? colors.text.primary : colors.text.secondary,
+            }}
+            onMouseEnter={(e) => {
+              if (!pathname.startsWith('/dashboard/admin')) {
+                e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : colors.lightBg
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!pathname.startsWith('/dashboard/admin')) {
+                e.currentTarget.style.background = 'transparent'
+              }
+            }}
+          >
+            {pathname.startsWith('/dashboard/admin') && (
+              <div
+                className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
+                style={{ background: `linear-gradient(180deg, ${colors.primary}, ${colors.secondary})` }}
+              />
+            )}
+            <BarChart3 className="w-4 h-4" style={{ color: colors.text.muted }} />
+            <span className="text-[0.8rem] font-medium">Analytics</span>
+          </button>
+        )}
 
         {/* Settings */}
         <button

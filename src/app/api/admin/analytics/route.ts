@@ -4,13 +4,7 @@ import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import { subDays, format, startOfDay } from 'date-fns'
 
-// Admin emails allowed to access this endpoint.
-// Set ADMIN_EMAILS env var as comma-separated list, or falls back to the first registered user.
-function getAdminEmails(): string[] {
-  const raw = process.env.ADMIN_EMAILS
-  if (raw) return raw.split(',').map(e => e.trim().toLowerCase())
-  return []
-}
+const ADMIN_EMAIL = 'minhaz.moosa@intelligentpayroll.co.uk'
 
 export async function GET() {
   try {
@@ -19,27 +13,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Gate: must be an admin email, or if ADMIN_EMAILS isn't set, must be the first user ever created
-    const adminEmails = getAdminEmails()
-    const supabase = createServerSupabaseClient()
-
-    if (adminEmails.length > 0) {
-      if (!adminEmails.includes(authUser.email.toLowerCase())) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
-    } else {
-      // Fallback: allow the earliest-created user (platform owner)
-      const { data: firstUser } = await supabase
-        .from('users')
-        .select('id')
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .single()
-
-      if (!firstUser || firstUser.id !== authUser.id) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
+    if (authUser.email.toLowerCase() !== ADMIN_EMAIL) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    const supabase = createServerSupabaseClient()
 
     const now = new Date()
     const thirtyDaysAgo = subDays(now, 30)
