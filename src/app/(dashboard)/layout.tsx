@@ -23,26 +23,17 @@ export default function DashboardLayout({
 
   const checkUser = async () => {
     try {
-      // Check current session
-      const { data: { session }, error } = await supabase.auth.getSession()
-      
-      console.log('Dashboard layout - checking session:', !!session)
-      console.log('Dashboard layout - session error:', error)
-      
-      if (error) {
-        console.error('Session error:', error)
+      // Use getUser() instead of getSession() to ensure token refresh
+      // getSession() reads stale cookies and can miss refreshed tokens,
+      // causing a redirect loop: /dashboard/clients → /login → /dashboard
+      const { data: { user }, error } = await supabase.auth.getUser()
+
+      if (error || !user) {
         router.push('/login')
         return
       }
 
-      if (!session) {
-        console.log('No session found, redirecting to login')
-        router.push('/login')
-        return
-      }
-
-      console.log('Session found, user:', session.user)
-      setUser(session.user)
+      setUser(user)
     } catch (error) {
       console.error('Error checking user:', error)
       router.push('/login')
