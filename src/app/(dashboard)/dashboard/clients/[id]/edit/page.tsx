@@ -123,6 +123,7 @@ const MONTHLY_PAY_DAYS = [
 ]
 
 const PENSION_PROVIDERS = [
+  'Exempt',
   'NEST',
   'NOW Pensions',
   'Smart Pension',
@@ -631,7 +632,9 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
     )
   }
 
-  const renderPensionTab = () => (
+  const renderPensionTab = () => {
+    const isPensionExempt = formData.pension_provider.toLowerCase() === 'exempt'
+    return (
     <div className="space-y-6">
       <div>
         <Label htmlFor="pension_provider" className="font-semibold" style={{ color: colors.text.primary }}>
@@ -651,8 +654,14 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
             <option key={provider} value={provider} />
           ))}
         </datalist>
+        {isPensionExempt && (
+          <p className="mt-2 text-sm font-medium" style={{ color: colors.text.muted }}>
+            Client is exempt from pension — date fields are hidden.
+          </p>
+        )}
       </div>
 
+      {!isPensionExempt && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
           <Label htmlFor="pension_staging_date" className="font-semibold" style={{ color: colors.text.primary }}>
@@ -699,8 +708,10 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
           </p>
         </div>
       </div>
+      )}
     </div>
-  )
+    )
+  }
 
   const renderContactTab = () => (
     <div className="space-y-6">

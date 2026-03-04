@@ -111,6 +111,7 @@ const MONTHLY_PAY_DAYS = [
 ]
 
 const PENSION_PROVIDERS = [
+  'Exempt',
   'NEST',
   'NOW Pensions',
   'Smart Pension',
@@ -608,7 +609,9 @@ export default function AddClientPage() {
 
   // ─── Step 3: Pension ─────────────────────────────────────────────
 
-  const renderStep3 = () => (
+  const renderStep3 = () => {
+    const isPensionExempt = formData.pension_provider.toLowerCase() === 'exempt'
+    return (
     <div className="space-y-6">
       <div>
         <Label htmlFor="pension_provider" className="font-semibold" style={{ color: colors.text.primary }}>
@@ -628,8 +631,14 @@ export default function AddClientPage() {
             <option key={provider} value={provider} />
           ))}
         </datalist>
+        {isPensionExempt && (
+          <p className="mt-2 text-sm font-medium" style={{ color: colors.text.muted }}>
+            Client is exempt from pension — date fields are hidden.
+          </p>
+        )}
       </div>
 
+      {!isPensionExempt && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
           <Label htmlFor="pension_staging_date" className="font-semibold" style={{ color: colors.text.primary }}>
@@ -676,8 +685,10 @@ export default function AddClientPage() {
           </p>
         </div>
       </div>
+      )}
     </div>
-  )
+    )
+  }
 
   // ─── Step 4: Contact Info ────────────────────────────────────────
 

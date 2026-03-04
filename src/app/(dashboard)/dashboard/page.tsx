@@ -22,6 +22,7 @@ import {
   FilePlus,
   ExternalLink,
   AlertCircle,
+  Shield,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { format, parseISO, formatDistanceToNow } from 'date-fns'
@@ -76,6 +77,8 @@ interface DashboardStats {
   overdue: number
   completedThisMonth: number
   recentActivity: ActivityItem[]
+  pensionOverdue: number
+  pensionDueSoon: number
 }
 
 function getGreeting(): string {
@@ -208,7 +211,7 @@ export default function DashboardPage() {
 
       {/* ── Top 3 Summary Cards ── */}
       {!loading && !isEmptyState && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {/* Due Today */}
           <Card
             className="border-0 cursor-pointer transition-colors duration-150"
@@ -271,6 +274,54 @@ export default function DashboardPage() {
               <p className="text-[0.78rem] mt-1.5" style={{ color: colors.text.secondary }}>
                 {stats?.totalClients ?? 0} clients total
               </p>
+            </CardContent>
+          </Card>
+
+          {/* Pension Declarations */}
+          <Card
+            className="border-0 cursor-pointer transition-colors duration-150"
+            style={{
+              ...cardStyle,
+              borderLeft: `3px solid ${(stats?.pensionOverdue ?? 0) > 0 ? colors.error : (stats?.pensionDueSoon ?? 0) > 0 ? colors.warning : colors.success}`,
+            }}
+            onClick={() => router.push('/dashboard/pensions')}
+          >
+            <CardContent className="p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2">
+                <p
+                  className="text-[0.72rem] font-semibold uppercase tracking-[0.04em]"
+                  style={{ color: colors.text.muted }}
+                >
+                  Pensions
+                </p>
+                <Shield className="w-4 h-4" style={{ color: colors.text.muted }} />
+              </div>
+              {(stats?.pensionOverdue ?? 0) > 0 ? (
+                <>
+                  <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.error }}>
+                    {stats?.pensionOverdue}
+                    <span className="text-[0.82rem] font-normal ml-1.5" style={{ color: colors.text.muted }}>
+                      overdue
+                    </span>
+                  </p>
+                  {(stats?.pensionDueSoon ?? 0) > 0 && (
+                    <p className="text-[0.78rem] mt-1.5" style={{ color: colors.warning }}>
+                      {stats?.pensionDueSoon} due within 30 days
+                    </p>
+                  )}
+                </>
+              ) : (stats?.pensionDueSoon ?? 0) > 0 ? (
+                <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.warning }}>
+                  {stats?.pensionDueSoon}
+                  <span className="text-[0.82rem] font-normal ml-1.5" style={{ color: colors.text.muted }}>
+                    due soon
+                  </span>
+                </p>
+              ) : (
+                <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.success }}>
+                  All clear
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -364,7 +415,7 @@ export default function DashboardPage() {
                     style={{
                       backgroundColor: bgColor,
                     }}
-                    onClick={() => router.push(`/dashboard/payrolls/${item.id}`)}
+                    onClick={() => router.push(item.id.startsWith('pension-') ? '/dashboard/pensions' : `/dashboard/payrolls/${item.id}`)}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = item.severity === 'red'
                         ? `${colors.error}14`

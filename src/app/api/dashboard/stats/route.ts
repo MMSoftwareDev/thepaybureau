@@ -62,7 +62,7 @@ export async function GET() {
     // All clients for this tenant
     const { data: clients } = await supabase
       .from('clients')
-      .select('id, name, status, employee_count, pay_frequency, created_at')
+      .select('id, name, status, employee_count, pay_frequency, created_at, pension_provider, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
       .eq('tenant_id', user.tenant_id)
 
     const allClients = clients || []
@@ -392,9 +392,12 @@ export async function GET() {
 
     const freqMap: Record<string, string> = {
       weekly: 'Weekly',
-      fortnightly: 'Fortnightly',
+      two_weekly: '2-Weekly',
       four_weekly: '4-Weekly',
       monthly: 'Monthly',
+      quarterly: 'Quarterly',
+      biannually: 'Biannually',
+      annually: 'Annually',
     }
     const freqCounts: Record<string, number> = {}
     for (const c of allClients) {
@@ -404,6 +407,88 @@ export async function GET() {
       }
     }
     const payFrequencyDistribution = Object.entries(freqCounts).map(([name, value]) => ({ name, value }))
+
+    // ── PENSION DECLARATIONS ──
+    const pensionOverdue: Array<{
+      clientName: string
+      clientId: string
+      field: string
+      date: string
+      daysOverdue: number
+    }> = []
+    const pensionDueSoon: Array<{
+      clientName: string
+      clientId: string
+      field: string
+      date: string
+      daysUntil: number
+    }> = []
+
+    const pensionFieldLabels: Record<string, string> = {
+      pension_staging_date: 'Staging Date',
+      pension_reenrolment_date: 'Re-Enrolment Date',
+      declaration_of_compliance_deadline: 'Declaration of Compliance',
+    }
+
+    for (const c of allClients) {
+      // Skip exempt clients
+      if (c.pension_provider?.toLowerCase() === 'exempt') continue
+
+      for (const field of ['pension_staging_date', 'pension_reenrolment_date', 'declaration_of_compliance_deadline'] as const) {
+        const dateStr = c[field]
+        if (!dateStr) continue
+
+        const date = startOfDay(parseDateString(dateStr))
+        const daysUntilDate = differenceInDays(date, today)
+
+        if (isBefore(date, today)) {
+          pensionOverdue.push({
+            clientName: c.name || 'Unknown',
+            clientId: c.id,
+            field: pensionFieldLabels[field],
+            date: dateStr,
+            daysOverdue: Math.abs(daysUntilDate),
+          })
+
+          actionRequired.push({
+            id: `pension-${c.id}-${field}`,
+            clientName: c.name || 'Unknown',
+            clientId: c.id,
+            payDate: dateStr,
+            severity: 'red',
+            reason: `${pensionFieldLabels[field]} overdue ${Math.abs(daysUntilDate)} day${Math.abs(daysUntilDate) !== 1 ? 's' : ''}`,
+            daysOverdue: Math.abs(daysUntilDate),
+          })
+        } else if (daysUntilDate <= 30) {
+          pensionDueSoon.push({
+            clientName: c.name || 'Unknown',
+            clientId: c.id,
+            field: pensionFieldLabels[field],
+            date: dateStr,
+            daysUntil: daysUntilDate,
+          })
+
+          if (daysUntilDate <= 7) {
+            const dayLabel = daysUntilDate === 0 ? 'today' : daysUntilDate === 1 ? 'tomorrow' : `in ${daysUntilDate} days`
+            actionRequired.push({
+              id: `pension-${c.id}-${field}`,
+              clientName: c.name || 'Unknown',
+              clientId: c.id,
+              payDate: dateStr,
+              severity: 'amber',
+              reason: `${pensionFieldLabels[field]} due ${dayLabel}`,
+              daysUntil: daysUntilDate,
+            })
+          }
+        }
+      }
+    }
+
+    // Re-sort action items after adding pension items
+    actionRequired.sort((a, b) => {
+      if (a.severity !== b.severity) return a.severity === 'red' ? -1 : 1
+      return (a.daysOverdue ?? 999) - (b.daysOverdue ?? 999)
+    })
 
     return NextResponse.json({
       // New action-focused data
@@ -429,6 +514,8 @@ export async function GET() {
       payFrequencyDistribution,
       completionTrend,
       recentActivity: limitedActivity,
+      pensionOverdue: pensionOverdue.length,
+      pensionDueSoon: pensionDueSoon.length,
     })
   } catch (error) {
     console.error('Unexpected error in GET /api/dashboard/stats:', error)
