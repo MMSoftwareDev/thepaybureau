@@ -299,6 +299,10 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
         phone: formData.phone || undefined,
         notes: formData.notes || undefined,
         status: formData.status,
+        checklist_templates: checklistItems.map((item, index) => ({
+          name: item.name,
+          sort_order: index,
+        })),
       }
 
       const res = await fetch(`/api/clients/${id}`, {

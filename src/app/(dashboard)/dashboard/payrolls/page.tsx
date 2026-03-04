@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,7 @@ import {
   StickyNote,
 } from 'lucide-react'
 import Link from 'next/link'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -137,6 +138,9 @@ export default function PayrollsPage() {
 
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const clientFilter = searchParams.get('client')
 
   const supabase = createClientSupabaseClient()
 
@@ -147,10 +151,16 @@ export default function PayrollsPage() {
       setLoading(true)
       setError(null)
 
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('payroll_runs')
         .select('*, clients(name, pay_frequency), checklist_items(*)')
         .order('pay_date', { ascending: true })
+
+      if (clientFilter) {
+        query = query.eq('client_id', clientFilter)
+      }
+
+      const { data, error: fetchError } = await query
 
       if (fetchError) throw fetchError
 
@@ -161,13 +171,16 @@ export default function PayrollsPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, clientFilter])
 
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  useEffect(() => {
     fetchRuns()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [clientFilter])
 
   // ── Filter logic ───────────────────────────────────────────────────────────
 
@@ -274,6 +287,15 @@ export default function PayrollsPage() {
   }
 
   // ── Render helpers ─────────────────────────────────────────────────────────
+
+  const clientFilterName = useMemo(() => {
+    if (!clientFilter || runs.length === 0) return null
+    return runs[0]?.clients?.name ?? null
+  }, [clientFilter, runs])
+
+  const clearClientFilter = () => {
+    router.push('/dashboard/payrolls')
+  }
 
   const filterTabs: { key: FilterTab; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -443,6 +465,30 @@ export default function PayrollsPage() {
           {format(new Date(), 'MMMM yyyy')}
         </p>
       </div>
+
+      {/* Client filter banner */}
+      {clientFilterName && (
+        <div
+          className="flex items-center justify-between p-4 rounded-xl"
+          style={{
+            backgroundColor: `${colors.primary}10`,
+            border: `1px solid ${colors.primary}30`,
+          }}
+        >
+          <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>
+            Showing payrolls for <span style={{ color: colors.primary }}>{clientFilterName}</span>
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearClientFilter}
+            className="rounded-lg text-xs font-semibold"
+            style={{ color: colors.primary }}
+          >
+            Show All
+          </Button>
+        </div>
+      )}
 
       {/* Filter tabs */}
       <Card

@@ -5,6 +5,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 // Validation schema for client updates (all fields optional)
+const checklistTemplateSchema = z.object({
+  name: z.string().min(1).max(255),
+  sort_order: z.number().int().min(0),
+})
+
 const clientUpdateSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   company_number: z.string().max(20).optional(),
@@ -29,6 +34,7 @@ const clientUpdateSchema = z.object({
   contact_name: z.string().optional(),
   contact_email: z.string().email().optional().or(z.literal('')),
   contact_phone: z.string().optional(),
+  checklist_templates: z.array(checklistTemplateSchema).optional(),
 })
 
 // GET /api/clients/[id] - Fetch single client with details
@@ -107,11 +113,26 @@ export async function PUT(
     const body = await request.json()
     const validatedData = clientUpdateSchema.parse(body)
 
+    // Separate checklist_templates from client fields
+    const { checklist_templates, ...clientFields } = validatedData
+
+    // Get user's tenant_id
+    const { data: user } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', authUser.id)
+      .single()
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     // Check if client exists and belongs to user's tenant
     const { data: existingClient } = await supabase
       .from('clients')
       .select('id')
       .eq('id', id)
+      .eq('tenant_id', user.tenant_id)
       .single()
 
     if (!existingClient) {
@@ -122,7 +143,7 @@ export async function PUT(
     const { data: client, error } = await supabase
       .from('clients')
       .update({
-        ...validatedData,
+        ...clientFields,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -132,6 +153,41 @@ export async function PUT(
     if (error) {
       console.error('Database error updating client:', error)
       return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    // Update checklist templates if provided
+    if (checklist_templates) {
+      // Delete existing templates
+      const { error: deleteError } = await supabase
+        .from('checklist_templates')
+        .delete()
+        .eq('client_id', id)
+        .eq('tenant_id', user.tenant_id)
+
+      if (deleteError) {
+        console.error('Database error deleting checklist templates:', deleteError)
+        return NextResponse.json({ error: deleteError.message }, { status: 400 })
+      }
+
+      // Insert new templates
+      if (checklist_templates.length > 0) {
+        const { error: insertError } = await supabase
+          .from('checklist_templates')
+          .insert(
+            checklist_templates.map((t) => ({
+              name: t.name,
+              sort_order: t.sort_order,
+              client_id: id,
+              tenant_id: user.tenant_id,
+              is_active: true,
+            }))
+          )
+
+        if (insertError) {
+          console.error('Database error inserting checklist templates:', insertError)
+          return NextResponse.json({ error: insertError.message }, { status: 400 })
+        }
+      }
     }
 
     return NextResponse.json(client)
