@@ -26,7 +26,8 @@ import {
   FileText,
   Phone,
   Mail,
-  Calendar
+  Calendar,
+  Copy
 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
@@ -754,8 +755,22 @@ function ClientsContent() {
                               borderColor: colors.border,
                               color: colors.text.secondary,
                             }}
+                            title="Edit client"
                           >
                             <Edit className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/dashboard/clients/add?duplicate=${client.id}`)}
+                            className="rounded-lg"
+                            style={{
+                              borderColor: colors.border,
+                              color: colors.secondary,
+                            }}
+                            title="Duplicate client"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
                           </Button>
                           <Button
                             variant="outline"
@@ -766,6 +781,7 @@ function ClientsContent() {
                               borderColor: colors.border,
                               color: colors.error,
                             }}
+                            title="Delete client"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>

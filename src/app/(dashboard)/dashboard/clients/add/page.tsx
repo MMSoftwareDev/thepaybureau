@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -131,7 +131,16 @@ const PENSION_PROVIDERS = [
 // ─── Component ───────────────────────────────────────────────────────
 
 export default function AddClientPage() {
+  return (
+    <Suspense>
+      <AddClientContent />
+    </Suspense>
+  )
+}
+
+function AddClientContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
 
@@ -140,6 +149,7 @@ export default function AddClientPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [duplicating, setDuplicating] = useState(false)
 
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -172,6 +182,60 @@ export default function AddClientPage() {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Pre-fill form when duplicating an existing client
+  useEffect(() => {
+    const duplicateId = searchParams.get('duplicate')
+    if (!duplicateId) return
+
+    const fetchSource = async () => {
+      setDuplicating(true)
+      try {
+        const res = await fetch(`/api/clients/${duplicateId}`)
+        if (!res.ok) return
+        const data = await res.json()
+        const client = data.client ?? data
+
+        setFormData({
+          name: `${client.name || ''} (Copy)`,
+          paye_reference: client.paye_reference || '',
+          accounts_office_ref: client.accounts_office_ref || '',
+          address: client.address || { street: '', city: '', postcode: '' },
+          employee_count: client.employee_count != null ? String(client.employee_count) : '',
+          pay_frequency: client.pay_frequency || '',
+          pay_day: client.pay_day || '',
+          period_start: '',
+          period_end: '',
+          payroll_software: client.payroll_software || '',
+          employment_allowance: client.employment_allowance != null ? String(client.employment_allowance) : '',
+          pension_provider: client.pension_provider || '',
+          pension_staging_date: client.pension_staging_date || '',
+          pension_reenrolment_date: client.pension_reenrolment_date || '',
+          declaration_of_compliance_deadline: client.declaration_of_compliance_deadline || '',
+          contact_name: client.contact_name || '',
+          contact_email: client.contact_email || '',
+          contact_phone: client.contact_phone || '',
+          email: client.email || '',
+          phone: client.phone || '',
+          notes: client.notes || '',
+        })
+
+        // Pre-fill checklist from source client's templates
+        if (client.checklist_templates?.length) {
+          const sorted = [...client.checklist_templates].sort(
+            (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
+          )
+          setChecklistItems(sorted.map((t: { name: string }) => ({ name: t.name })))
+        }
+      } catch {
+        // Silently fall back to empty form
+      } finally {
+        setDuplicating(false)
+      }
+    }
+
+    fetchSource()
+  }, [searchParams])
 
   // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -921,13 +985,16 @@ export default function AddClientPage() {
             className="text-3xl md:text-4xl font-bold transition-colors duration-300"
             style={{ color: colors.text.primary }}
           >
-            Onboard New Client
+            {searchParams.get('duplicate') ? 'Duplicate Client' : 'Onboard New Client'}
           </h1>
           <p
             className="text-base md:text-lg transition-colors duration-300 mt-2"
             style={{ color: colors.text.secondary }}
           >
-            Step {currentStep + 1} of {STEPS.length} &mdash; {STEPS[currentStep].label}
+            {duplicating
+              ? 'Loading client data...'
+              : <>Step {currentStep + 1} of {STEPS.length} &mdash; {STEPS[currentStep].label}</>
+            }
           </p>
         </div>
 

@@ -329,6 +329,17 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
             <h1 className="text-2xl md:text-3xl font-bold truncate" style={{ color: colors.text.primary }}>
               {run.clients?.name ?? 'Unknown Client'}
             </h1>
+            {run.clients?.pay_frequency && (
+              <span
+                className="inline-flex items-center px-2 py-0.5 rounded text-[0.68rem] font-bold uppercase tracking-wide"
+                style={{
+                  backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
+                  color: isDark ? '#A78BFA' : '#7C3AED',
+                }}
+              >
+                {formatPayFrequency(run.clients.pay_frequency)}
+              </span>
+            )}
             <Badge
               className={cn('font-bold text-[0.72rem] border-0 px-3 py-1', getStatusBadgeClasses(status))}
             >

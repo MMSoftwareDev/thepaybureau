@@ -950,14 +950,27 @@ function RunCard({ run, colors, isDark, onOpenChecklist, onMarkComplete }: RunCa
         {/* Client name + Status badge */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <Link
-              href={`/dashboard/clients/${run.client_id}`}
-              className="text-[0.95rem] font-semibold truncate block hover:underline"
-              style={{ color: colors.text.primary }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {run.clients?.name ?? 'Unknown Client'}
-            </Link>
+            <div className="flex items-center gap-2 min-w-0">
+              <Link
+                href={`/dashboard/clients/${run.client_id}`}
+                className="text-[0.95rem] font-semibold truncate hover:underline"
+                style={{ color: colors.text.primary }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {run.clients?.name ?? 'Unknown Client'}
+              </Link>
+              {run.clients?.pay_frequency && (
+                <span
+                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide flex-shrink-0"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
+                    color: isDark ? '#A78BFA' : '#7C3AED',
+                  }}
+                >
+                  {formatPayFrequency(run.clients.pay_frequency)}
+                </span>
+              )}
+            </div>
             <p className="text-[0.78rem] mt-0.5" style={{ color: colors.text.muted }}>
               {payPeriod} · {formatPayFrequency(run.clients?.pay_frequency ?? null)}
             </p>
@@ -1240,8 +1253,19 @@ function ChecklistPanel({
       {/* Panel header */}
       <div className="p-6 pb-4" style={{ borderBottom: `1px solid ${colors.border}` }}>
         <SheetHeader className="p-0">
-          <SheetTitle className="text-lg font-bold" style={{ color: colors.text.primary }}>
+          <SheetTitle className="text-lg font-bold flex items-center gap-2" style={{ color: colors.text.primary }}>
             {run.clients?.name ?? 'Unknown Client'}
+            {run.clients?.pay_frequency && (
+              <span
+                className="inline-flex items-center px-1.5 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide"
+                style={{
+                  backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
+                  color: isDark ? '#A78BFA' : '#7C3AED',
+                }}
+              >
+                {formatPayFrequency(run.clients.pay_frequency)}
+              </span>
+            )}
           </SheetTitle>
           <SheetDescription className="text-[0.82rem] font-medium" style={{ color: colors.text.muted }}>
             {formatDateShort(run.period_start)} – {formatDateShort(run.period_end)} · {formatPayFrequency(run.clients?.pay_frequency ?? null)}
