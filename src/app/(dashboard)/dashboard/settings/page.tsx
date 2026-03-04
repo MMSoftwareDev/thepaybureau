@@ -18,6 +18,9 @@ import {
   X,
   Loader2,
   Camera,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 
 interface ChecklistDefault {
@@ -42,6 +45,14 @@ export default function SettingsPage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileMessage, setProfileMessage] = useState('')
+
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [confirmError, setConfirmError] = useState('')
+  const [savingPassword, setSavingPassword] = useState(false)
+  const [passwordMessage, setPasswordMessage] = useState('')
 
   const [checklistItems, setChecklistItems] = useState<ChecklistDefault[]>([])
   const [tenantSettings, setTenantSettings] = useState<TenantSettings>({})
@@ -211,6 +222,46 @@ export default function SettingsPage() {
       showMessage(setProfileMessage, 'Error removing photo. Please try again.')
     } finally {
       setUploadingAvatar(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    setPasswordError('')
+    setConfirmError('')
+
+    let hasErrors = false
+
+    if (!newPassword) {
+      setPasswordError('Password is required')
+      hasErrors = true
+    } else if (newPassword.length < 8) {
+      setPasswordError('Must be at least 8 characters')
+      hasErrors = true
+    }
+
+    if (!confirmPassword) {
+      setConfirmError('Please confirm your password')
+      hasErrors = true
+    } else if (newPassword !== confirmPassword) {
+      setConfirmError('Passwords do not match')
+      hasErrors = true
+    }
+
+    if (hasErrors) return
+
+    setSavingPassword(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error) throw error
+      setNewPassword('')
+      setConfirmPassword('')
+      setShowPassword(false)
+      showMessage(setPasswordMessage, 'Password updated successfully!')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error updating password. Please try again.'
+      setPasswordError(message)
+    } finally {
+      setSavingPassword(false)
     }
   }
 
@@ -394,6 +445,108 @@ export default function SettingsPage() {
             {profileMessage && (
               <span className="text-[0.82rem] font-semibold" style={{ color: profileMessage.includes('Error') ? colors.error : colors.success }}>
                 {profileMessage}
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Change Password */}
+      <Card className="border-0" style={cardStyle}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-3 text-base font-bold" style={{ color: colors.text.primary }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.primary}12` }}>
+              <Lock className="w-[18px] h-[18px]" style={{ color: colors.primary }} />
+            </div>
+            Change Password
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <p className="text-[0.82rem] mb-5" style={{ color: colors.text.secondary }}>
+            Update your password. Must be at least 8 characters.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <Label htmlFor="new-password" className="text-[0.78rem] font-semibold uppercase tracking-[0.04em]" style={{ color: colors.text.muted }}>
+                New password
+              </Label>
+              <div className="relative mt-1.5">
+                <Input
+                  id="new-password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value)
+                    if (passwordError) setPasswordError('')
+                  }}
+                  placeholder="At least 8 characters"
+                  autoComplete="new-password"
+                  disabled={savingPassword}
+                  className="h-10 rounded-xl border-0 text-[0.88rem] font-medium pr-10"
+                  style={{
+                    ...inputStyle,
+                    ...(passwordError ? { borderColor: colors.error } : {}),
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded transition-colors"
+                  style={{ color: colors.text.muted }}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {passwordError && (
+                <p className="text-[0.78rem] font-medium mt-1" style={{ color: colors.error }}>
+                  {passwordError}
+                </p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="confirm-password" className="text-[0.78rem] font-semibold uppercase tracking-[0.04em]" style={{ color: colors.text.muted }}>
+                Confirm password
+              </Label>
+              <Input
+                id="confirm-password"
+                type={showPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value)
+                  if (confirmError) setConfirmError('')
+                }}
+                placeholder="Re-enter your password"
+                autoComplete="new-password"
+                disabled={savingPassword}
+                className="mt-1.5 h-10 rounded-xl border-0 text-[0.88rem] font-medium"
+                style={{
+                  ...inputStyle,
+                  ...(confirmError ? { borderColor: colors.error } : {}),
+                }}
+              />
+              {confirmError && (
+                <p className="text-[0.78rem] font-medium mt-1" style={{ color: colors.error }}>
+                  {confirmError}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-3 mt-5">
+            <Button
+              onClick={handleChangePassword}
+              disabled={savingPassword}
+              className="text-white font-semibold py-2 px-5 rounded-xl border-0 transition-all duration-300 hover:-translate-y-0.5"
+              style={{
+                background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
+                boxShadow: '0 8px 24px rgba(64, 29, 108, 0.25)',
+              }}
+            >
+              {savingPassword ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Updating...</> : <><Lock className="w-4 h-4 mr-2" />Update Password</>}
+            </Button>
+            {passwordMessage && (
+              <span className="text-[0.82rem] font-semibold" style={{ color: passwordMessage.includes('Error') ? colors.error : colors.success }}>
+                {passwordMessage}
               </span>
             )}
           </div>
