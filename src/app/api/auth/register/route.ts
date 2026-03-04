@@ -1,26 +1,40 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { adminRegistrationSchema } from '@/lib/validations'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { z } from 'zod'
 import dns from 'dns/promises'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 registration attempts per IP per 15 minutes
+    const ip = getClientIp(request)
+    const limiter = rateLimit(`register:${ip}`, { limit: 5, windowSeconds: 900 })
+    if (!limiter.success) {
+      return NextResponse.json(
+        { error: 'Too many registration attempts. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((limiter.resetAt - Date.now()) / 1000)) } }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const body = await request.json()
-    
-    console.log('📝 Registration request received')
     
     // Validate input data
     const validatedData = adminRegistrationSchema.parse(body)
     
     // Extract company domain
     const companyDomain = validatedData.email.split('@')[1]
-    console.log('🏢 Company domain:', companyDomain)
 
     // Verify the domain has valid MX records (can actually receive email)
+    // Timeout after 5 seconds to prevent hanging on slow/malicious DNS
     try {
-      const mxRecords = await dns.resolveMx(companyDomain)
+      const mxRecords = await Promise.race([
+        dns.resolveMx(companyDomain),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('DNS lookup timed out')), 5000)
+        ),
+      ])
       if (!mxRecords || mxRecords.length === 0) {
         return NextResponse.json({
           error: 'This email domain does not appear to accept emails. Please use a valid business email.'
@@ -45,8 +59,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // Build the callback URL from the request origin
-    const origin = request.headers.get('origin') || request.headers.get('referer')?.replace(/\/[^/]*$/, '') || ''
+    // Build the callback URL — validate origin against allowed domains
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+    const requestOrigin = request.headers.get('origin') || request.headers.get('referer')?.replace(/\/[^/]*$/, '') || ''
+    const allowedOrigins = [appUrl, 'http://localhost:3000', 'http://localhost:3001'].filter(Boolean)
+    const origin = allowedOrigins.includes(requestOrigin) ? requestOrigin : appUrl
 
     // Create Supabase auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -63,9 +80,9 @@ export async function POST(request: NextRequest) {
     })
     
     if (authError) {
-      console.error('❌ Auth user creation failed:', authError)
-      return NextResponse.json({ 
-        error: authError.message 
+      console.error('Auth user creation failed:', authError)
+      return NextResponse.json({
+        error: 'Failed to create account. Please try again.'
       }, { status: 400 })
     }
     
@@ -74,8 +91,6 @@ export async function POST(request: NextRequest) {
         error: 'Failed to create account' 
       }, { status: 500 })
     }
-    
-    console.log('✅ Auth user created:', authData.user.id)
     
     // Create tenant record
     const { data: tenant, error: tenantError } = await supabase
@@ -106,13 +121,11 @@ export async function POST(request: NextRequest) {
       .single()
     
     if (tenantError) {
-      console.error('❌ Tenant creation failed:', tenantError)
+      console.error('Tenant creation failed:', tenantError)
       return NextResponse.json({ 
         error: 'Failed to setup company account' 
       }, { status: 500 })
     }
-    
-    console.log('✅ Tenant created:', tenant.id)
     
     // Create user profile record
     const { data: userProfile, error: userError } = await supabase
@@ -129,15 +142,11 @@ export async function POST(request: NextRequest) {
       .single()
     
     if (userError) {
-      console.error('❌ User profile creation failed:', userError)
+      console.error('User profile creation failed:', userError)
       return NextResponse.json({ 
         error: 'Failed to setup user profile' 
       }, { status: 500 })
     }
-    
-    console.log('✅ User profile created')
-    
-    console.log('✅ Registration completed successfully')
     
     return NextResponse.json({
       success: true,
@@ -151,7 +160,7 @@ export async function POST(request: NextRequest) {
     })
     
   } catch (error) {
-    console.error('💥 Registration error:', error)
+    console.error('Registration error:', error)
     
     if (error instanceof z.ZodError) {
       return NextResponse.json({ 

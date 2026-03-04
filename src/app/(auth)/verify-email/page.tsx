@@ -1,15 +1,21 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Mail, ArrowLeft } from 'lucide-react'
-import { Suspense } from 'react'
 
 const GRAIN_TEXTURE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E")`
 
 function VerifyEmailContent() {
-  const searchParams = useSearchParams()
-  const email = searchParams.get('email') || 'your email'
+  const [email, setEmail] = useState('your email')
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('verify_email')
+    if (stored) {
+      setEmail(stored)
+      sessionStorage.removeItem('verify_email')
+    }
+  }, [])
 
   return (
     <div className="grid min-h-screen grid-cols-1 md:grid-cols-[44%_1fr]">
@@ -159,9 +165,5 @@ function VerifyEmailContent() {
 }
 
 export default function VerifyEmailPage() {
-  return (
-    <Suspense fallback={null}>
-      <VerifyEmailContent />
-    </Suspense>
-  )
+  return <VerifyEmailContent />
 }

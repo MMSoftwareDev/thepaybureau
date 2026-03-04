@@ -25,6 +25,18 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // CSRF protection for mutating API requests — verify origin matches
+  if (request.nextUrl.pathname.startsWith('/api/') && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
+    const origin = request.headers.get('origin')
+    const host = request.headers.get('host')
+    if (origin && host) {
+      const originHost = new URL(origin).host
+      if (originHost !== host) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+  }
+
   // Refresh the session — this is critical for keeping auth alive
   const {
     data: { user },

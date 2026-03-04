@@ -29,7 +29,8 @@ export async function GET() {
       .order('name', { ascending: true })
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      console.error('Database error in GET /api/pensions:', error)
+      return NextResponse.json({ error: 'Failed to fetch pension data' }, { status: 400 })
     }
 
     return NextResponse.json(clients || [])

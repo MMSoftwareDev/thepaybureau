@@ -19,8 +19,9 @@ export const adminRegistrationSchema = z.object({
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/(?=.*[a-z])/, 'Password must include lowercase letter')
-    .regex(/(?=.*[A-Z])/, 'Password must include uppercase letter') 
-    .regex(/(?=.*\d)/, 'Password must include number'),
+    .regex(/(?=.*[A-Z])/, 'Password must include uppercase letter')
+    .regex(/(?=.*\d)/, 'Password must include number')
+    .regex(/(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?])/, 'Password must include a special character'),
   companyName: z.string()
     .min(1, 'Company name is required')
     .max(255, 'Company name too long'),

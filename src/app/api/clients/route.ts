@@ -78,7 +78,8 @@ export async function GET() {
       .order('created_at', { ascending: false })
 
     if (clientsError) {
-      return NextResponse.json({ error: clientsError.message }, { status: 400 })
+      console.error('Database error in GET /api/clients:', clientsError)
+      return NextResponse.json({ error: 'Failed to fetch clients' }, { status: 400 })
     }
 
     if (!clients || clients.length === 0) {
