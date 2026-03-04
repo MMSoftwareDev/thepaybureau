@@ -13,6 +13,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const [user, setUser] = useState<User | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const supabase = createClientSupabaseClient()
@@ -24,8 +25,6 @@ export default function DashboardLayout({
   const checkUser = async () => {
     try {
       // Use getUser() instead of getSession() to ensure token refresh
-      // getSession() reads stale cookies and can miss refreshed tokens,
-      // causing a redirect loop: /dashboard/clients → /login → /dashboard
       const { data: { user }, error } = await supabase.auth.getUser()
 
       if (error || !user) {
@@ -34,6 +33,17 @@ export default function DashboardLayout({
       }
 
       setUser(user)
+
+      // Fetch avatar_url from users table
+      const { data: userRecord } = await supabase
+        .from('users')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single()
+
+      if (userRecord?.avatar_url) {
+        setAvatarUrl(userRecord.avatar_url)
+      }
     } catch (error) {
       console.error('Error checking user:', error)
       router.push('/login')
@@ -42,7 +52,6 @@ export default function DashboardLayout({
     }
   }
 
-  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -54,7 +63,6 @@ export default function DashboardLayout({
     )
   }
 
-  // Show login redirect message
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -65,9 +73,8 @@ export default function DashboardLayout({
     )
   }
 
-  // Show dashboard if user is authenticated
   return (
-    <DashboardWrapper user={user}>
+    <DashboardWrapper user={user} avatarUrl={avatarUrl}>
       {children}
     </DashboardWrapper>
   )

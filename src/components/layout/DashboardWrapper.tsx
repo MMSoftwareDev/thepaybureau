@@ -10,9 +10,10 @@ import Navbar from '@/components/layout/Navbar'
 interface DashboardWrapperProps {
   children: React.ReactNode
   user: { email?: string; user_metadata?: { name?: string } }
+  avatarUrl?: string | null
 }
 
-export default function DashboardWrapper({ children, user }: DashboardWrapperProps) {
+export default function DashboardWrapper({ children, user, avatarUrl }: DashboardWrapperProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const { isDark } = useTheme()
@@ -55,6 +56,7 @@ export default function DashboardWrapper({ children, user }: DashboardWrapperPro
 
       <Sidebar
         user={user}
+        avatarUrl={avatarUrl}
         mobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
       />
