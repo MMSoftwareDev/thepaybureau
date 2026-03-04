@@ -16,6 +16,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard/clients': 'Clients',
   '/dashboard/clients/add': 'Add Client',
   '/dashboard/payrolls': 'Payroll Runs',
+  '/dashboard/pensions': 'Pension Declarations',
   '/dashboard/settings': 'Settings',
 }
 
@@ -50,6 +51,10 @@ function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
       crumbs.push({ label: title })
     }
     return crumbs
+  }
+
+  if (pathname.startsWith('/dashboard/pensions')) {
+    return [{ label: 'Pension Declarations' }]
   }
 
   return [{ label: title }]

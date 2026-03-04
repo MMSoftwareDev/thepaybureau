@@ -10,6 +10,7 @@ import {
   Users,
   UserPlus,
   ClipboardCheck,
+  Shield,
   Settings as SettingsIcon,
   Search,
   LogOut,
@@ -52,6 +53,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'PAYROLL',
     items: [
       { name: 'Payroll Runs', href: '/dashboard/payrolls', icon: ClipboardCheck },
+      { name: 'Pension Declarations', href: '/dashboard/pensions', icon: Shield },
     ],
   },
 ]
