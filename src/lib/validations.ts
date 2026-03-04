@@ -1,7 +1,8 @@
 import { z } from 'zod'
+import { isDisposableEmail } from '@/lib/disposable-domains'
 
 const BLOCKED_DOMAINS = [
-  'gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 
+  'gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com',
   'aol.com', 'icloud.com', 'live.com', 'msn.com', 'protonmail.com'
 ]
 
@@ -11,7 +12,10 @@ export const adminRegistrationSchema = z.object({
     .refine((email) => {
       const domain = email.split('@')[1]?.toLowerCase()
       return !BLOCKED_DOMAINS.includes(domain)
-    }, 'Please use your company email address. Personal email providers are not allowed.'),
+    }, 'Please use your company email address. Personal email providers are not allowed.')
+    .refine((email) => {
+      return !isDisposableEmail(email)
+    }, 'Disposable or temporary email addresses are not allowed.'),
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/(?=.*[a-z])/, 'Password must include lowercase letter')
@@ -41,12 +45,19 @@ export const validateBusinessEmail = (email: string) => {
   
   const domain = email.split('@')[1]?.toLowerCase()
   if (BLOCKED_DOMAINS.includes(domain)) {
-    return { 
-      valid: false, 
-      error: 'Please use your company email address. Personal email providers are not allowed.' 
+    return {
+      valid: false,
+      error: 'Please use your company email address. Personal email providers are not allowed.'
     }
   }
-  
+
+  if (isDisposableEmail(email)) {
+    return {
+      valid: false,
+      error: 'Disposable or temporary email addresses are not allowed.'
+    }
+  }
+
   return { valid: true, error: '' }
 }
 
