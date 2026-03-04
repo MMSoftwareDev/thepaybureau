@@ -43,9 +43,11 @@ interface ClientData {
   employee_count: number | null
   pay_frequency: string | null
   pay_day: string | null
-  tax_period_start: string | null
+  payroll_software: string | null
   pension_provider: string | null
   pension_staging_date: string | null
+  pension_reenrolment_date: string | null
+  declaration_of_compliance_deadline: string | null
   contact_name: string | null
   contact_email: string | null
   contact_phone: string | null
@@ -64,9 +66,11 @@ interface FormData {
   employee_count: string
   pay_frequency: string
   pay_day: string
-  tax_period_start: string
+  payroll_software: string
   pension_provider: string
   pension_staging_date: string
+  pension_reenrolment_date: string
+  declaration_of_compliance_deadline: string
   contact_name: string
   contact_email: string
   contact_phone: string
@@ -95,6 +99,7 @@ const WEEKDAYS = [
 ]
 
 const MONTHLY_PAY_DAYS = [
+  { value: 'last_working_day', label: 'Last Working Day of the Month' },
   ...Array.from({ length: 31 }, (_, i) => ({
     value: String(i + 1),
     label: String(i + 1),
@@ -116,6 +121,13 @@ const PENSION_PROVIDERS = [
   'Aviva',
   'Scottish Widows',
   'Royal London',
+  'Penfold',
+  'Legal & General',
+  'Standard Life',
+  'LGPS',
+  'Cushon',
+  'Creative',
+  'True Potential',
 ]
 
 // ─── Component ───────────────────────────────────────────────────────
@@ -142,9 +154,11 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
     employee_count: '',
     pay_frequency: '',
     pay_day: '',
-    tax_period_start: '',
+    payroll_software: '',
     pension_provider: '',
     pension_staging_date: '',
+    pension_reenrolment_date: '',
+    declaration_of_compliance_deadline: '',
     contact_name: '',
     contact_email: '',
     contact_phone: '',
@@ -193,9 +207,11 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
         employee_count: client.employee_count != null ? String(client.employee_count) : '',
         pay_frequency: client.pay_frequency || '',
         pay_day: client.pay_day || '',
-        tax_period_start: client.tax_period_start || '',
+        payroll_software: client.payroll_software || '',
         pension_provider: client.pension_provider || '',
         pension_staging_date: client.pension_staging_date || '',
+        pension_reenrolment_date: client.pension_reenrolment_date || '',
+        declaration_of_compliance_deadline: client.declaration_of_compliance_deadline || '',
         contact_name: client.contact_name || '',
         contact_email: client.contact_email || '',
         contact_phone: client.contact_phone || '',
@@ -289,9 +305,11 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
         employee_count: formData.employee_count ? parseInt(formData.employee_count) : undefined,
         pay_frequency: formData.pay_frequency || undefined,
         pay_day: formData.pay_day || undefined,
-        tax_period_start: formData.tax_period_start || undefined,
+        payroll_software: formData.payroll_software || undefined,
         pension_provider: formData.pension_provider || undefined,
         pension_staging_date: formData.pension_staging_date || undefined,
+        pension_reenrolment_date: formData.pension_reenrolment_date || undefined,
+        declaration_of_compliance_deadline: formData.declaration_of_compliance_deadline || undefined,
         contact_name: formData.contact_name || undefined,
         contact_email: formData.contact_email || undefined,
         contact_phone: formData.contact_phone || undefined,
@@ -400,8 +418,11 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
           <Input
             id="accounts_office_ref"
             value={formData.accounts_office_ref}
-            onChange={(e) => updateField('accounts_office_ref', e.target.value)}
+            onChange={(e) => {
+              if (e.target.value.length <= 13) updateField('accounts_office_ref', e.target.value)
+            }}
             placeholder="123PA00012345"
+            maxLength={13}
             className={inputClassName}
             style={inputStyle}
           />
@@ -471,6 +492,8 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
 
   const renderPayrollTab = () => {
     const isMonthly = formData.pay_frequency === 'monthly'
+    const isAnnually = formData.pay_frequency === 'annually'
+    const showMonthlyOptions = isMonthly || isAnnually
     return (
       <div className="space-y-6">
         <div>
@@ -492,6 +515,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
               <SelectItem value="fortnightly">Fortnightly</SelectItem>
               <SelectItem value="four_weekly">4-Weekly</SelectItem>
               <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="annually">Annually</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -499,14 +523,14 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
         {formData.pay_frequency && (
           <div>
             <Label className="font-semibold" style={{ color: colors.text.primary }}>
-              {isMonthly ? 'Pay Day (day of month or last weekday)' : 'Pay Day (day of week)'}
+              {showMonthlyOptions ? 'Pay Day (day of month or last weekday)' : 'Pay Day (day of week)'}
             </Label>
             <Select value={formData.pay_day} onValueChange={(value) => updateField('pay_day', value)}>
               <SelectTrigger className={inputClassName} style={inputStyle}>
-                <SelectValue placeholder={isMonthly ? 'Select day of month' : 'Select day of week'} />
+                <SelectValue placeholder={showMonthlyOptions ? 'Select day of month' : 'Select day of week'} />
               </SelectTrigger>
               <SelectContent>
-                {isMonthly
+                {showMonthlyOptions
                   ? MONTHLY_PAY_DAYS.map((day) => (
                       <SelectItem key={day.value} value={day.value}>
                         {day.label}
@@ -522,18 +546,24 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
 
-        <div className="max-w-xs">
-          <Label htmlFor="tax_period_start" className="font-semibold" style={{ color: colors.text.primary }}>
-            Tax Period Start
+        <div>
+          <Label htmlFor="payroll_software" className="font-semibold" style={{ color: colors.text.primary }}>
+            Payroll Software
           </Label>
           <Input
-            id="tax_period_start"
-            type="date"
-            value={formData.tax_period_start}
-            onChange={(e) => updateField('tax_period_start', e.target.value)}
+            id="payroll_software"
+            value={formData.payroll_software}
+            onChange={(e) => updateField('payroll_software', e.target.value)}
+            placeholder="e.g. BrightPay, Sage, Moneysoft, IRIS..."
+            list="payroll-software-list"
             className={inputClassName}
             style={inputStyle}
           />
+          <datalist id="payroll-software-list">
+            {['BrightPay', 'Sage 50', 'Moneysoft', 'IRIS', 'Xero Payroll', 'QuickBooks Payroll', 'Staffology', 'PayDashboard', 'FreeAgent'].map((sw) => (
+              <option key={sw} value={sw} />
+            ))}
+          </datalist>
         </div>
       </div>
     )
@@ -559,23 +589,53 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
             <option key={provider} value={provider} />
           ))}
         </datalist>
-        <p className="mt-1 text-xs" style={{ color: colors.text.muted }}>
-          Common providers: {PENSION_PROVIDERS.join(', ')}
-        </p>
       </div>
 
-      <div className="max-w-xs">
-        <Label htmlFor="pension_staging_date" className="font-semibold" style={{ color: colors.text.primary }}>
-          Pension Staging Date
-        </Label>
-        <Input
-          id="pension_staging_date"
-          type="date"
-          value={formData.pension_staging_date}
-          onChange={(e) => updateField('pension_staging_date', e.target.value)}
-          className={inputClassName}
-          style={inputStyle}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <Label htmlFor="pension_staging_date" className="font-semibold" style={{ color: colors.text.primary }}>
+            Pension Staging Date
+          </Label>
+          <Input
+            id="pension_staging_date"
+            type="date"
+            value={formData.pension_staging_date}
+            onChange={(e) => updateField('pension_staging_date', e.target.value)}
+            className={inputClassName}
+            style={inputStyle}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="pension_reenrolment_date" className="font-semibold" style={{ color: colors.text.primary }}>
+            Re-Enrolment Date
+          </Label>
+          <Input
+            id="pension_reenrolment_date"
+            type="date"
+            value={formData.pension_reenrolment_date}
+            onChange={(e) => updateField('pension_reenrolment_date', e.target.value)}
+            className={inputClassName}
+            style={inputStyle}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="declaration_of_compliance_deadline" className="font-semibold" style={{ color: colors.text.primary }}>
+            Declaration of Compliance
+          </Label>
+          <Input
+            id="declaration_of_compliance_deadline"
+            type="date"
+            value={formData.declaration_of_compliance_deadline}
+            onChange={(e) => updateField('declaration_of_compliance_deadline', e.target.value)}
+            className={inputClassName}
+            style={inputStyle}
+          />
+          <p className="mt-1 text-xs" style={{ color: colors.text.muted }}>
+            TPR deadline for declaration
+          </p>
+        </div>
       </div>
     </div>
   )
