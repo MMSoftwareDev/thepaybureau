@@ -123,7 +123,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const router = useRouter()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
-  const { addToast } = useToast()
+  const { toast } = useToast()
 
   useEffect(() => {
     setMounted(true)
@@ -137,19 +137,19 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         if (res.ok) {
           setClient(await res.json())
         } else if (res.status === 404) {
-          addToast({ type: 'error', message: 'Client not found' })
+          toast('Client not found', 'error')
           router.push('/dashboard/clients')
         } else {
-          addToast({ type: 'error', message: 'Failed to load client' })
+          toast('Failed to load client', 'error')
         }
       } catch {
-        addToast({ type: 'error', message: 'Failed to load client' })
+        toast('Failed to load client', 'error')
       } finally {
         setLoading(false)
       }
     }
     fetchClient()
-  }, [id, router, addToast])
+  }, [id, router, toast])
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this client? This action cannot be undone.')) return
@@ -157,13 +157,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     try {
       const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' })
       if (res.ok) {
-        addToast({ type: 'success', message: 'Client deleted successfully' })
+        toast('Client deleted successfully', 'success')
         router.push('/dashboard/clients')
       } else {
-        addToast({ type: 'error', message: 'Failed to delete client' })
+        toast('Failed to delete client', 'error')
       }
     } catch {
-      addToast({ type: 'error', message: 'Failed to delete client' })
+      toast('Failed to delete client', 'error')
     } finally {
       setDeleting(false)
     }
@@ -177,16 +177,16 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         body: JSON.stringify({ client_id: id }),
       })
       if (res.ok) {
-        addToast({ type: 'success', message: 'Next payroll run generated' })
+        toast('Next payroll run generated', 'success')
         // Refresh data
         const refreshRes = await fetch(`/api/clients/${id}`)
         if (refreshRes.ok) setClient(await refreshRes.json())
       } else {
         const data = await res.json()
-        addToast({ type: 'error', message: data.error || 'Failed to generate payroll run' })
+        toast(data.error || 'Failed to generate payroll run', 'error')
       }
     } catch {
-      addToast({ type: 'error', message: 'Failed to generate payroll run' })
+      toast('Failed to generate payroll run', 'error')
     }
   }
 
