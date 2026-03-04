@@ -112,78 +112,55 @@ export const useTheme = () => {
   return context
 }
 
-// MUCH DARKER theme colors - professional dark mode
+// Theme colors — aligned with the login/signup brand palette (--login-* tokens)
 export const getThemeColors = (isDark: boolean) => ({
-  // Brand colors - slightly adjusted for dark mode
-  primary: isDark ? '#6B46C1' : '#401D6C',      // Deeper purple in dark
-  secondary: isDark ? '#EC4899' : '#EC385D',     // Vibrant pink maintained
-  accent: isDark ? '#F97316' : '#FF8073',        // Warmer orange in dark
-  
-  // Background colors - MUCH darker
-  lightBg: isDark ? '#0F0F23' : '#F8F4FF',       // Very dark navy instead of purple
-  surface: isDark ? '#1A1B2E' : '#FFFFFF',       // Dark slate
-  surfaceElevated: isDark ? '#16213E' : '#FFFFFF', // Slightly lighter dark slate
-  
-  // Semantic colors
-  success: '#10B981',  // Emerald green
-  warning: '#F59E0B',  // Amber
-  error: '#EF4444',    // Red
-  
-  // Text colors - high contrast for dark mode
+  // Brand colors
+  primary: isDark ? '#7C5CBF' : '#401D6C',
+  secondary: isDark ? '#F06082' : '#EC385D',
+  accent: isDark ? '#FFA599' : '#FF8073',
+
+  // Backgrounds
+  lightBg: isDark ? '#0F0F23' : '#FAF7FF',
+  surface: isDark ? '#1A1B2E' : '#FFFFFF',
+  surfaceElevated: isDark ? '#16213E' : '#FFFFFF',
+
+  // Semantic
+  success: isDark ? '#10B981' : '#188038',
+  warning: '#F59E0B',
+  error: isDark ? '#EF4444' : '#D93025',
+
+  // Text
   text: {
-    primary: isDark ? '#F1F5F9' : '#111827',     // Almost white in dark
-    secondary: isDark ? '#CBD5E1' : '#374151',   // Light gray in dark
-    muted: isDark ? '#64748B' : '#6B7280'        // Medium gray
+    primary: isDark ? '#F1F5F9' : '#1A1225',
+    secondary: isDark ? '#CBD5E1' : '#5E5470',
+    muted: isDark ? '#64748B' : '#8E849A',
   },
-  
-  // Border colors - subtle but visible
-  border: isDark ? 'rgba(241, 245, 249, 0.08)' : 'rgba(17, 24, 39, 0.1)',
-  borderElevated: isDark ? 'rgba(241, 245, 249, 0.12)' : 'rgba(17, 24, 39, 0.2)',
-  
-  // Glass morphism effects - much darker
+
+  // Borders
+  border: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E8E2F0',
+  borderElevated: isDark ? 'rgba(255, 255, 255, 0.12)' : '#D4CBE3',
+
+  // Glass effects
   glass: {
-    // Main backgrounds with dark gradients
-    background: isDark 
+    background: isDark
       ? 'linear-gradient(135deg, rgba(15, 15, 35, 0.95) 0%, rgba(26, 27, 46, 0.98) 100%)'
-      : 'linear-gradient(135deg, #F8F4FF 0%, rgba(255,255,255,0.95) 100%)',
-      
-    // Surface elements
-    surface: isDark 
-      ? 'rgba(26, 27, 46, 0.6)' 
-      : 'rgba(255, 255, 255, 0.8)',
-      
-    // Hover states
-    surfaceHover: isDark 
-      ? 'rgba(22, 33, 62, 0.8)' 
-      : 'rgba(255, 255, 255, 0.95)',
-      
-    // Active/selected states
-    surfaceActive: isDark 
-      ? 'rgba(22, 33, 62, 0.4)' 
-      : 'rgba(255, 255, 255, 0.6)',
-      
-    // Card backgrounds
-    card: isDark
-      ? 'rgba(26, 27, 46, 0.7)'
-      : 'rgba(255, 255, 255, 0.9)',
-      
-    // Sidebar specific
+      : 'linear-gradient(135deg, #FAF7FF 0%, #FFFFFF 100%)',
+    surface: isDark ? 'rgba(26, 27, 46, 0.6)' : 'rgba(255, 255, 255, 0.8)',
+    surfaceHover: isDark ? 'rgba(22, 33, 62, 0.8)' : 'rgba(255, 255, 255, 0.95)',
+    surfaceActive: isDark ? 'rgba(22, 33, 62, 0.4)' : 'rgba(255, 255, 255, 0.6)',
+    card: isDark ? 'rgba(26, 27, 46, 0.7)' : 'rgba(255, 255, 255, 0.92)',
     sidebar: isDark
       ? 'linear-gradient(135deg, rgba(15, 15, 35, 0.98) 0%, rgba(22, 33, 62, 0.95) 100%)'
-      : 'linear-gradient(135deg, #F8F4FF 0%, rgba(255,255,255,0.95) 100%)',
-      
-    // Navbar specific
-    navbar: isDark
-      ? 'rgba(15, 15, 35, 0.95)'
-      : 'linear-gradient(135deg, #F8F4FF 0%, rgba(255,255,255,0.95) 100%)'
+      : 'linear-gradient(135deg, #FAF7FF 0%, rgba(255,255,255,0.95) 100%)',
+    navbar: isDark ? 'rgba(15, 15, 35, 0.95)' : '#FFFFFF',
   },
-  
-  // Shadow colors for depth
+
+  // Shadows
   shadow: {
-    light: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)',
-    medium: isDark ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.15)',
-    heavy: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.25)'
-  }
+    light: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.06)',
+    medium: isDark ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.1)',
+    heavy: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.18)',
+  },
 })
 
 // Enhanced Theme Toggle Component with better dark mode styling
