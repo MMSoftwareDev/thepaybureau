@@ -6,4 +6,4 @@ if (!process.env.RESEND_API_KEY) {
 
 export const resend = new Resend(process.env.RESEND_API_KEY)
 
-export const EMAIL_FROM = 'ThePayBureau <noreply@thepaybureau.com>'
+export const EMAIL_FROM = 'ThePayBureau <noreply@mail.thepaybureau.com>'

@@ -224,7 +224,7 @@ host = "smtp.resend.com"
 port = 465
 user = "resend"
 pass = "env(RESEND_SMTP_PASSWORD)"
-admin_email = "noreply@thepaybureau.com"
+admin_email = "noreply@mail.thepaybureau.com"
 sender_name = "ThePayBureau"
 
 # Custom branded email templates
