@@ -1,30 +1,29 @@
 // src/app/api/dashboard/stats/route.ts
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import { isAfter, isBefore, addDays, startOfDay, startOfMonth } from 'date-fns'
 
 export async function GET() {
   try {
-    const supabase = createServerSupabaseClient()
-
-    // Auth check
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const authUser = await getAuthUser()
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const supabase = createServerSupabaseClient()
 
     // Get or create user
     let { data: user } = await supabase
       .from('users')
       .select('tenant_id')
-      .eq('id', session.user.id)
+      .eq('id', authUser.id)
       .single()
 
     if (!user) {
       const { data: newTenant, error: tenantError } = await supabase
         .from('tenants')
         .insert({
-          name: session.user.email?.split('@')[0] || 'My Bureau',
+          name: authUser.email?.split('@')[0] || 'My Bureau',
           plan: 'starter',
         })
         .select()
@@ -37,12 +36,12 @@ export async function GET() {
       const { data: newUser, error: newUserError } = await supabase
         .from('users')
         .insert({
-          id: session.user.id,
+          id: authUser.id,
           tenant_id: newTenant.id,
-          email: session.user.email!,
+          email: authUser.email!,
           name:
-            session.user.user_metadata?.name ||
-            session.user.email?.split('@')[0] ||
+            authUser.user_metadata?.name ||
+            authUser.email?.split('@')[0] ||
             'User',
         })
         .select()

@@ -1,5 +1,5 @@
 // src/app/api/clients/route.ts
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { clientOnboardingSchema } from '@/lib/validations'
 import {
@@ -10,66 +10,63 @@ import {
   type PayFrequency,
 } from '@/lib/hmrc-deadlines'
 import { z } from 'zod'
+import type { User } from '@supabase/supabase-js'
 
-async function getOrCreateUser(supabase: ReturnType<typeof createServerSupabaseClient>) {
-  const { data: { session } } = await supabase.auth.getSession()
-
-  if (!session) {
-    return { user: null, session: null, error: 'Unauthorized' }
-  }
-
+async function getOrCreateUser(supabase: ReturnType<typeof createServerSupabaseClient>, authUser: User) {
   let { data: user } = await supabase
     .from('users')
     .select('tenant_id')
-    .eq('id', session.user.id)
+    .eq('id', authUser.id)
     .single()
 
   if (!user) {
     const { data: newTenant, error: tenantError } = await supabase
       .from('tenants')
       .insert({
-        name: session.user.email?.split('@')[0] || 'My Bureau',
+        name: authUser.email?.split('@')[0] || 'My Bureau',
         plan: 'starter',
       })
       .select()
       .single()
 
     if (tenantError) {
-      return { user: null, session, error: 'Failed to create tenant' }
+      return { user: null, error: 'Failed to create tenant' }
     }
 
     const { data: newUser, error: newUserError } = await supabase
       .from('users')
       .insert({
-        id: session.user.id,
+        id: authUser.id,
         tenant_id: newTenant.id,
-        email: session.user.email!,
+        email: authUser.email!,
         name:
-          session.user.user_metadata?.name ||
-          session.user.email?.split('@')[0] ||
+          authUser.user_metadata?.name ||
+          authUser.email?.split('@')[0] ||
           'User',
       })
       .select()
       .single()
 
     if (newUserError) {
-      return { user: null, session, error: 'Failed to create user' }
+      return { user: null, error: 'Failed to create user' }
     }
 
     user = newUser
   }
 
-  return { user, session, error: null }
+  return { user, error: null }
 }
 
 export async function GET() {
   try {
-    const supabase = createServerSupabaseClient()
-    const { user, error: authError } = await getOrCreateUser(supabase)
-
-    if (authError === 'Unauthorized') {
+    const authUser = await getAuthUser()
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const supabase = createServerSupabaseClient()
+    const { user, error: authError } = await getOrCreateUser(supabase, authUser)
+
     if (!user) {
       return NextResponse.json({ error: authError }, { status: 500 })
     }
@@ -122,12 +119,14 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient()
-    const { user, session, error: authError } = await getOrCreateUser(supabase)
-
-    if (authError === 'Unauthorized' || !session) {
+    const authUser = await getAuthUser()
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const supabase = createServerSupabaseClient()
+    const { user, error: authError } = await getOrCreateUser(supabase, authUser)
+
     if (!user) {
       return NextResponse.json({ error: authError }, { status: 500 })
     }
@@ -144,7 +143,7 @@ export async function POST(request: NextRequest) {
       .insert({
         ...clientData,
         tenant_id: user.tenant_id,
-        created_by: session.user.id,
+        created_by: authUser.id,
         status: 'active',
       })
       .select()
