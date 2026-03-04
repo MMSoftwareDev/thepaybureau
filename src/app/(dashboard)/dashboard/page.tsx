@@ -2,9 +2,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import {
@@ -15,46 +16,45 @@ import {
   Plus,
   ArrowRight,
   CalendarClock,
-  UserCheck,
-  Receipt,
   Activity,
   UserPlus,
   PlayCircle,
   FilePlus,
+  ExternalLink,
+  AlertCircle,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { format, parseISO, differenceInDays, formatDistanceToNow } from 'date-fns'
-import {
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts'
+import { format, parseISO, formatDistanceToNow } from 'date-fns'
 
-interface UpcomingDeadline {
+interface ActionItem {
+  id: string
   clientName: string
-  type: 'FPS' | 'EPS'
-  date: string
-  payrollRunId: string
+  clientId: string
+  payDate: string
+  severity: 'red' | 'amber' | 'neutral'
+  reason: string
+  daysOverdue?: number
+  daysUntil?: number
 }
 
-interface ChartDataPoint {
-  name: string
-  value: number
+interface RunSummary {
+  id: string
+  clientName: string
+  clientId: string
+  payDate: string
+  status: string
+  totalSteps: number
+  completedSteps: number
+  daysOverdue?: number
+  daysUntil?: number
+  currentStep?: string | null
 }
 
-interface TrendDataPoint {
-  month: string
-  completed: number
+interface PeriodProgress {
   total: number
+  complete: number
+  inProgress: number
+  notStarted: number
 }
 
 interface ActivityItem {
@@ -65,16 +65,16 @@ interface ActivityItem {
 }
 
 interface DashboardStats {
+  todayRuns: RunSummary[]
+  overdueRuns: RunSummary[]
+  thisWeekRuns: RunSummary[]
+  actionRequired: ActionItem[]
+  periodProgress: PeriodProgress
   totalClients: number
   totalEmployees: number
   dueThisWeek: number
   overdue: number
   completedThisMonth: number
-  upcomingDeadlines: UpcomingDeadline[]
-  payrollStatusBreakdown: ChartDataPoint[]
-  clientStatusDistribution: ChartDataPoint[]
-  payFrequencyDistribution: ChartDataPoint[]
-  completionTrend: TrendDataPoint[]
   recentActivity: ActivityItem[]
 }
 
@@ -83,41 +83,6 @@ function getGreeting(): string {
   if (hour < 12) return 'Good morning'
   if (hour < 17) return 'Good afternoon'
   return 'Good evening'
-}
-
-// Custom tooltip for charts
-function ChartTooltip({
-  active,
-  payload,
-  label,
-  colors,
-}: {
-  active?: boolean
-  payload?: Array<{ name: string; value: number; color: string }>
-  label?: string
-  colors: ReturnType<typeof getThemeColors>
-}) {
-  if (!active || !payload?.length) return null
-  return (
-    <div
-      className="rounded-lg px-3 py-2 text-[0.78rem] shadow-lg"
-      style={{
-        backgroundColor: colors.surface,
-        border: `1px solid ${colors.border}`,
-      }}
-    >
-      {label && (
-        <p className="font-semibold mb-1" style={{ color: colors.text.primary }}>
-          {label}
-        </p>
-      )}
-      {payload.map((entry, i) => (
-        <p key={i} style={{ color: entry.color }}>
-          {entry.name}: <span className="font-bold">{entry.value}</span>
-        </p>
-      ))}
-    </div>
-  )
 }
 
 const ACTIVITY_CONFIG: Record<
@@ -168,18 +133,11 @@ export default function DashboardPage() {
     fetchStats()
   }, [])
 
-  const getDaysLeftColor = (daysLeft: number): string => {
-    if (daysLeft <= 2) return colors.error
-    if (daysLeft <= 5) return colors.warning
-    return colors.success
-  }
-
   const isEmptyState =
     stats &&
     stats.totalClients === 0 &&
     stats.dueThisWeek === 0 &&
-    stats.overdue === 0 &&
-    stats.completedThisMonth === 0
+    stats.overdue === 0
 
   const cardStyle = {
     backgroundColor: colors.surface,
@@ -187,79 +145,38 @@ export default function DashboardPage() {
     border: `1px solid ${colors.border}`,
   }
 
-  // Chart colors
-  const DONUT_COLORS = [colors.primary, colors.secondary, colors.success, colors.warning, colors.error]
-
   if (!mounted) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-14 rounded-xl" style={{ background: colors.border }} />
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-24 rounded-xl" style={{ background: colors.border }} />
+        <div className="grid grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-28 rounded-xl" style={{ background: colors.border }} />
           ))}
         </div>
       </div>
     )
   }
 
-  const kpiCards = [
-    {
-      title: 'Total Clients',
-      value: stats?.totalClients ?? 0,
-      icon: Users,
-      iconColor: colors.primary,
-      accentColor: null as string | null,
-      href: '/dashboard/clients',
-    },
-    {
-      title: 'Total Employees',
-      value: stats?.totalEmployees ?? 0,
-      icon: UserCheck,
-      iconColor: colors.secondary,
-      accentColor: null as string | null,
-      href: '/dashboard/clients',
-    },
-    {
-      title: 'Due This Week',
-      value: stats?.dueThisWeek ?? 0,
-      icon: Clock,
-      iconColor: (stats?.dueThisWeek ?? 0) > 0 ? colors.warning : colors.text.muted,
-      accentColor: (stats?.dueThisWeek ?? 0) > 0 ? colors.warning : null,
-      href: '/dashboard/payrolls',
-    },
-    {
-      title: 'Overdue',
-      value: stats?.overdue ?? 0,
-      icon: AlertTriangle,
-      iconColor: (stats?.overdue ?? 0) > 0 ? colors.error : colors.text.muted,
-      accentColor: (stats?.overdue ?? 0) > 0 ? colors.error : null,
-      href: '/dashboard/payrolls',
-    },
-    {
-      title: 'Completed This Month',
-      value: stats?.completedThisMonth ?? 0,
-      icon: CheckCircle2,
-      iconColor: colors.success,
-      accentColor: colors.success,
-      href: '/dashboard/payrolls',
-    },
-  ]
+  // Period progress percentage
+  const periodPct = stats?.periodProgress?.total
+    ? Math.round((stats.periodProgress.complete / stats.periodProgress.total) * 100)
+    : 0
 
   return (
-    <div className="space-y-6">
-      {/* Greeting */}
+    <div className="space-y-5">
+      {/* ── Greeting ── */}
       <div>
         <h1 className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>
           {getGreeting()}
-          {userName ? `, ${userName}` : ''}
+          {userName ? `, ${userName}` : ''}. Here&apos;s your day.
         </h1>
         <p className="text-[0.82rem] mt-0.5" style={{ color: colors.text.muted }}>
           {format(new Date(), 'EEEE, d MMMM yyyy')}
         </p>
       </div>
 
-      {/* Empty state */}
+      {/* ── Empty state ── */}
       {!loading && isEmptyState && (
         <Card className="border-0" style={cardStyle}>
           <CardContent className="p-8 text-center">
@@ -289,300 +206,346 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-        {loading
-          ? [1, 2, 3, 4, 5].map((i) => (
-              <Card key={i} className="border-0" style={cardStyle}>
-                <CardContent className="p-4 md:p-5">
-                  <div className="space-y-2.5 animate-pulse">
-                    <div className="h-3 w-20 rounded" style={{ background: colors.border }} />
-                    <div className="h-7 w-12 rounded" style={{ background: colors.border }} />
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          : kpiCards.map((kpi, index) => (
-              <Card
-                key={index}
-                className="border-0 group cursor-pointer transition-colors duration-150"
-                style={cardStyle}
-                onClick={() => router.push(kpi.href)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = colors.borderElevated
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = colors.border
-                }}
-              >
-                <CardContent className="p-4 md:p-5">
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0">
-                      <p
-                        className="text-[0.68rem] md:text-[0.72rem] font-semibold uppercase tracking-[0.04em] mb-1 truncate"
-                        style={{ color: colors.text.muted }}
-                      >
-                        {kpi.title}
-                      </p>
-                      <p className="text-xl md:text-2xl font-bold" style={{ color: kpi.accentColor || colors.text.primary }}>
-                        {kpi.value}
-                      </p>
-                    </div>
-                    <div
-                      className="w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ml-2"
-                      style={{ backgroundColor: `${kpi.iconColor}10` }}
-                    >
-                      <kpi.icon className="w-4 h-4 md:w-5 md:h-5" style={{ color: kpi.iconColor }} />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-      </div>
-
-      {/* Charts Grid */}
+      {/* ── Top 3 Summary Cards ── */}
       {!loading && !isEmptyState && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
-          {/* Payroll Status Breakdown - Donut */}
-          <Card className="border-0" style={cardStyle}>
-            <CardHeader className="pb-0 px-4 md:px-5">
-              <CardTitle className="text-[0.9rem] font-bold" style={{ color: colors.text.primary }}>
-                Payroll Status Breakdown
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 px-4 md:px-5">
-              {stats?.payrollStatusBreakdown?.length ? (
-                <div className="flex flex-col sm:flex-row items-center">
-                  <ResponsiveContainer width="100%" height={200} className="sm:!w-[60%]">
-                    <PieChart>
-                      <Pie
-                        data={stats.payrollStatusBreakdown}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={45}
-                        outerRadius={75}
-                        paddingAngle={3}
-                        dataKey="value"
-                      >
-                        {stats.payrollStatusBreakdown.map((_, i) => (
-                          <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip content={<ChartTooltip colors={colors} />} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex flex-row sm:flex-col gap-3 sm:gap-2 w-full sm:w-[40%] mt-3 sm:mt-0 flex-wrap justify-center sm:justify-start">
-                    {stats.payrollStatusBreakdown.map((entry, i) => (
-                      <div key={entry.name} className="flex items-center gap-2 text-[0.78rem]">
-                        <div
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }}
-                        />
-                        <span style={{ color: colors.text.secondary }}>{entry.name}</span>
-                        <span className="font-bold ml-auto" style={{ color: colors.text.primary }}>
-                          {entry.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[0.85rem] py-8 text-center" style={{ color: colors.text.muted }}>
-                  No payroll runs yet
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+          {/* Due Today */}
+          <Card
+            className="border-0 cursor-pointer transition-colors duration-150"
+            style={{
+              ...cardStyle,
+              borderLeft: `3px solid ${(stats?.todayRuns?.length ?? 0) > 0 ? colors.warning : colors.success}`,
+            }}
+            onClick={() => router.push('/dashboard/payrolls')}
+          >
+            <CardContent className="p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2">
+                <p
+                  className="text-[0.72rem] font-semibold uppercase tracking-[0.04em]"
+                  style={{ color: colors.text.muted }}
+                >
+                  Due Today
+                </p>
+                <Clock className="w-4 h-4" style={{ color: colors.text.muted }} />
+              </div>
+              <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.text.primary }}>
+                {stats?.todayRuns?.length ?? 0}
+                <span className="text-[0.82rem] font-normal ml-1.5" style={{ color: colors.text.muted }}>
+                  run{(stats?.todayRuns?.length ?? 0) !== 1 ? 's' : ''}
+                </span>
+              </p>
+              {(stats?.overdue ?? 0) > 0 && (
+                <p className="text-[0.78rem] font-semibold mt-1.5 flex items-center gap-1" style={{ color: colors.error }}>
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  {stats?.overdue} overdue
                 </p>
               )}
             </CardContent>
           </Card>
 
-          {/* Completion Trend - Line Chart */}
-          <Card className="border-0" style={cardStyle}>
-            <CardHeader className="pb-0 px-4 md:px-5">
-              <CardTitle className="text-[0.9rem] font-bold" style={{ color: colors.text.primary }}>
-                Payroll Completion Trend
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 px-2 md:px-6">
-              {stats?.completionTrend?.some((d) => d.total > 0) ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={stats.completionTrend}>
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fill: colors.text.muted, fontSize: 12 }}
-                      axisLine={{ stroke: colors.border }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fill: colors.text.muted, fontSize: 12 }}
-                      axisLine={false}
-                      tickLine={false}
-                      allowDecimals={false}
-                      width={30}
-                    />
-                    <Tooltip content={<ChartTooltip colors={colors} />} />
-                    <Line
-                      type="monotone"
-                      dataKey="total"
-                      stroke={colors.border}
-                      strokeWidth={2}
-                      dot={false}
-                      name="Total"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="completed"
-                      stroke={colors.success}
-                      strokeWidth={2}
-                      dot={{ fill: colors.success, r: 3 }}
-                      name="Completed"
-                    />
-                    <Legend wrapperStyle={{ fontSize: '0.75rem', color: colors.text.muted }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-[0.85rem] py-8 text-center" style={{ color: colors.text.muted }}>
-                  No trend data yet
+          {/* BACS / Pay Day Summary */}
+          <Card
+            className="border-0 cursor-pointer transition-colors duration-150"
+            style={{
+              ...cardStyle,
+              borderLeft: `3px solid ${colors.primary}`,
+            }}
+            onClick={() => router.push('/dashboard/payrolls')}
+          >
+            <CardContent className="p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2">
+                <p
+                  className="text-[0.72rem] font-semibold uppercase tracking-[0.04em]"
+                  style={{ color: colors.text.muted }}
+                >
+                  This Week
                 </p>
-              )}
+                <CalendarClock className="w-4 h-4" style={{ color: colors.text.muted }} />
+              </div>
+              <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.text.primary }}>
+                {stats?.dueThisWeek ?? 0}
+                <span className="text-[0.82rem] font-normal ml-1.5" style={{ color: colors.text.muted }}>
+                  payroll{(stats?.dueThisWeek ?? 0) !== 1 ? 's' : ''} due
+                </span>
+              </p>
+              <p className="text-[0.78rem] mt-1.5" style={{ color: colors.text.secondary }}>
+                {stats?.totalClients ?? 0} clients total
+              </p>
             </CardContent>
           </Card>
 
-          {/* Client Status Distribution - Donut */}
-          <Card className="border-0" style={cardStyle}>
-            <CardHeader className="pb-0 px-4 md:px-5">
-              <CardTitle className="text-[0.9rem] font-bold" style={{ color: colors.text.primary }}>
-                Client Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 px-4 md:px-5">
-              {stats?.clientStatusDistribution?.length ? (
-                <div className="flex flex-col sm:flex-row items-center">
-                  <ResponsiveContainer width="100%" height={200} className="sm:!w-[60%]">
-                    <PieChart>
-                      <Pie
-                        data={stats.clientStatusDistribution}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={45}
-                        outerRadius={75}
-                        paddingAngle={3}
-                        dataKey="value"
-                      >
-                        {stats.clientStatusDistribution.map((_, i) => (
-                          <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip content={<ChartTooltip colors={colors} />} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex flex-row sm:flex-col gap-3 sm:gap-2 w-full sm:w-[40%] mt-3 sm:mt-0 flex-wrap justify-center sm:justify-start">
-                    {stats.clientStatusDistribution.map((entry, i) => (
-                      <div key={entry.name} className="flex items-center gap-2 text-[0.78rem]">
-                        <div
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }}
-                        />
-                        <span style={{ color: colors.text.secondary }}>{entry.name}</span>
-                        <span className="font-bold ml-auto" style={{ color: colors.text.primary }}>
-                          {entry.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[0.85rem] py-8 text-center" style={{ color: colors.text.muted }}>
-                  No clients yet
+          {/* Period Progress */}
+          <Card
+            className="border-0 cursor-pointer transition-colors duration-150"
+            style={{
+              ...cardStyle,
+              borderLeft: `3px solid ${colors.success}`,
+            }}
+            onClick={() => router.push('/dashboard/payrolls')}
+          >
+            <CardContent className="p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2">
+                <p
+                  className="text-[0.72rem] font-semibold uppercase tracking-[0.04em]"
+                  style={{ color: colors.text.muted }}
+                >
+                  Period Progress
                 </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Pay Frequency Distribution - Bar Chart */}
-          <Card className="border-0" style={cardStyle}>
-            <CardHeader className="pb-0 px-4 md:px-5">
-              <CardTitle className="text-[0.9rem] font-bold" style={{ color: colors.text.primary }}>
-                Pay Frequency Distribution
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 px-2 md:px-6">
-              {stats?.payFrequencyDistribution?.length ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={stats.payFrequencyDistribution}>
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fill: colors.text.muted, fontSize: 11 }}
-                      axisLine={{ stroke: colors.border }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fill: colors.text.muted, fontSize: 12 }}
-                      axisLine={false}
-                      tickLine={false}
-                      allowDecimals={false}
-                      width={30}
-                    />
-                    <Tooltip content={<ChartTooltip colors={colors} />} />
-                    <Bar dataKey="value" name="Clients" radius={[6, 6, 0, 0]}>
-                      {stats.payFrequencyDistribution.map((_, i) => (
-                        <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-[0.85rem] py-8 text-center" style={{ color: colors.text.muted }}>
-                  No frequency data yet
+                <CheckCircle2 className="w-4 h-4" style={{ color: colors.text.muted }} />
+              </div>
+              <div className="flex items-baseline gap-1.5 mb-2.5">
+                <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.text.primary }}>
+                  {stats?.periodProgress?.complete ?? 0}
+                  <span className="text-[0.82rem] font-normal" style={{ color: colors.text.muted }}>
+                    /{stats?.periodProgress?.total ?? 0}
+                  </span>
                 </p>
-              )}
+                <span className="text-[0.82rem] font-normal" style={{ color: colors.text.muted }}>
+                  complete
+                </span>
+              </div>
+              <div className="relative">
+                <Progress
+                  value={periodPct}
+                  className="h-2.5 rounded-full"
+                  style={{
+                    backgroundColor: `${colors.border}`,
+                  }}
+                />
+                <div
+                  className="absolute top-0 left-0 h-2.5 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${periodPct}%`,
+                    background: periodPct === 100
+                      ? colors.success
+                      : `linear-gradient(90deg, ${colors.primary}, ${colors.secondary})`,
+                  }}
+                />
+              </div>
+              <p className="text-[0.72rem] mt-1.5" style={{ color: colors.text.muted }}>
+                {periodPct}%
+                {(stats?.periodProgress?.inProgress ?? 0) > 0 &&
+                  ` — ${stats?.periodProgress?.inProgress} in progress`}
+              </p>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Invoice Placeholder */}
-      {!loading && !isEmptyState && (
-        <Card
-          className="border-0"
-          style={{
-            ...cardStyle,
-            border: `1px dashed ${colors.border}`,
-          }}
-        >
-          <CardContent className="p-5 md:p-6 text-center">
-            <div
-              className="w-10 h-10 mx-auto mb-3 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: `${colors.text.muted}08` }}
-            >
-              <Receipt className="w-5 h-5" style={{ color: colors.text.muted }} />
+      {/* ── Action Required ── */}
+      {!loading && !isEmptyState && (stats?.actionRequired?.length ?? 0) > 0 && (
+        <Card className="border-0" style={cardStyle}>
+          <CardContent className="p-4 md:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle className="w-4.5 h-4.5" style={{ color: colors.error }} />
+              <h2 className="text-[0.9rem] font-bold" style={{ color: colors.text.primary }}>
+                Action Required
+              </h2>
+              <Badge
+                className="ml-auto text-[0.68rem] font-bold border-0 px-2 py-0.5"
+                style={{
+                  backgroundColor: `${colors.error}12`,
+                  color: colors.error,
+                }}
+              >
+                {stats?.actionRequired?.length} item{(stats?.actionRequired?.length ?? 0) !== 1 ? 's' : ''}
+              </Badge>
             </div>
-            <h3 className="text-[0.88rem] font-bold mb-0.5" style={{ color: colors.text.primary }}>
-              Invoicing &amp; Revenue
-            </h3>
-            <p className="text-[0.8rem] max-w-md mx-auto" style={{ color: colors.text.muted }}>
-              Invoice tracking and revenue analytics coming soon.
-            </p>
+
+            <div className="space-y-0.5">
+              {stats?.actionRequired?.map((item, index) => {
+                const severityColor = item.severity === 'red' ? colors.error : colors.warning
+                const bgColor = item.severity === 'red' ? `${colors.error}08` : `${colors.warning}06`
+
+                return (
+                  <div
+                    key={`${item.id}-${index}`}
+                    className="flex items-center gap-3 py-2.5 px-3 rounded-lg cursor-pointer transition-colors duration-150"
+                    style={{
+                      backgroundColor: bgColor,
+                    }}
+                    onClick={() => router.push(`/dashboard/payrolls/${item.id}`)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = item.severity === 'red'
+                        ? `${colors.error}14`
+                        : `${colors.warning}12`
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = bgColor
+                    }}
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: severityColor }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <span
+                        className="text-[0.82rem] font-semibold"
+                        style={{ color: colors.text.primary }}
+                      >
+                        {item.clientName}
+                      </span>
+                      <span className="text-[0.82rem] mx-1.5" style={{ color: colors.text.muted }}>
+                        —
+                      </span>
+                      <span className="text-[0.82rem]" style={{ color: colors.text.secondary }}>
+                        {item.reason}
+                      </span>
+                    </div>
+                    <ExternalLink
+                      className="w-3.5 h-3.5 flex-shrink-0 opacity-40"
+                      style={{ color: colors.text.muted }}
+                    />
+                  </div>
+                )
+              })}
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Recent Activity + Upcoming Deadlines side by side on desktop */}
-      {!isEmptyState && (
+      {/* ── All Clear banner ── */}
+      {!loading && !isEmptyState && (stats?.actionRequired?.length ?? 0) === 0 && (stats?.totalClients ?? 0) > 0 && (
+        <Card
+          className="border-0"
+          style={{
+            ...cardStyle,
+            borderLeft: `3px solid ${colors.success}`,
+          }}
+        >
+          <CardContent className="p-4 md:p-5 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 flex-shrink-0" style={{ color: colors.success }} />
+            <div>
+              <p className="text-[0.88rem] font-semibold" style={{ color: colors.text.primary }}>
+                All clear — nothing needs your attention right now.
+              </p>
+              <p className="text-[0.78rem]" style={{ color: colors.text.muted }}>
+                {stats?.completedThisMonth ?? 0} payroll{(stats?.completedThisMonth ?? 0) !== 1 ? 's' : ''} completed this month.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── This Week's Runs + Recent Activity ── */}
+      {!loading && !isEmptyState && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
+          {/* This Week's Runs */}
+          <Card className="border-0" style={cardStyle}>
+            <CardContent className="p-4 md:p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h2
+                  className="flex items-center gap-2 text-[0.9rem] font-bold"
+                  style={{ color: colors.text.primary }}
+                >
+                  <CalendarClock className="w-4 h-4" style={{ color: colors.primary }} />
+                  This Week
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-[0.75rem] h-7 px-2"
+                  style={{ color: colors.primary }}
+                  onClick={() => router.push('/dashboard/payrolls')}
+                >
+                  View All
+                  <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              </div>
+
+              {(stats?.thisWeekRuns?.length ?? 0) > 0 ? (
+                <div className="space-y-2">
+                  {stats?.thisWeekRuns?.map((run) => {
+                    const pct = run.totalSteps > 0
+                      ? Math.round((run.completedSteps / run.totalSteps) * 100)
+                      : 0
+                    const dayLabel = run.daysUntil === 0
+                      ? 'Today'
+                      : run.daysUntil === 1
+                        ? 'Tomorrow'
+                        : `${run.daysUntil} days`
+
+                    return (
+                      <div
+                        key={run.id}
+                        className="flex items-center gap-3 py-2.5 px-3 rounded-lg cursor-pointer transition-colors duration-150"
+                        style={{ backgroundColor: `${colors.border}40` }}
+                        onClick={() => router.push(`/dashboard/payrolls/${run.id}`)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = `${colors.border}80`
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = `${colors.border}40`
+                        }}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className="text-[0.82rem] font-semibold truncate"
+                            style={{ color: colors.text.primary }}
+                          >
+                            {run.clientName}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div
+                              className="flex-1 h-1.5 rounded-full overflow-hidden"
+                              style={{ backgroundColor: colors.border }}
+                            >
+                              <div
+                                className="h-full rounded-full transition-all duration-300"
+                                style={{
+                                  width: `${pct}%`,
+                                  backgroundColor: pct === 100 ? colors.success : colors.primary,
+                                }}
+                              />
+                            </div>
+                            <span
+                              className="text-[0.68rem] font-medium flex-shrink-0"
+                              style={{ color: colors.text.muted }}
+                            >
+                              {run.completedSteps}/{run.totalSteps}
+                            </span>
+                          </div>
+                        </div>
+                        <Badge
+                          className="text-[0.65rem] font-bold border-0 px-2 py-0.5 flex-shrink-0"
+                          style={{
+                            backgroundColor: run.daysUntil === 0
+                              ? `${colors.warning}18`
+                              : `${colors.text.muted}10`,
+                            color: run.daysUntil === 0 ? colors.warning : colors.text.secondary,
+                          }}
+                        >
+                          {dayLabel}
+                        </Badge>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="py-6 text-center">
+                  <CheckCircle2 className="w-7 h-7 mx-auto mb-2" style={{ color: colors.success }} />
+                  <p className="text-[0.82rem] font-medium" style={{ color: colors.text.secondary }}>
+                    No runs due this week
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Recent Activity */}
           <Card className="border-0" style={cardStyle}>
-            <CardHeader className="pb-0 px-4 md:px-5">
-              <CardTitle
-                className="flex items-center gap-2 text-[0.9rem] font-bold"
+            <CardContent className="p-4 md:p-5">
+              <h2
+                className="flex items-center gap-2 text-[0.9rem] font-bold mb-3"
                 style={{ color: colors.text.primary }}
               >
                 <Activity className="w-4 h-4" style={{ color: colors.primary }} />
                 Recent Activity
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 px-4 md:px-5">
+              </h2>
+
               {loading ? (
                 <div className="space-y-3 animate-pulse">
-                  {[1, 2, 3, 4].map((i) => (
+                  {[1, 2, 3].map((i) => (
                     <div key={i} className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg" style={{ background: colors.border }} />
                       <div className="flex-1 space-y-1.5">
@@ -593,8 +556,8 @@ export default function DashboardPage() {
                   ))}
                 </div>
               ) : stats?.recentActivity?.length ? (
-                <div className="space-y-1">
-                  {stats.recentActivity.slice(0, 8).map((item) => {
+                <div className="space-y-0.5">
+                  {stats.recentActivity.map((item) => {
                     const config = ACTIVITY_CONFIG[item.type]
                     const IconComponent = config.icon
                     const iconColor = config.color(colors)
@@ -605,10 +568,10 @@ export default function DashboardPage() {
                         style={{ borderBottom: `1px solid ${colors.border}` }}
                       >
                         <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
                           style={{ backgroundColor: `${iconColor}12` }}
                         >
-                          <IconComponent className="w-4 h-4" style={{ color: iconColor }} />
+                          <IconComponent className="w-3.5 h-3.5" style={{ color: iconColor }} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p
@@ -617,125 +580,22 @@ export default function DashboardPage() {
                           >
                             {item.description}
                           </p>
-                          <p className="text-[0.72rem]" style={{ color: colors.text.muted }}>
+                          <p className="text-[0.7rem]" style={{ color: colors.text.muted }}>
                             {formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })}
                           </p>
                         </div>
+                        {item.type === 'payroll_completed' && (
+                          <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: colors.success }} />
+                        )}
                       </div>
                     )
                   })}
                 </div>
               ) : (
-                <div className="py-8 text-center">
-                  <Activity className="w-8 h-8 mx-auto mb-2" style={{ color: colors.text.muted }} />
-                  <p className="text-[0.88rem] font-medium" style={{ color: colors.text.secondary }}>
+                <div className="py-6 text-center">
+                  <Activity className="w-7 h-7 mx-auto mb-2" style={{ color: colors.text.muted }} />
+                  <p className="text-[0.82rem] font-medium" style={{ color: colors.text.secondary }}>
                     No recent activity yet
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Upcoming Deadlines */}
-          <Card className="border-0" style={cardStyle}>
-            <CardHeader className="pb-0 px-4 md:px-5">
-              <CardTitle
-                className="flex items-center gap-2 text-[0.9rem] font-bold"
-                style={{ color: colors.text.primary }}
-              >
-                <CalendarClock className="w-4 h-4" style={{ color: colors.primary }} />
-                Upcoming Deadlines
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 px-4 md:px-5">
-              {loading ? (
-                <div className="space-y-3 animate-pulse">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-10 rounded-lg" style={{ background: colors.border }} />
-                  ))}
-                </div>
-              ) : stats?.upcomingDeadlines?.length ? (
-                <div className="overflow-x-auto -mx-4 md:-mx-6">
-                  <table className="w-full min-w-[400px]">
-                    <thead>
-                      <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
-                        {['Client', 'Type', 'Due Date', 'Days Left'].map((h) => (
-                          <th
-                            key={h}
-                            className="text-left py-2.5 px-3 md:px-4 text-[0.72rem] font-bold uppercase tracking-[0.06em]"
-                            style={{ color: colors.text.muted }}
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stats.upcomingDeadlines.map((deadline, index) => {
-                        const dueDate = parseISO(deadline.date)
-                        const today = new Date()
-                        today.setHours(0, 0, 0, 0)
-                        const daysLeft = differenceInDays(dueDate, today)
-
-                        return (
-                          <tr
-                            key={`${deadline.payrollRunId}-${deadline.type}-${index}`}
-                            style={{
-                              borderBottom:
-                                index < stats.upcomingDeadlines.length - 1
-                                  ? `1px solid ${colors.border}`
-                                  : undefined,
-                            }}
-                          >
-                            <td
-                              className="py-3 px-3 md:px-4 text-[0.82rem] font-semibold"
-                              style={{ color: colors.text.primary }}
-                            >
-                              {deadline.clientName}
-                            </td>
-                            <td className="py-3 px-3 md:px-4">
-                              <Badge
-                                className="font-bold text-[0.68rem] border-0 px-2.5 py-0.5"
-                                style={{
-                                  backgroundColor:
-                                    deadline.type === 'FPS'
-                                      ? `${colors.primary}12`
-                                      : `${colors.secondary}12`,
-                                  color: deadline.type === 'FPS' ? colors.primary : colors.secondary,
-                                }}
-                              >
-                                {deadline.type}
-                              </Badge>
-                            </td>
-                            <td
-                              className="py-3 px-3 md:px-4 text-[0.82rem]"
-                              style={{ color: colors.text.secondary }}
-                            >
-                              {format(dueDate, 'd MMM yyyy')}
-                            </td>
-                            <td className="py-3 px-3 md:px-4">
-                              <span
-                                className="text-[0.82rem] font-bold"
-                                style={{ color: getDaysLeftColor(daysLeft) }}
-                              >
-                                {daysLeft === 0
-                                  ? 'Today'
-                                  : daysLeft === 1
-                                    ? '1 day'
-                                    : `${daysLeft} days`}
-                              </span>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="py-8 text-center">
-                  <CheckCircle2 className="w-8 h-8 mx-auto mb-2" style={{ color: colors.success }} />
-                  <p className="text-[0.88rem] font-medium" style={{ color: colors.text.secondary }}>
-                    No upcoming deadlines — you&apos;re all caught up!
                   </p>
                 </div>
               )}
@@ -744,7 +604,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Quick Actions */}
+      {/* ── Quick Actions ── */}
       {!isEmptyState && (
         <div className="flex flex-col sm:flex-row flex-wrap gap-2.5">
           <Button
