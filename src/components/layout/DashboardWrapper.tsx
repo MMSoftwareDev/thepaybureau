@@ -29,13 +29,13 @@ export default function DashboardWrapper({ children, user }: DashboardWrapperPro
   if (!mounted) {
     return (
       <div className="flex h-screen overflow-hidden">
-        <div className="hidden md:block w-[260px] h-screen border-r" style={{ background: colors.surface, borderColor: colors.border }} />
+        <div className="hidden md:block w-[252px] h-screen border-r" style={{ background: colors.surface, borderColor: colors.border }} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="h-[52px] border-b animate-pulse" style={{ background: colors.surface, borderColor: colors.border }} />
+          <div className="h-[52px] border-b" style={{ background: colors.surface, borderColor: colors.border }} />
           <main className="flex-1 overflow-y-auto p-6" style={{ background: colors.lightBg }}>
             <div className="space-y-4 max-w-5xl mx-auto">
-              <div className="h-8 rounded-xl animate-pulse" style={{ background: colors.border }} />
-              <div className="h-32 rounded-xl animate-pulse" style={{ background: colors.border }} />
+              <div className="h-8 rounded-lg animate-pulse" style={{ background: colors.border }} />
+              <div className="h-32 rounded-lg animate-pulse" style={{ background: colors.border }} />
             </div>
           </main>
         </div>
@@ -44,7 +44,7 @@ export default function DashboardWrapper({ children, user }: DashboardWrapperPro
   }
 
   return (
-    <div className="flex h-screen overflow-hidden transition-colors duration-300" style={{ background: colors.lightBg }}>
+    <div className="flex h-screen overflow-hidden transition-colors duration-200" style={{ background: colors.lightBg }}>
       {/* Mobile overlay */}
       {mobileMenuOpen && (
         <div
@@ -65,7 +65,7 @@ export default function DashboardWrapper({ children, user }: DashboardWrapperPro
         />
 
         <main
-          className="flex-1 overflow-x-hidden overflow-y-auto transition-colors duration-300"
+          className="flex-1 overflow-x-hidden overflow-y-auto transition-colors duration-200"
           style={{ background: colors.lightBg }}
         >
           <div className="max-w-6xl mx-auto px-4 py-6 md:px-8 md:py-8">

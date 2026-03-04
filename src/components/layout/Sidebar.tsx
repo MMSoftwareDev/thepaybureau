@@ -15,6 +15,7 @@ import {
   LogOut,
   Sun,
   Moon,
+  Command,
 } from 'lucide-react'
 
 interface NavSection {
@@ -59,11 +60,28 @@ export default function Sidebar({ user, mobileOpen = false, onMobileClose }: Sid
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const { isDark, toggleTheme } = useTheme()
   const colors = getThemeColors(isDark)
   const supabase = createClientSupabaseClient()
 
   useEffect(() => { setMounted(true) }, [])
+
+  // Keyboard shortcut: Cmd/Ctrl + K to toggle search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(prev => !prev)
+      }
+      if (e.key === 'Escape') {
+        setSearchOpen(false)
+        setSearchQuery('')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const isActiveRoute = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard'
@@ -76,6 +94,7 @@ export default function Sidebar({ user, mobileOpen = false, onMobileClose }: Sid
     if (searchQuery.trim()) {
       router.push(`/dashboard/clients?search=${encodeURIComponent(searchQuery.trim())}`)
       setSearchQuery('')
+      setSearchOpen(false)
       onMobileClose?.()
     }
   }
@@ -109,13 +128,13 @@ export default function Sidebar({ user, mobileOpen = false, onMobileClose }: Sid
   }
 
   if (!mounted) {
-    return <div className="hidden md:block w-[260px] h-screen" style={{ background: colors.surface }} />
+    return <div className="hidden md:block w-[252px] h-screen" style={{ background: colors.surface }} />
   }
 
   return (
     <div
       className={`
-        h-screen w-[260px] flex flex-col
+        h-screen w-[252px] flex flex-col
         fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out
         md:relative md:z-auto md:translate-x-0
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -126,16 +145,16 @@ export default function Sidebar({ user, mobileOpen = false, onMobileClose }: Sid
       }}
     >
       {/* Logo */}
-      <div className="px-5 pt-5 pb-2">
+      <div className="h-[52px] flex items-center px-4 border-b" style={{ borderColor: colors.border }}>
         <button
           onClick={() => navigate('/dashboard')}
           className="flex items-center gap-2.5 group"
         >
           <div
-            className="flex h-8 w-8 items-center justify-center rounded-lg flex-shrink-0"
+            className="flex h-7 w-7 items-center justify-center rounded-md flex-shrink-0"
             style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
           >
-            <svg viewBox="0 0 24 24" fill="none" className="h-[16px] w-[16px]">
+            <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5">
               <path d="M4 4h6v6H4V4z" fill="rgba(255,255,255,0.95)" />
               <path d="M14 4h6v6h-6V4z" fill="rgba(255,255,255,0.6)" />
               <path d="M4 14h6v6H4v-6z" fill="rgba(255,255,255,0.6)" />
@@ -143,7 +162,7 @@ export default function Sidebar({ user, mobileOpen = false, onMobileClose }: Sid
             </svg>
           </div>
           <span
-            className="text-[0.95rem] font-bold tracking-tight"
+            className="text-[0.875rem] font-semibold tracking-tight"
             style={{ color: colors.text.primary }}
           >
             ThePayBureau
@@ -151,42 +170,72 @@ export default function Sidebar({ user, mobileOpen = false, onMobileClose }: Sid
         </button>
       </div>
 
-      {/* Search */}
-      <div className="px-3 pb-2 pt-1">
-        <form onSubmit={handleSearch} className="relative">
-          <Search
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5"
-            style={{ color: colors.text.muted }}
-          />
-          <input
-            type="text"
-            placeholder="Search clients..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-8 pl-8 pr-3 text-[0.8rem] rounded-lg outline-none transition-all duration-200"
+      {/* Search trigger */}
+      <div className="px-3 pt-3 pb-1">
+        {!searchOpen ? (
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md text-[0.8rem] transition-colors duration-150"
             style={{
-              background: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
-              color: colors.text.primary,
+              background: isDark ? 'rgba(255,255,255,0.04)' : colors.lightBg,
+              color: colors.text.muted,
               border: `1px solid ${colors.border}`,
             }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = `${colors.primary}60`
-              e.currentTarget.style.boxShadow = `0 0 0 3px ${colors.primary}10`
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = colors.borderElevated
+              e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.06)' : '#F3EEFF'
             }}
-            onBlur={(e) => {
+            onMouseLeave={(e) => {
               e.currentTarget.style.borderColor = colors.border
-              e.currentTarget.style.boxShadow = 'none'
+              e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : colors.lightBg
             }}
-          />
-        </form>
+          >
+            <Search className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="flex-1 text-left">Search...</span>
+            <kbd
+              className="hidden sm:inline-flex items-center gap-0.5 px-1.5 h-5 rounded text-[0.65rem] font-medium"
+              style={{
+                background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                color: colors.text.muted,
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+              }}
+            >
+              <Command className="w-2.5 h-2.5" />K
+            </kbd>
+          </button>
+        ) : (
+          <form onSubmit={handleSearch} className="relative">
+            <Search
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5"
+              style={{ color: colors.primary }}
+            />
+            <input
+              autoFocus
+              type="text"
+              placeholder="Search clients..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onBlur={() => {
+                if (!searchQuery) setSearchOpen(false)
+              }}
+              className="w-full h-8 pl-8 pr-3 text-[0.8rem] rounded-md outline-none transition-all duration-150"
+              style={{
+                background: isDark ? 'rgba(255,255,255,0.06)' : '#F3EEFF',
+                color: colors.text.primary,
+                border: `1px solid ${colors.primary}50`,
+                boxShadow: `0 0 0 3px ${colors.primary}12`,
+              }}
+            />
+          </form>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 pt-2">
+      <nav className="flex-1 overflow-y-auto px-3 pt-3 scrollbar-thin">
         {NAV_SECTIONS.map((section) => (
-          <div key={section.label} className="mb-4">
+          <div key={section.label} className="mb-3">
             <div
-              className="px-2.5 pb-1.5 text-[0.68rem] font-bold tracking-[0.08em]"
+              className="px-2.5 pb-1 text-[0.65rem] font-semibold tracking-[0.08em] uppercase"
               style={{ color: colors.text.muted }}
             >
               {section.label}
@@ -198,7 +247,7 @@ export default function Sidebar({ user, mobileOpen = false, onMobileClose }: Sid
                 <button
                   key={item.name}
                   onClick={() => navigate(item.href)}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg mb-0.5 transition-all duration-150"
+                  className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-px transition-all duration-150 relative"
                   style={{
                     background: isActive
                       ? isDark ? 'rgba(255,255,255,0.08)' : `${colors.primary}08`
@@ -207,7 +256,7 @@ export default function Sidebar({ user, mobileOpen = false, onMobileClose }: Sid
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
-                      e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
+                      e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : colors.lightBg
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -216,11 +265,18 @@ export default function Sidebar({ user, mobileOpen = false, onMobileClose }: Sid
                     }
                   }}
                 >
+                  {/* Active indicator bar */}
+                  {isActive && (
+                    <div
+                      className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
+                      style={{ background: `linear-gradient(180deg, ${colors.primary}, ${colors.secondary})` }}
+                    />
+                  )}
                   <Icon
-                    className="w-[16px] h-[16px] flex-shrink-0"
+                    className="w-4 h-4 flex-shrink-0"
                     style={{ color: isActive ? colors.primary : colors.text.muted }}
                   />
-                  <span className={`text-[0.82rem] ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                  <span className={`text-[0.8rem] ${isActive ? 'font-semibold' : 'font-medium'}`}>
                     {item.name}
                   </span>
                 </button>
@@ -231,11 +287,11 @@ export default function Sidebar({ user, mobileOpen = false, onMobileClose }: Sid
       </nav>
 
       {/* Bottom section */}
-      <div className="px-3 pb-4">
+      <div className="px-3 pb-3 mt-auto">
         {/* Settings */}
         <button
           onClick={() => navigate('/dashboard/settings')}
-          className="w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg mb-1 transition-all duration-150"
+          className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-px transition-all duration-150 relative"
           style={{
             background: pathname.startsWith('/dashboard/settings')
               ? isDark ? 'rgba(255,255,255,0.08)' : `${colors.primary}08`
@@ -244,7 +300,7 @@ export default function Sidebar({ user, mobileOpen = false, onMobileClose }: Sid
           }}
           onMouseEnter={(e) => {
             if (!pathname.startsWith('/dashboard/settings')) {
-              e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
+              e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : colors.lightBg
             }
           }}
           onMouseLeave={(e) => {
@@ -253,57 +309,65 @@ export default function Sidebar({ user, mobileOpen = false, onMobileClose }: Sid
             }
           }}
         >
-          <SettingsIcon className="w-[16px] h-[16px]" style={{ color: colors.text.muted }} />
-          <span className="text-[0.82rem] font-medium">Settings</span>
+          {pathname.startsWith('/dashboard/settings') && (
+            <div
+              className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
+              style={{ background: `linear-gradient(180deg, ${colors.primary}, ${colors.secondary})` }}
+            />
+          )}
+          <SettingsIcon className="w-4 h-4" style={{ color: colors.text.muted }} />
+          <span className="text-[0.8rem] font-medium">Settings</span>
         </button>
 
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg mb-3 transition-all duration-150"
+          className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-2 transition-all duration-150"
           style={{ color: colors.text.secondary }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
+            e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : colors.lightBg
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'transparent'
           }}
         >
           {isDark
-            ? <Sun className="w-[16px] h-[16px] text-amber-400" />
-            : <Moon className="w-[16px] h-[16px]" style={{ color: colors.text.muted }} />
+            ? <Sun className="w-4 h-4 text-amber-400" />
+            : <Moon className="w-4 h-4" style={{ color: colors.text.muted }} />
           }
-          <span className="text-[0.82rem] font-medium">
+          <span className="text-[0.8rem] font-medium">
             {isDark ? 'Light mode' : 'Dark mode'}
           </span>
         </button>
 
         {/* Divider */}
-        <div className="h-px mb-3" style={{ background: colors.border }} />
+        <div className="h-px mb-2" style={{ background: colors.border }} />
 
         {/* User */}
-        <div className="flex items-center gap-2.5 px-1">
+        <div className="flex items-center gap-2.5 px-1.5 py-1.5 rounded-md"
+          style={{ cursor: 'default' }}
+        >
           <div
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-white text-[0.72rem] font-bold flex-shrink-0"
+            className="h-7 w-7 rounded-md flex items-center justify-center text-white text-[0.7rem] font-bold flex-shrink-0"
             style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
           >
             {getUserInitial()}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[0.8rem] font-semibold truncate" style={{ color: colors.text.primary }}>
+            <div className="text-[0.78rem] font-semibold truncate leading-tight" style={{ color: colors.text.primary }}>
               {getUserName()}
             </div>
-            <div className="text-[0.68rem] truncate" style={{ color: colors.text.muted }}>
+            <div className="text-[0.65rem] truncate leading-tight" style={{ color: colors.text.muted }}>
               {getUserEmail()}
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="h-7 w-7 flex items-center justify-center rounded-md transition-colors duration-150"
+            className="h-6 w-6 flex items-center justify-center rounded transition-colors duration-150 flex-shrink-0"
             style={{ color: colors.text.muted }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = colors.error
-              e.currentTarget.style.background = isDark ? 'rgba(239,68,68,0.1)' : 'rgba(217,48,37,0.08)'
+              e.currentTarget.style.background = isDark ? 'rgba(239,68,68,0.1)' : 'rgba(217,48,37,0.06)'
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = colors.text.muted

@@ -145,6 +145,14 @@ function ClientsContent() {
     fetchClients()
   }, [])
 
+  // Sync search term from URL params (e.g. when sidebar search navigates here)
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || ''
+    if (urlSearch !== searchTerm) {
+      setSearchTerm(urlSearch)
+    }
+  }, [searchParams])
+
   // Fetch clients from API
   const fetchClients = async () => {
     try {

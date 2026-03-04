@@ -3,8 +3,9 @@
 
 import { useState, useEffect } from 'react'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
-import { Menu } from 'lucide-react'
+import { Menu, ChevronRight } from 'lucide-react'
 import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 
 interface NavbarProps {
   onMenuToggle?: () => void
@@ -19,16 +20,10 @@ const PAGE_TITLES: Record<string, string> = {
 }
 
 function getPageTitle(pathname: string): string {
-  // Check exact match first
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]
-
-  // Check for client detail or edit pages
   if (pathname.match(/^\/dashboard\/clients\/[^/]+\/edit$/)) return 'Edit Client'
   if (pathname.match(/^\/dashboard\/clients\/[^/]+$/)) return 'Client Details'
-
-  // Check for payroll detail pages
   if (pathname.match(/^\/dashboard\/payrolls\/[^/]+$/)) return 'Payroll Details'
-
   return 'Dashboard'
 }
 
@@ -71,7 +66,7 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
   if (!mounted) {
     return (
       <nav
-        className="h-[52px] border-b animate-pulse"
+        className="h-[52px] border-b"
         style={{ background: colors.surface, borderColor: colors.border }}
       />
     )
@@ -81,17 +76,17 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
 
   return (
     <nav
-      className="h-[52px] flex items-center px-5 gap-3 transition-colors duration-300"
+      className="h-[52px] flex items-center px-4 md:px-5 gap-3 transition-colors duration-200"
       style={{
         background: colors.surface,
         borderBottom: `1px solid ${colors.border}`,
       }}
     >
-      {/* Hamburger — mobile only */}
+      {/* Hamburger - mobile only */}
       {onMenuToggle && (
         <button
           onClick={onMenuToggle}
-          className="md:hidden flex items-center justify-center h-8 w-8 rounded-lg transition-colors"
+          className="md:hidden flex items-center justify-center h-8 w-8 rounded-md transition-colors duration-150"
           style={{ color: colors.text.secondary }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
@@ -100,28 +95,31 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
             e.currentTarget.style.background = 'transparent'
           }}
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="w-[18px] h-[18px]" />
         </button>
       )}
 
       {/* Breadcrumbs */}
-      <div className="flex items-center gap-1.5 min-w-0">
+      <div className="flex items-center gap-1 min-w-0">
         {breadcrumbs.map((crumb, index) => (
-          <div key={index} className="flex items-center gap-1.5 min-w-0">
+          <div key={index} className="flex items-center gap-1 min-w-0">
             {index > 0 && (
-              <span className="text-[0.75rem]" style={{ color: colors.text.muted }}>/</span>
+              <ChevronRight
+                className="w-3.5 h-3.5 flex-shrink-0"
+                style={{ color: colors.text.muted }}
+              />
             )}
             {crumb.href ? (
-              <a
+              <Link
                 href={crumb.href}
-                className="text-[0.82rem] font-medium transition-colors duration-150 hover:underline"
+                className="text-[0.8rem] font-medium transition-colors duration-150 hover:underline underline-offset-2"
                 style={{ color: colors.text.muted }}
               >
                 {crumb.label}
-              </a>
+              </Link>
             ) : (
               <span
-                className="text-[0.82rem] font-semibold truncate"
+                className="text-[0.8rem] font-semibold truncate"
                 style={{ color: colors.text.primary }}
               >
                 {crumb.label}
