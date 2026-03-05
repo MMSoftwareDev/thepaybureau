@@ -19,7 +19,7 @@ import {
 
 // ─── Types ───────────────────────────────────────────────────────────
 
-type FeatureStatus = 'submitted' | 'planned' | 'considering' | 'working_on' | 'will_not_implement' | 'future'
+type FeatureStatus = 'submitted' | 'planned' | 'considering' | 'working_on' | 'shipped' | 'will_not_implement' | 'future'
 
 interface FeatureRequest {
   id: string
@@ -44,6 +44,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; color: string; bg: s
   planned: { label: 'Planned', color: '#2563eb', bg: 'rgba(37,99,235,0.1)' },
   considering: { label: 'Considering', color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
   working_on: { label: 'Working On', color: '#059669', bg: 'rgba(5,150,105,0.1)' },
+  shipped: { label: 'Shipped', color: '#0891b2', bg: 'rgba(8,145,178,0.1)' },
   future: { label: 'Future', color: '#7c3aed', bg: 'rgba(124,58,237,0.1)' },
   will_not_implement: { label: 'Won\'t Do', color: '#dc2626', bg: 'rgba(220,38,38,0.1)' },
 }
@@ -60,6 +61,7 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'planned', label: 'Planned' },
   { value: 'considering', label: 'Considering' },
   { value: 'working_on', label: 'Working On' },
+  { value: 'shipped', label: 'Shipped' },
   { value: 'future', label: 'Future' },
   { value: 'will_not_implement', label: 'Won\'t Do' },
 ]
@@ -156,11 +158,13 @@ export default function FeatureRequestsPage() {
           status: formStatus,
         }),
       })
+      const data = await res.json()
       if (res.ok) {
-        const data = await res.json()
         setRequests(prev => prev.map(r => r.id === editingRequest.id ? { ...r, ...data.request, vote_count: r.vote_count, user_has_voted: r.user_has_voted } : r))
         closeForm()
         toast('Updated')
+      } else {
+        toast(data.error || 'Failed to update', 'error')
       }
     } catch {
       toast('Failed to update', 'error')

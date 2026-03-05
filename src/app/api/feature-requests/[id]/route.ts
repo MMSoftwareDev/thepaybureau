@@ -10,7 +10,7 @@ const PLATFORM_ADMIN_EMAILS = (process.env.PLATFORM_ADMIN_EMAILS || '')
 const updateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(2000).optional(),
-  status: z.enum(['submitted', 'planned', 'considering', 'working_on', 'will_not_implement', 'future']).optional(),
+  status: z.enum(['submitted', 'planned', 'considering', 'working_on', 'shipped', 'will_not_implement', 'future']).optional(),
 })
 
 function isAdmin(email: string | undefined): boolean {
