@@ -263,23 +263,35 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
     }
   }
 
+  const formatDate = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
   // ─── Auto-fill pay period dates when frequency + pay day change ──
 
   useEffect(() => {
-    if (!formData.pay_frequency || !formData.pay_day) return
+    if (!formData.pay_frequency) return
+    if (formData.pay_frequency === 'annually') {
+      if (!formData.pay_day) return
+      const payDate = new Date(formData.pay_day + 'T00:00:00')
+      const { periodStart, periodEnd } = calculatePeriodDates('annually', payDate)
+      setFormData((prev) => ({
+        ...prev,
+        period_start: formatDate(periodStart),
+        period_end: formatDate(periodEnd),
+      }))
+      return
+    }
+    if (!formData.pay_day) return
 
     try {
       const freq = formData.pay_frequency as PayFrequency
       const today = new Date()
       const nextPayDate = calculateNextPayDate(freq, formData.pay_day, today)
       const { periodStart, periodEnd } = calculatePeriodDates(freq, nextPayDate)
-
-      const formatDate = (d: Date) => {
-        const y = d.getFullYear()
-        const m = String(d.getMonth() + 1).padStart(2, '0')
-        const day = String(d.getDate()).padStart(2, '0')
-        return `${y}-${m}-${day}`
-      }
 
       setFormData((prev) => ({
         ...prev,
@@ -290,6 +302,64 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
       // Ignore calculation errors for unsupported combos
     }
   }, [formData.pay_frequency, formData.pay_day])
+
+  // ─── Auto-fill period end when period start is changed manually ──
+
+  const calculatePeriodEnd = (frequency: string, startDate: string): string | null => {
+    if (!startDate || !frequency) return null
+    const start = new Date(startDate + 'T00:00:00')
+    if (isNaN(start.getTime())) return null
+
+    let end: Date
+    switch (frequency) {
+      case 'weekly':
+        end = new Date(start)
+        end.setDate(end.getDate() + 6)
+        break
+      case 'two_weekly':
+        end = new Date(start)
+        end.setDate(end.getDate() + 13)
+        break
+      case 'four_weekly':
+        end = new Date(start)
+        end.setDate(end.getDate() + 27)
+        break
+      case 'monthly': {
+        const lastDay = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+        end = lastDay
+        break
+      }
+      case 'quarterly': {
+        const lastDay = new Date(start.getFullYear(), start.getMonth() + 3, 0)
+        end = lastDay
+        break
+      }
+      case 'biannually': {
+        const lastDay = new Date(start.getFullYear(), start.getMonth() + 6, 0)
+        end = lastDay
+        break
+      }
+      case 'annually': {
+        end = new Date(start)
+        end.setFullYear(end.getFullYear() + 1)
+        end.setDate(end.getDate() - 1)
+        break
+      }
+      default:
+        return null
+    }
+    return formatDate(end)
+  }
+
+  const handlePeriodStartChange = (value: string) => {
+    updateField('period_start', value)
+    if (formData.pay_frequency && value) {
+      const endDate = calculatePeriodEnd(formData.pay_frequency, value)
+      if (endDate) {
+        updateField('period_end', endDate)
+      }
+    }
+  }
 
   // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -578,7 +648,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
           </Select>
         </div>
 
-        {formData.pay_frequency && (
+        {formData.pay_frequency && formData.pay_frequency !== 'annually' && (
           <div>
             <Label className="font-semibold" style={{ color: colors.text.primary }}>
               Pay Date <span style={{ color: colors.error }}>*</span>
@@ -604,36 +674,58 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {formData.pay_frequency === 'annually' && (
           <div>
-            <Label htmlFor="period_start" className="font-semibold" style={{ color: colors.text.primary }}>
-              Pay Period Start
+            <Label htmlFor="annual_pay_date" className="font-semibold" style={{ color: colors.text.primary }}>
+              Annual Pay Date <span style={{ color: colors.error }}>*</span>
             </Label>
             <Input
-              id="period_start"
+              id="annual_pay_date"
               type="date"
-              value={formData.period_start}
-              onChange={(e) => updateField('period_start', e.target.value)}
+              value={formData.pay_day}
+              onChange={(e) => updateField('pay_day', e.target.value)}
               className={inputClassName}
               style={inputStyle}
             />
           </div>
-          <div>
-            <Label htmlFor="period_end" className="font-semibold" style={{ color: colors.text.primary }}>
-              Pay Period End
-            </Label>
-            <Input
-              id="period_end"
-              type="date"
-              value={formData.period_end}
-              onChange={(e) => updateField('period_end', e.target.value)}
-              className={inputClassName}
-              style={inputStyle}
-            />
-          </div>
-        </div>
+        )}
 
-        {formData.pay_frequency && formData.pay_day && (() => {
+        {formData.pay_frequency !== 'annually' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="period_start" className="font-semibold" style={{ color: colors.text.primary }}>
+                Pay Period Start
+              </Label>
+              <Input
+                id="period_start"
+                type="date"
+                value={formData.period_start}
+                onChange={(e) => handlePeriodStartChange(e.target.value)}
+                className={inputClassName}
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <Label htmlFor="period_end" className="font-semibold" style={{ color: colors.text.primary }}>
+                Pay Period End
+              </Label>
+              <Input
+                id="period_end"
+                type="date"
+                value={formData.period_end}
+                readOnly
+                className={inputClassName}
+                style={{
+                  ...inputStyle,
+                  opacity: 0.6,
+                  cursor: 'not-allowed',
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {formData.pay_frequency && formData.pay_day && formData.pay_frequency !== 'annually' && (() => {
           try {
             const referenceDate = formData.period_start
               ? new Date(formData.period_start + 'T00:00:00')
