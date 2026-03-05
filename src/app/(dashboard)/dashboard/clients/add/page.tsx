@@ -649,39 +649,6 @@ function AddClientContent() {
           </div>
         )}
 
-        {formData.pay_frequency && formData.pay_day && (() => {
-          try {
-            const nextDate = calculateNextPayDate(
-              formData.pay_frequency as PayFrequency,
-              formData.pay_day,
-              new Date()
-            )
-            return (
-              <div
-                className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm"
-                style={{
-                  background: `${colors.primary}08`,
-                  border: `1px solid ${colors.primary}25`,
-                }}
-              >
-                <span className="font-medium" style={{ color: colors.text.secondary }}>
-                  First Pay Date:
-                </span>
-                <span className="font-bold" style={{ color: colors.primary }}>
-                  {nextDate.toLocaleDateString('en-GB', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                </span>
-              </div>
-            )
-          } catch {
-            return null
-          }
-        })()}
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <Label htmlFor="period_start" className="font-semibold" style={{ color: colors.text.primary }}>
@@ -710,6 +677,48 @@ function AddClientContent() {
             />
           </div>
         </div>
+
+        {formData.pay_frequency && formData.pay_day && (() => {
+          try {
+            // Use period start as reference so the pay date falls within the chosen period
+            const referenceDate = formData.period_start
+              ? new Date(formData.period_start + 'T00:00:00')
+              : new Date()
+            // calculateNextPayDate finds the next pay date AFTER referenceDate,
+            // so we go one day before the period start to include a pay date that
+            // falls on or after the period start itself.
+            const adjustedRef = new Date(referenceDate)
+            adjustedRef.setDate(adjustedRef.getDate() - 1)
+            const nextDate = calculateNextPayDate(
+              formData.pay_frequency as PayFrequency,
+              formData.pay_day,
+              adjustedRef
+            )
+            return (
+              <div
+                className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm"
+                style={{
+                  background: `${colors.primary}08`,
+                  border: `1px solid ${colors.primary}25`,
+                }}
+              >
+                <span className="font-medium" style={{ color: colors.text.secondary }}>
+                  First Pay Date:
+                </span>
+                <span className="font-bold" style={{ color: colors.primary }}>
+                  {nextDate.toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </span>
+              </div>
+            )
+          } catch {
+            return null
+          }
+        })()}
 
         <div>
           <Label htmlFor="payroll_software" className="font-semibold" style={{ color: colors.text.primary }}>
