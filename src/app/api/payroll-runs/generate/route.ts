@@ -10,6 +10,7 @@ import {
   type PayFrequency,
 } from '@/lib/hmrc-deadlines'
 import { z } from 'zod'
+import { writeAuditLog } from '@/lib/audit'
 
 export async function POST(request: NextRequest) {
   try {
@@ -164,6 +165,18 @@ export async function POST(request: NextRequest) {
         checklistItems = items
       }
     }
+
+    // Audit log: payroll run created
+    writeAuditLog({
+      tenantId: user.tenant_id,
+      userId: authUser.id,
+      userEmail: authUser.email!,
+      action: 'CREATE',
+      resourceType: 'payroll_run',
+      resourceId: payrollRun.id,
+      resourceName: `${client.name} — ${payrollRun.pay_date}`,
+      request,
+    })
 
     return NextResponse.json({
       ...payrollRun,
