@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { useToast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
+import { calculateNextPayDate, calculatePeriodDates } from '@/lib/hmrc-deadlines'
+import type { PayFrequency } from '@/lib/hmrc-deadlines'
 import {
   ArrowLeft,
   Building2,
@@ -104,6 +106,7 @@ const WEEKDAYS = [
 
 const MONTHLY_PAY_DAYS = [
   { value: 'last_day_of_month', label: 'Last Day of the Month' },
+  { value: 'last_working_day', label: 'Last Working Day of the Month' },
   { value: 'last_monday', label: 'Last Monday of the Month' },
   { value: 'last_tuesday', label: 'Last Tuesday of the Month' },
   { value: 'last_wednesday', label: 'Last Wednesday of the Month' },
@@ -179,9 +182,23 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
 
   const [checklistItems, setChecklistItems] = useState<{ name: string }[]>([])
 
+  // Named templates from tenant settings
+  const [availableTemplates, setAvailableTemplates] = useState<
+    { id: string; name: string; is_default: boolean; steps: { name: string; sort_order: number }[] }[]
+  >([])
+
   useEffect(() => {
     setMounted(true)
     fetchClient()
+    // Fetch saved checklist templates from settings
+    fetch('/api/settings')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.templates?.length) {
+          setAvailableTemplates(data.templates)
+        }
+      })
+      .catch(() => { /* ignore */ })
   }, [])
 
   // ─── Fetch existing client ─────────────────────────────────────────
@@ -245,6 +262,36 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
       setLoading(false)
     }
   }
+
+  // ─── Auto-fill pay period dates when frequency + pay day change ──
+
+  useEffect(() => {
+    if (!formData.pay_frequency || !formData.pay_day) return
+    // Only auto-fill if both period fields are currently empty
+    if (formData.period_start && formData.period_end) return
+
+    try {
+      const freq = formData.pay_frequency as PayFrequency
+      const today = new Date()
+      const nextPayDate = calculateNextPayDate(freq, formData.pay_day, today)
+      const { periodStart, periodEnd } = calculatePeriodDates(freq, nextPayDate)
+
+      const formatDate = (d: Date) => {
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return `${y}-${m}-${day}`
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        period_start: prev.period_start || formatDate(periodStart),
+        period_end: prev.period_end || formatDate(periodEnd),
+      }))
+    } catch {
+      // Ignore calculation errors for unsupported combos
+    }
+  }, [formData.pay_frequency, formData.pay_day])
 
   // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -768,11 +815,44 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
     </div>
   )
 
+  const handleApplyTemplate = (templateId: string) => {
+    const tpl = availableTemplates.find((t) => t.id === templateId)
+    if (tpl) {
+      setChecklistItems(tpl.steps.map((s) => ({ name: s.name })))
+    }
+  }
+
   const renderChecklistTab = () => (
     <div className="space-y-4">
       <p className="text-sm" style={{ color: colors.text.secondary }}>
         The default checklist template for this client. Changes here will apply to future payroll runs.
       </p>
+
+      {availableTemplates.length > 0 && (
+        <div>
+          <Label className="font-semibold text-sm" style={{ color: colors.text.primary }}>
+            Apply from Template
+          </Label>
+          <Select onValueChange={handleApplyTemplate}>
+            <SelectTrigger
+              className="mt-1.5 rounded-lg border-0"
+              style={inputStyle}
+            >
+              <SelectValue placeholder="Choose a saved template..." />
+            </SelectTrigger>
+            <SelectContent>
+              {availableTemplates.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}{t.is_default ? ' (Default)' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-xs" style={{ color: colors.text.muted }}>
+            Selecting a template will replace the current checklist steps below.
+          </p>
+        </div>
+      )}
 
       {checklistItems.map((item, index) => (
         <div key={index} className="flex items-center gap-2 group">
