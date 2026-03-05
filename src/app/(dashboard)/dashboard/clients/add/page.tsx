@@ -649,6 +649,39 @@ function AddClientContent() {
           </div>
         )}
 
+        {formData.pay_frequency && formData.pay_day && (() => {
+          try {
+            const nextDate = calculateNextPayDate(
+              formData.pay_frequency as PayFrequency,
+              formData.pay_day,
+              new Date()
+            )
+            return (
+              <div
+                className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm"
+                style={{
+                  background: `${colors.primary}08`,
+                  border: `1px solid ${colors.primary}25`,
+                }}
+              >
+                <span className="font-medium" style={{ color: colors.text.secondary }}>
+                  First Pay Date:
+                </span>
+                <span className="font-bold" style={{ color: colors.primary }}>
+                  {nextDate.toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </span>
+              </div>
+            )
+          } catch {
+            return null
+          }
+        })()}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <Label htmlFor="period_start" className="font-semibold" style={{ color: colors.text.primary }}>
