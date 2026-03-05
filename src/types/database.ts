@@ -318,6 +318,50 @@ export interface Database {
           sort_order?: number
         }
       }
+      training_records: {
+        Row: {
+          id: string
+          tenant_id: string
+          created_by: string
+          title: string
+          provider: string | null
+          category: string | null
+          url: string | null
+          notes: string | null
+          completed: boolean
+          completed_date: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          created_by: string
+          title: string
+          provider?: string | null
+          category?: string | null
+          url?: string | null
+          notes?: string | null
+          completed?: boolean
+          completed_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          created_by?: string
+          title?: string
+          provider?: string | null
+          category?: string | null
+          url?: string | null
+          notes?: string | null
+          completed?: boolean
+          completed_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

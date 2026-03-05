@@ -20,6 +20,7 @@ import {
   Command,
   BarChart3,
   ScrollText,
+  GraduationCap,
 } from 'lucide-react'
 
 interface NavSection {
@@ -58,6 +59,12 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { name: 'Payroll Runs', href: '/dashboard/payrolls', icon: ClipboardCheck },
       { name: 'Pension Declarations', href: '/dashboard/pensions', icon: Shield },
+    ],
+  },
+  {
+    label: 'DEVELOPMENT',
+    items: [
+      { name: 'Training & CPD', href: '/dashboard/training', icon: GraduationCap },
     ],
   },
   {
