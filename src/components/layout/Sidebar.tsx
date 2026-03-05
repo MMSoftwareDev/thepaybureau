@@ -173,7 +173,7 @@ export default function Sidebar({ user, avatarUrl, isAdmin = false, mobileOpen =
           onClick={() => navigate('/dashboard')}
           className="flex items-center gap-2.5 group"
         >
-          <Image src="/logo.png" alt="ThePayBureau" width={28} height={28} className="rounded-md flex-shrink-0" />
+          <Image src="/logo.png" alt="ThePayBureau" width={28} height={28} className="rounded-md flex-shrink-0" priority />
           <span
             className="text-[0.875rem] font-semibold tracking-tight"
             style={{ color: colors.text.primary }}
