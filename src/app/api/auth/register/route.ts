@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   try {
     // Rate limit: 5 registration attempts per IP per 15 minutes
     const ip = getClientIp(request)
-    const limiter = rateLimit(`register:${ip}`, { limit: 5, windowSeconds: 900 })
+    const limiter = await rateLimit(`register:${ip}`, { limit: 5, windowSeconds: 900 })
     if (!limiter.success) {
       return NextResponse.json(
         { error: 'Too many registration attempts. Please try again later.' },
@@ -122,11 +122,13 @@ export async function POST(request: NextRequest) {
     
     if (tenantError) {
       console.error('Tenant creation failed:', tenantError)
-      return NextResponse.json({ 
-        error: 'Failed to setup company account' 
+      // Cleanup: remove auth user since tenant creation failed
+      await supabase.auth.admin.deleteUser(authData.user.id)
+      return NextResponse.json({
+        error: 'Failed to setup company account'
       }, { status: 500 })
     }
-    
+
     // Create user profile record
     const { data: userProfile, error: userError } = await supabase
       .from('users')
@@ -140,11 +142,14 @@ export async function POST(request: NextRequest) {
       })
       .select()
       .single()
-    
+
     if (userError) {
       console.error('User profile creation failed:', userError)
-      return NextResponse.json({ 
-        error: 'Failed to setup user profile' 
+      // Cleanup: remove tenant and auth user
+      await supabase.from('tenants').delete().eq('id', tenant.id)
+      await supabase.auth.admin.deleteUser(authData.user.id)
+      return NextResponse.json({
+        error: 'Failed to setup user profile'
       }, { status: 500 })
     }
     

@@ -12,9 +12,10 @@ interface DashboardWrapperProps {
   children: React.ReactNode
   user: { email?: string; user_metadata?: { name?: string } } | null
   avatarUrl?: string | null
+  isAdmin?: boolean
 }
 
-export default function DashboardWrapper({ children, user, avatarUrl }: DashboardWrapperProps) {
+export default function DashboardWrapper({ children, user, avatarUrl, isAdmin }: DashboardWrapperProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const { isDark } = useTheme()
@@ -58,6 +59,7 @@ export default function DashboardWrapper({ children, user, avatarUrl }: Dashboar
       <Sidebar
         user={user}
         avatarUrl={avatarUrl}
+        isAdmin={isAdmin}
         mobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
       />

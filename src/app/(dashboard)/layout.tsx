@@ -13,6 +13,7 @@ export default function DashboardLayout({
 }) {
   const [user, setUser] = useState<User | null>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const supabase = createClientSupabaseClient()
 
   useEffect(() => {
@@ -29,6 +30,11 @@ export default function DashboardLayout({
           .then(({ data }) => {
             if (data?.avatar_url) setAvatarUrl(data.avatar_url)
           })
+        // Check admin status server-side
+        fetch('/api/admin/check')
+          .then(res => res.json())
+          .then(data => setIsAdmin(data.isAdmin === true))
+          .catch(() => {})
       }
     })
 
@@ -42,7 +48,7 @@ export default function DashboardLayout({
   // Render immediately — middleware already ensures auth.
   // User info populates asynchronously for sidebar/navbar display.
   return (
-    <DashboardWrapper user={user} avatarUrl={avatarUrl}>
+    <DashboardWrapper user={user} avatarUrl={avatarUrl} isAdmin={isAdmin}>
       {children}
     </DashboardWrapper>
   )

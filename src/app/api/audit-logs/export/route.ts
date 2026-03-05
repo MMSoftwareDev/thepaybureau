@@ -46,7 +46,12 @@ export async function GET(request: NextRequest) {
 
     if (resourceType) query = query.eq('resource_type', resourceType)
     if (action) query = query.eq('action', action)
-    if (search) query = query.or(`resource_name.ilike.%${search}%,user_email.ilike.%${search}%`)
+    if (search) {
+      const sanitized = search.replace(/[,%().*]/g, '')
+      if (sanitized) {
+        query = query.or(`resource_name.ilike.%${sanitized}%,user_email.ilike.%${sanitized}%`)
+      }
+    }
     if (from) query = query.gte('created_at', from)
     if (to) query = query.lte('created_at', to)
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, Suspense } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
@@ -180,7 +180,15 @@ function sortByUrgency(a: PayrollRun, b: PayrollRun): number {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-export default function PayrollsPage() {
+export default function PayrollsPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
+      <PayrollsPage />
+    </Suspense>
+  )
+}
+
+function PayrollsPage() {
   const [runs, setRuns] = useState<PayrollRun[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

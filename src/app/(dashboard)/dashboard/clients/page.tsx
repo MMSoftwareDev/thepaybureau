@@ -461,6 +461,7 @@ function ClientsContent() {
             {/* Filters */}
             <div className="flex flex-wrap gap-2">
               <select
+                aria-label="Filter by status"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-3 h-9 rounded-lg text-[0.82rem] font-medium focus:outline-none"
@@ -477,6 +478,7 @@ function ClientsContent() {
               </select>
 
               <select
+                aria-label="Filter by industry"
                 value={industryFilter}
                 onChange={(e) => setIndustryFilter(e.target.value)}
                 className="px-3 h-9 rounded-lg text-[0.82rem] font-medium focus:outline-none"
@@ -493,6 +495,7 @@ function ClientsContent() {
               </select>
 
               <select
+                aria-label="Filter by employee size"
                 value={employeeSizeFilter}
                 onChange={(e) => setEmployeeSizeFilter(e.target.value)}
                 className="px-3 h-9 rounded-lg text-[0.82rem] font-medium focus:outline-none"
@@ -510,6 +513,7 @@ function ClientsContent() {
               </select>
 
               <select
+                aria-label="Sort clients by"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 className="px-3 h-9 rounded-lg text-[0.82rem] font-medium focus:outline-none"

@@ -41,15 +41,12 @@ export async function POST(req: NextRequest) {
       const subscription = event.data.object as Stripe.Subscription
       const customerId = subscription.customer as string
 
-      // Find tenant by stripe customer ID
-      const { data: tenants } = await supabase
+      // Find tenant by stripe customer ID using indexed JSONB query
+      const { data: tenant } = await supabase
         .from('tenants')
-        .select('id, settings')
-
-      const tenant = tenants?.find((t) => {
-        const settings = (t.settings || {}) as Record<string, unknown>
-        return settings.stripe_customer_id === customerId
-      })
+        .select('id')
+        .eq('settings->>stripe_customer_id', customerId)
+        .single()
 
       if (tenant) {
         // Determine plan from price ID
@@ -73,14 +70,11 @@ export async function POST(req: NextRequest) {
       const subscription = event.data.object as Stripe.Subscription
       const customerId = subscription.customer as string
 
-      const { data: tenants } = await supabase
+      const { data: tenant } = await supabase
         .from('tenants')
-        .select('id, settings')
-
-      const tenant = tenants?.find((t) => {
-        const settings = (t.settings || {}) as Record<string, unknown>
-        return settings.stripe_customer_id === customerId
-      })
+        .select('id')
+        .eq('settings->>stripe_customer_id', customerId)
+        .single()
 
       if (tenant) {
         await supabase.from('tenants').update({ plan: 'starter' }).eq('id', tenant.id)

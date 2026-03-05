@@ -198,6 +198,15 @@ export function calculateNextPayDate(
     daysUntil += 7
   }
 
+  // For two_weekly and four_weekly, the interval between pay dates is 14 or 28 days.
+  // When generating the next run from a previous pay date, daysUntil will be 7
+  // (same weekday), so add the extra weeks for the correct interval.
+  if (frequency === 'two_weekly' && daysUntil <= 7) {
+    daysUntil += 7
+  } else if (frequency === 'four_weekly' && daysUntil <= 7) {
+    daysUntil += 21
+  }
+
   const nextDate = new Date(after)
   nextDate.setDate(nextDate.getDate() + daysUntil)
   return startOfDay(nextDate)

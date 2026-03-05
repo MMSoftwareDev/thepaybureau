@@ -153,6 +153,7 @@ export async function PUT(
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
+      .eq('tenant_id', user.tenant_id)
       .select()
       .single()
 

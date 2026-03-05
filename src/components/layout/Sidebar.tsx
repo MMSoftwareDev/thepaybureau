@@ -35,6 +35,7 @@ interface NavSection {
 interface SidebarProps {
   user?: { email?: string; user_metadata?: { name?: string } } | null
   avatarUrl?: string | null
+  isAdmin?: boolean
   mobileOpen?: boolean
   onMobileClose?: () => void
 }
@@ -75,7 +76,7 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ]
 
-export default function Sidebar({ user, avatarUrl, mobileOpen = false, onMobileClose }: SidebarProps) {
+export default function Sidebar({ user, avatarUrl, isAdmin = false, mobileOpen = false, onMobileClose }: SidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
@@ -152,7 +153,8 @@ export default function Sidebar({ user, avatarUrl, mobileOpen = false, onMobileC
   }
 
   return (
-    <div
+    <nav
+      aria-label="Main navigation"
       className={`
         h-screen w-[252px] flex flex-col
         fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out
@@ -299,7 +301,7 @@ export default function Sidebar({ user, avatarUrl, mobileOpen = false, onMobileC
       {/* Bottom section */}
       <div className="px-3 pb-3 mt-auto">
         {/* Admin Analytics — only visible to platform admin */}
-        {(process.env.NEXT_PUBLIC_PLATFORM_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).includes(user?.email?.toLowerCase() || '') && (
+        {isAdmin && (
           <button
             onClick={() => navigate('/dashboard/admin/analytics')}
             className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-px transition-all duration-150 relative"
@@ -430,6 +432,6 @@ export default function Sidebar({ user, avatarUrl, mobileOpen = false, onMobileC
           </button>
         </div>
       </div>
-    </div>
+    </nav>
   )
 }

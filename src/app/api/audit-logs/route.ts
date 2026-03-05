@@ -46,7 +46,11 @@ export async function GET(request: NextRequest) {
       query = query.eq('action', action)
     }
     if (search) {
-      query = query.or(`resource_name.ilike.%${search}%,user_email.ilike.%${search}%`)
+      // Sanitize search to prevent PostgREST filter injection
+      const sanitized = search.replace(/[,%().*]/g, '')
+      if (sanitized) {
+        query = query.or(`resource_name.ilike.%${sanitized}%,user_email.ilike.%${sanitized}%`)
+      }
     }
     if (from) {
       query = query.gte('created_at', from)

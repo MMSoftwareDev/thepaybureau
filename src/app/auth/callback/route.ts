@@ -39,7 +39,14 @@ export async function GET(request: NextRequest) {
       if (isLocalEnv) {
         return NextResponse.redirect(`${origin}${next}`)
       } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
+        // Validate forwarded host against known app URL to prevent open redirect
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL
+        const allowedHost = appUrl ? new URL(appUrl).host : null
+        if (allowedHost && forwardedHost === allowedHost) {
+          return NextResponse.redirect(`https://${forwardedHost}${next}`)
+        }
+        // Fall through to origin-based redirect if host not in allowlist
+        return NextResponse.redirect(`${origin}${next}`)
       } else {
         return NextResponse.redirect(`${origin}${next}`)
       }
