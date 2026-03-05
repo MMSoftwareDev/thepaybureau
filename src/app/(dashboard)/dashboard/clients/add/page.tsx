@@ -417,12 +417,12 @@ function AddClientContent() {
   // ─── Shared input styles ────────────────────────────────────────
 
   const inputStyle = {
-    background: colors.glass.surface,
+    background: isDark ? 'rgba(255,255,255,0.05)' : '#fff',
     color: colors.text.primary,
-    border: `1px solid ${colors.borderElevated}`,
+    border: `1px solid ${colors.border}`,
   }
 
-  const inputClassName = 'mt-2 rounded-xl border-0 shadow-lg transition-all duration-300'
+  const inputClassName = 'mt-2 rounded-lg border-0'
 
   // ─── Render helpers ──────────────────────────────────────────────
 
@@ -855,7 +855,7 @@ function AddClientContent() {
           </Label>
           <Select value={selectedTemplateId} onValueChange={handleTemplateSelect}>
             <SelectTrigger
-              className="mt-1.5 rounded-xl border-0 shadow-lg"
+              className="mt-1.5 rounded-lg border-0"
               style={inputStyle}
             >
               <SelectValue placeholder="Choose a template..." />
@@ -880,9 +880,9 @@ function AddClientContent() {
           <span
             className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
             style={{
-              background: colors.glass.surfaceActive,
+              background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
               color: colors.text.muted,
-              border: `1px solid ${colors.borderElevated}`,
+              border: `1px solid ${colors.border}`,
             }}
           >
             {index + 1}
@@ -891,7 +891,7 @@ function AddClientContent() {
             value={item.name}
             onChange={(e) => updateChecklistItem(index, e.target.value)}
             placeholder="Step name..."
-            className="flex-1 rounded-xl border-0 shadow-lg transition-all duration-300"
+            className="flex-1 rounded-lg border-0"
             style={inputStyle}
           />
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -937,11 +937,10 @@ function AddClientContent() {
         type="button"
         variant="outline"
         onClick={addChecklistItem}
-        className="w-full rounded-xl font-semibold transition-all duration-300 hover:scale-[1.01]"
+        className="w-full rounded-lg font-semibold text-[0.85rem]"
         style={{
-          borderColor: colors.borderElevated,
+          borderColor: colors.border,
           color: colors.text.secondary,
-          backgroundColor: colors.glass.surface,
         }}
       >
         <Plus className="w-4 h-4 mr-2" />
@@ -973,10 +972,10 @@ function AddClientContent() {
 
   if (!mounted) {
     return (
-      <div className="space-y-8 animate-pulse max-w-4xl mx-auto">
-        <div className="h-20 rounded-xl bg-gray-200" />
-        <div className="h-16 rounded-xl bg-gray-200" />
-        <div className="h-96 rounded-xl bg-gray-200" />
+      <div className="space-y-6 animate-pulse max-w-4xl mx-auto">
+        <div className="h-16 rounded-lg" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
+        <div className="h-14 rounded-lg" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
+        <div className="h-80 rounded-lg" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
       </div>
     )
   }
@@ -984,20 +983,14 @@ function AddClientContent() {
   // ─── Render ──────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1
-            className="text-3xl md:text-4xl font-bold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
+          <h1 className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>
             {searchParams.get('duplicate') ? 'Duplicate Client' : 'Onboard New Client'}
           </h1>
-          <p
-            className="text-base md:text-lg transition-colors duration-300 mt-2"
-            style={{ color: colors.text.secondary }}
-          >
+          <p className="text-[0.82rem] mt-0.5" style={{ color: colors.text.muted }}>
             {duplicating
               ? 'Loading client data...'
               : <>Step {currentStep + 1} of {STEPS.length} &mdash; {STEPS[currentStep].label}</>
@@ -1008,13 +1001,8 @@ function AddClientContent() {
         <Button
           variant="outline"
           onClick={() => router.push('/dashboard/clients')}
-          className="rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg self-start sm:self-auto"
-          style={{
-            borderColor: colors.borderElevated,
-            color: colors.text.secondary,
-            backgroundColor: colors.glass.surface,
-            backdropFilter: 'blur(10px)',
-          }}
+          className="font-semibold py-2 px-4 rounded-lg text-[0.85rem]"
+          style={{ borderColor: colors.border, color: colors.text.primary }}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Clients
@@ -1022,123 +1010,104 @@ function AddClientContent() {
       </div>
 
       {/* Step Indicator */}
-      <div
-        className="rounded-2xl p-4 md:p-6 shadow-xl"
+      <Card
+        className="border-0"
         style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 10px 25px ${colors.shadow.medium}`
-            : `0 6px 15px ${colors.shadow.light}`,
+          backgroundColor: colors.surface,
+          borderRadius: '12px',
+          border: `1px solid ${colors.border}`,
         }}
       >
-        <div className="flex items-center justify-between">
-          {STEPS.map((step, index) => {
-            const StepIcon = step.icon
-            const isCompleted = index < currentStep
-            const isCurrent = index === currentStep
+        <CardContent className="p-4 md:p-5">
+          <div className="flex items-center justify-between">
+            {STEPS.map((step, index) => {
+              const StepIcon = step.icon
+              const isCompleted = index < currentStep
+              const isCurrent = index === currentStep
 
-            return (
-              <div key={index} className="flex items-center flex-1 last:flex-initial">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={cn(
-                      'w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg',
-                      isCurrent && 'scale-110'
-                    )}
-                    style={{
-                      background: isCompleted || isCurrent
-                        ? `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`
-                        : colors.glass.surfaceActive,
-                      boxShadow:
-                        isCompleted || isCurrent
-                          ? `0 6px 20px ${colors.primary}40`
+              return (
+                <div key={index} className="flex items-center flex-1 last:flex-initial">
+                  <div className="flex flex-col items-center">
+                    <div
+                      className="w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center"
+                      style={{
+                        background: isCompleted || isCurrent
+                          ? `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`
+                          : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                        border: !isCompleted && !isCurrent
+                          ? `1px solid ${colors.border}`
                           : 'none',
-                      border:
-                        !isCompleted && !isCurrent
-                          ? `1px solid ${colors.borderElevated}`
-                          : 'none',
-                    }}
-                  >
-                    {isCompleted ? (
-                      <Check className="w-5 h-5 md:w-6 md:h-6 text-white" />
-                    ) : (
-                      <StepIcon
-                        className="w-5 h-5 md:w-6 md:h-6"
-                        style={{
-                          color: isCurrent ? '#FFFFFF' : colors.text.muted,
-                        }}
-                      />
-                    )}
+                      }}
+                    >
+                      {isCompleted ? (
+                        <Check className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                      ) : (
+                        <StepIcon
+                          className="w-4 h-4 md:w-5 md:h-5"
+                          style={{ color: isCurrent ? '#FFFFFF' : colors.text.muted }}
+                        />
+                      )}
+                    </div>
+                    <span
+                      className="mt-1.5 text-[0.68rem] md:text-xs font-medium text-center hidden sm:block"
+                      style={{
+                        color: isCurrent
+                          ? colors.text.primary
+                          : isCompleted
+                          ? colors.primary
+                          : colors.text.muted,
+                      }}
+                    >
+                      {step.label}
+                    </span>
                   </div>
-                  <span
-                    className="mt-2 text-xs md:text-sm font-medium text-center hidden sm:block"
-                    style={{
-                      color: isCurrent
-                        ? colors.text.primary
-                        : isCompleted
-                        ? colors.primary
-                        : colors.text.muted,
-                    }}
-                  >
-                    {step.label}
-                  </span>
-                </div>
 
-                {/* Connector line */}
-                {index < STEPS.length - 1 && (
-                  <div
-                    className="flex-1 h-0.5 mx-2 md:mx-4 rounded-full mt-[-20px] sm:mt-[-28px]"
-                    style={{
-                      background:
-                        index < currentStep
-                          ? `linear-gradient(90deg, ${colors.primary}, ${colors.secondary})`
-                          : colors.borderElevated,
-                    }}
-                  />
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
+                  {/* Connector line */}
+                  {index < STEPS.length - 1 && (
+                    <div
+                      className="flex-1 h-0.5 mx-2 md:mx-3 rounded-full mt-[-18px] sm:mt-[-24px]"
+                      style={{
+                        background: index < currentStep
+                          ? colors.primary
+                          : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                      }}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Form Card */}
       <Card
-        className="border-0 shadow-xl"
+        className="border-0"
         style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 15px 35px ${colors.shadow.medium}`
-            : `0 10px 25px ${colors.shadow.light}`,
+          backgroundColor: colors.surface,
+          borderRadius: '12px',
+          border: `1px solid ${colors.border}`,
         }}
       >
-        <CardHeader className="pb-6">
+        <CardHeader className="pb-4">
           <CardTitle
-            className="flex items-center text-xl md:text-2xl font-bold transition-colors duration-300"
+            className="flex items-center text-base md:text-lg font-bold"
             style={{ color: colors.text.primary }}
           >
             <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mr-4 shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                boxShadow: `0 8px 25px ${colors.primary}30`,
-              }}
+              className="w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center mr-3"
+              style={{ backgroundColor: `${colors.primary}10` }}
             >
               {(() => {
                 const CurrentIcon = STEPS[currentStep].icon
-                return <CurrentIcon className="w-6 h-6 text-white" />
+                return <CurrentIcon className="w-4 h-4 md:w-5 md:h-5" style={{ color: colors.primary }} />
               })()}
             </div>
             {STEPS[currentStep].label}
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="p-6 md:p-8">
+        <CardContent className="p-4 md:p-6">
           {/* Global error */}
           {error && (
             <div
@@ -1157,19 +1126,18 @@ function AddClientContent() {
 
           {/* Navigation */}
           <div
-            className="flex justify-between items-center gap-4 pt-8 mt-8 border-t"
-            style={{ borderColor: colors.borderElevated }}
+            className="flex justify-between items-center gap-4 pt-6 mt-6 border-t"
+            style={{ borderColor: colors.border }}
           >
             <Button
               type="button"
               variant="outline"
               onClick={goBack}
               disabled={currentStep === 0}
-              className="rounded-xl font-semibold transition-all duration-300 hover:scale-[1.02]"
+              className="rounded-lg font-semibold text-[0.85rem]"
               style={{
-                borderColor: colors.borderElevated,
-                color: currentStep === 0 ? colors.text.muted : colors.text.secondary,
-                backgroundColor: colors.glass.surface,
+                borderColor: colors.border,
+                color: currentStep === 0 ? colors.text.muted : colors.text.primary,
                 opacity: currentStep === 0 ? 0.5 : 1,
               }}
             >
@@ -1181,10 +1149,9 @@ function AddClientContent() {
               <Button
                 type="button"
                 onClick={goNext}
-                className="text-white font-semibold py-3 px-8 rounded-xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+                className="text-white font-semibold py-2 px-5 rounded-lg border-0 text-[0.85rem]"
                 style={{
-                  background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-                  boxShadow: `0 10px 25px ${colors.primary}30`,
+                  background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
                 }}
               >
                 Next
@@ -1195,10 +1162,10 @@ function AddClientContent() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="text-white font-semibold py-3 px-8 rounded-xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+                className="text-white font-semibold py-2 px-5 rounded-lg border-0 text-[0.85rem]"
                 style={{
-                  background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-                  boxShadow: `0 10px 25px ${colors.primary}30`,
+                  background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+                  opacity: submitting ? 0.7 : 1,
                 }}
               >
                 {submitting ? (
