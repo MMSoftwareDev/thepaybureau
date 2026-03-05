@@ -156,11 +156,13 @@ export default function FeatureRequestsPage() {
           status: formStatus,
         }),
       })
+      const data = await res.json()
       if (res.ok) {
-        const data = await res.json()
         setRequests(prev => prev.map(r => r.id === editingRequest.id ? { ...r, ...data.request, vote_count: r.vote_count, user_has_voted: r.user_has_voted } : r))
         closeForm()
         toast('Updated')
+      } else {
+        toast(data.error || 'Failed to update', 'error')
       }
     } catch {
       toast('Failed to update', 'error')
