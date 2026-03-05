@@ -170,6 +170,8 @@ export async function POST(request: NextRequest) {
 
     if (templatesError) {
       console.error('Checklist templates creation error:', templatesError)
+      // Cleanup: remove the client we just created
+      await supabase.from('clients').delete().eq('id', client.id)
       return NextResponse.json({ error: templatesError.message }, { status: 400 })
     }
 
@@ -204,6 +206,9 @@ export async function POST(request: NextRequest) {
 
     if (runError) {
       console.error('Payroll run creation error:', runError)
+      // Cleanup: remove templates and client
+      await supabase.from('checklist_templates').delete().eq('client_id', client.id)
+      await supabase.from('clients').delete().eq('id', client.id)
       return NextResponse.json({ error: runError.message }, { status: 400 })
     }
 

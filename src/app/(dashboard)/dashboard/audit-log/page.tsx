@@ -267,6 +267,7 @@ export default function AuditLogPage() {
         {showFilters && (
           <div className="flex flex-wrap gap-3 mt-3 pt-3" style={{ borderTop: `1px solid ${colors.border}` }}>
             <select
+              aria-label="Filter by action"
               value={actionFilter}
               onChange={(e) => { setActionFilter(e.target.value); setPage(1) }}
               className="rounded-lg px-3 py-2 text-sm border"
@@ -283,6 +284,7 @@ export default function AuditLogPage() {
             </select>
 
             <select
+              aria-label="Filter by resource type"
               value={resourceFilter}
               onChange={(e) => { setResourceFilter(e.target.value); setPage(1) }}
               className="rounded-lg px-3 py-2 text-sm border"

@@ -90,6 +90,7 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
       {/* Hamburger - mobile only */}
       {onMenuToggle && (
         <button
+          aria-label="Toggle navigation menu"
           onClick={onMenuToggle}
           className="md:hidden flex items-center justify-center h-8 w-8 rounded-md transition-colors duration-150"
           style={{ color: colors.text.secondary }}

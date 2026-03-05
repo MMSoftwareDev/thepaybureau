@@ -153,7 +153,8 @@ export default function Sidebar({ user, avatarUrl, isAdmin = false, mobileOpen =
   }
 
   return (
-    <div
+    <nav
+      aria-label="Main navigation"
       className={`
         h-screen w-[252px] flex flex-col
         fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out
@@ -431,6 +432,6 @@ export default function Sidebar({ user, avatarUrl, isAdmin = false, mobileOpen =
           </button>
         </div>
       </div>
-    </div>
+    </nav>
   )
 }
