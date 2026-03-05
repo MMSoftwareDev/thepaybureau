@@ -596,10 +596,10 @@ function ClientsContent() {
               <TableHeader>
                 <TableRow style={{ borderColor: colors.border }}>
                   <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Client</TableHead>
+                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Industry</TableHead>
                   <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Pay Frequency</TableHead>
                   <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Employees</TableHead>
                   <TableHead className="font-bold" style={{ color: colors.text.secondary }}>PAYE Ref</TableHead>
-                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Payroll Status</TableHead>
                   <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Next Pay Date</TableHead>
                   <TableHead className="text-right font-bold" style={{ color: colors.text.secondary }}>Actions</TableHead>
                 </TableRow>
@@ -651,6 +651,12 @@ function ClientsContent() {
 
                       <TableCell>
                         <span className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.primary }}>
+                          {client.industry || '-'}
+                        </span>
+                      </TableCell>
+
+                      <TableCell>
+                        <span className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.primary }}>
                           {formatFrequency(client.pay_frequency)}
                         </span>
                       </TableCell>
@@ -665,25 +671,6 @@ function ClientsContent() {
                         <span className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.primary }}>
                           {client.paye_reference || '-'}
                         </span>
-                      </TableCell>
-
-                      <TableCell>
-                        {client.latestRun ? (
-                          <Badge
-                            className={cn(
-                              'text-xs font-bold px-3 py-1 border-0',
-                              getPayrollStatusBadgeClasses(client.latestRun.status)
-                            )}
-                          >
-                            {getPayrollStatusLabel(client.latestRun.status)}
-                          </Badge>
-                        ) : (
-                          <Badge
-                            className="text-xs font-bold px-3 py-1 border-0 bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                          >
-                            No payroll
-                          </Badge>
-                        )}
                       </TableCell>
 
                       <TableCell>

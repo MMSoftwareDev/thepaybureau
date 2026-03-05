@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
+import { calculateNextPayDate, calculatePeriodDates } from '@/lib/hmrc-deadlines'
+import type { PayFrequency } from '@/lib/hmrc-deadlines'
 import { cn } from '@/lib/utils'
 import {
   ArrowLeft,
@@ -92,6 +94,7 @@ const WEEKDAYS = [
 
 const MONTHLY_PAY_DAYS = [
   { value: 'last_day_of_month', label: 'Last Day of the Month' },
+  { value: 'last_working_day', label: 'Last Working Day of the Month' },
   { value: 'last_monday', label: 'Last Monday of the Month' },
   { value: 'last_tuesday', label: 'Last Tuesday of the Month' },
   { value: 'last_wednesday', label: 'Last Wednesday of the Month' },
@@ -250,6 +253,36 @@ function AddClientContent() {
 
     fetchSource()
   }, [searchParams])
+
+  // ─── Auto-fill pay period dates when frequency + pay day change ──
+
+  useEffect(() => {
+    if (!formData.pay_frequency || !formData.pay_day) return
+    // Only auto-fill if both period fields are currently empty
+    if (formData.period_start && formData.period_end) return
+
+    try {
+      const freq = formData.pay_frequency as PayFrequency
+      const today = new Date()
+      const nextPayDate = calculateNextPayDate(freq, formData.pay_day, today)
+      const { periodStart, periodEnd } = calculatePeriodDates(freq, nextPayDate)
+
+      const formatDateStr = (d: Date) => {
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return `${y}-${m}-${day}`
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        period_start: prev.period_start || formatDateStr(periodStart),
+        period_end: prev.period_end || formatDateStr(periodEnd),
+      }))
+    } catch {
+      // Ignore calculation errors for unsupported combos
+    }
+  }, [formData.pay_frequency, formData.pay_day])
 
   // ─── Helpers ─────────────────────────────────────────────────────
 
