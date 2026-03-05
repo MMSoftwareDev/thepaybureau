@@ -129,13 +129,14 @@ export default function DashboardPage() {
 
   if (!mounted) {
     return (
-      <div className="space-y-6 animate-pulse">
+      <div className="space-y-5 animate-pulse">
         <div className="h-14 rounded-xl" style={{ background: colors.border }} />
-        <div className="grid grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+          {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="h-28 rounded-xl" style={{ background: colors.border }} />
           ))}
         </div>
+        <div className="h-64 rounded-xl" style={{ background: colors.border }} />
       </div>
     )
   }

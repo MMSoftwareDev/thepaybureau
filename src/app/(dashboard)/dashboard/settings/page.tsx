@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -322,8 +323,9 @@ export default function SettingsPage() {
     return (
       <div className="space-y-6 max-w-3xl mx-auto animate-pulse">
         <div className="h-14 rounded-2xl" style={{ background: colors.border }} />
-        <div className="h-52 rounded-2xl" style={{ background: colors.border }} />
-        <div className="h-52 rounded-2xl" style={{ background: colors.border }} />
+        <div className="h-72 rounded-2xl" style={{ background: colors.border }} />
+        <div className="h-72 rounded-2xl" style={{ background: colors.border }} />
+        <div className="h-96 rounded-2xl" style={{ background: colors.border }} />
       </div>
     )
   }
@@ -362,10 +364,12 @@ export default function SettingsPage() {
           <div className="flex items-center gap-4 mb-5">
             <div className="relative group">
               {avatarUrl ? (
-                <img
+                <Image
                   src={avatarUrl}
                   alt="Profile"
-                  className="w-16 h-16 rounded-xl object-cover"
+                  width={64}
+                  height={64}
+                  className="rounded-xl object-cover"
                 />
               ) : (
                 <div

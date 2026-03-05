@@ -1,5 +1,6 @@
 // src/app/page.tsx — Marketing landing page
 import Link from 'next/link'
+import Image from 'next/image'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -138,7 +139,7 @@ export default function LandingPage() {
       >
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <img src="/logo-full.png" alt="ThePayBureau" style={{ height: 36 }} />
+            <Image src="/logo-full.png" alt="ThePayBureau" width={66} height={36} className="h-9 w-auto" />
           </div>
           <div className="landing-nav-actions">
             <Link

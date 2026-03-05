@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Mail, ArrowLeft } from 'lucide-react'
 
 const GRAIN_TEXTURE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E")`
@@ -52,7 +53,7 @@ function VerifyEmailContent() {
         <div className="relative z-10">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="ThePayBureau" className="h-[42px] w-[42px] rounded-xl" />
+            <Image src="/logo.png" alt="ThePayBureau" width={42} height={42} className="rounded-xl" />
             <span className="font-[family-name:var(--font-body)] text-[1.25rem] font-extrabold tracking-tight text-white">
               ThePayBureau
             </span>
