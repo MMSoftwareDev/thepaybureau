@@ -10,7 +10,7 @@ import TrafficLight from '@/components/ui/traffic-light'
 
 interface DashboardWrapperProps {
   children: React.ReactNode
-  user: { email?: string; user_metadata?: { name?: string } }
+  user: { email?: string; user_metadata?: { name?: string } } | null
   avatarUrl?: string | null
 }
 

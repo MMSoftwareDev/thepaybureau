@@ -1,0 +1,30 @@
+// src/lib/swr.ts
+import useSWR, { type SWRConfiguration } from 'swr'
+
+const fetcher = (url: string) => fetch(url).then(res => {
+  if (!res.ok) throw new Error('Failed to fetch')
+  return res.json()
+})
+
+const defaultConfig: SWRConfiguration = {
+  revalidateOnFocus: false,
+  dedupingInterval: 5000,
+}
+
+export function useClients() {
+  return useSWR('/api/clients', fetcher, defaultConfig)
+}
+
+export function useClient(id: string | null) {
+  return useSWR(id ? `/api/clients/${id}` : null, fetcher, defaultConfig)
+}
+
+export function useDashboardStats() {
+  return useSWR('/api/dashboard/stats', fetcher, defaultConfig)
+}
+
+export function useTrainingRecords() {
+  return useSWR('/api/training', fetcher, defaultConfig)
+}
+
+export { fetcher, defaultConfig }

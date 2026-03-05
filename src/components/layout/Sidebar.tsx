@@ -33,7 +33,7 @@ interface NavSection {
 }
 
 interface SidebarProps {
-  user?: { email?: string; user_metadata?: { name?: string } }
+  user?: { email?: string; user_metadata?: { name?: string } } | null
   avatarUrl?: string | null
   mobileOpen?: boolean
   onMobileClose?: () => void

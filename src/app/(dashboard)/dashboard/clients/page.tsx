@@ -1,7 +1,9 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, useMemo } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase'
+import { useClients } from '@/lib/swr'
+import { useDebounce } from '@/hooks/useDebounce'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -125,11 +127,9 @@ export default function ClientsPage() {
 
 function ClientsContent() {
   const searchParams = useSearchParams()
-  const [clients, setClients] = useState<Client[]>([])
-  const [filteredClients, setFilteredClients] = useState<Client[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: clients = [], error: fetchError, isLoading: loading, mutate } = useClients()
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '')
+  const debouncedSearch = useDebounce(searchTerm, 200)
   const [statusFilter, setStatusFilter] = useState('all')
   const [industryFilter, setIndustryFilter] = useState('all')
   const [employeeSizeFilter, setEmployeeSizeFilter] = useState('all')
@@ -140,10 +140,10 @@ function ClientsContent() {
   const { toast } = useToast()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
+  const error = fetchError?.message || null
 
   useEffect(() => {
     setMounted(true)
-    fetchClients()
   }, [])
 
   // Sync search term from URL params (e.g. when sidebar search navigates here)
@@ -154,80 +154,56 @@ function ClientsContent() {
     }
   }, [searchParams])
 
-  // Fetch clients from API
-  const fetchClients = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      const response = await fetch('/api/clients')
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/login')
-          return
-        }
-        throw new Error(`Failed to fetch clients: ${response.status}`)
-      }
-      
-      const data = await response.json()
-      setClients(data || [])
-    } catch (err) {
-      console.error('Error fetching clients:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load clients')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Delete client
+  // Delete client with optimistic update
   const deleteClient = async (clientId: string) => {
     if (!confirm('Are you sure you want to delete this client?')) return
-    
+
+    // Optimistic: remove from UI immediately
+    const previousClients = clients
+    mutate(clients.filter((c: Client) => c.id !== clientId), false)
+
     try {
       const response = await fetch(`/api/clients/${clientId}`, {
         method: 'DELETE',
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to delete client')
       }
-      
-      setClients(prev => prev.filter(client => client.id !== clientId))
+
       toast('Client deleted successfully')
     } catch (err) {
+      // Rollback on error
+      mutate(previousClients, false)
       console.error('Error deleting client:', err)
       toast(err instanceof Error ? err.message : 'Failed to delete client', 'error')
     }
   }
 
-  // Filter clients based on search and filters
-  useEffect(() => {
-    let filtered = clients
+  // Memoized filtering and sorting
+  const filteredClients = useMemo(() => {
+    let filtered = clients as Client[]
 
-    // Search filter
-    if (searchTerm) {
+    if (debouncedSearch) {
+      const term = debouncedSearch.toLowerCase()
       filtered = filtered.filter(client =>
-        client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.company_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.industry?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.paye_reference?.toLowerCase().includes(searchTerm.toLowerCase())
+        client.name.toLowerCase().includes(term) ||
+        client.email?.toLowerCase().includes(term) ||
+        client.company_number?.toLowerCase().includes(term) ||
+        client.industry?.toLowerCase().includes(term) ||
+        client.paye_reference?.toLowerCase().includes(term)
       )
     }
 
-    // Status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(client => client.status === statusFilter)
     }
 
-    // Industry filter
     if (industryFilter !== 'all') {
       filtered = filtered.filter(client => client.industry === industryFilter)
     }
 
-    // Employee size filter
     if (employeeSizeFilter !== 'all') {
       filtered = filtered.filter(client => {
         const count = client.employee_count || 0
@@ -241,11 +217,10 @@ function ClientsContent() {
       })
     }
 
-    // Sort clients
-    filtered.sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       let aValue = ''
       let bValue = ''
-      
+
       switch (sortBy) {
         case 'name':
           aValue = a.name.toLowerCase()
@@ -256,7 +231,7 @@ function ClientsContent() {
           bValue = b.created_at
           break
         case 'employees':
-          return sortOrder === 'asc' 
+          return sortOrder === 'asc'
             ? (a.employee_count || 0) - (b.employee_count || 0)
             : (b.employee_count || 0) - (a.employee_count || 0)
         case 'status':
@@ -267,19 +242,17 @@ function ClientsContent() {
           aValue = a.name.toLowerCase()
           bValue = b.name.toLowerCase()
       }
-      
+
       if (sortOrder === 'asc') {
         return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
       } else {
         return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
       }
     })
-
-    setFilteredClients(filtered)
-  }, [searchTerm, statusFilter, industryFilter, employeeSizeFilter, sortBy, sortOrder, clients])
+  }, [debouncedSearch, statusFilter, industryFilter, employeeSizeFilter, sortBy, sortOrder, clients])
 
   // Get unique industries for filter
-  const uniqueIndustries = [...new Set(clients.map(c => c.industry).filter(Boolean))].sort()
+  const uniqueIndustries = [...new Set((clients as Client[]).map(c => c.industry).filter(Boolean))].sort()
 
   // Get status badge styling
   const getStatusBadge = (status: string) => {
@@ -296,11 +269,12 @@ function ClientsContent() {
   }
 
   // Get summary statistics
+  const typedClients = clients as Client[]
   const stats = {
-    total: clients.length,
-    active: clients.filter(c => c.status === 'active').length,
-    onboarding: clients.filter(c => c.status === 'prospect').length,
-    disengaged: clients.filter(c => c.status === 'inactive').length,
+    total: typedClients.length,
+    active: typedClients.filter((c: Client) => c.status === 'active').length,
+    onboarding: typedClients.filter((c: Client) => c.status === 'prospect').length,
+    disengaged: typedClients.filter((c: Client) => c.status === 'inactive').length,
   }
 
   // Prevent hydration mismatch
@@ -356,7 +330,7 @@ function ClientsContent() {
               {error}
             </p>
             <Button
-              onClick={fetchClients}
+              onClick={() => mutate()}
               className="text-white font-semibold px-5 py-2 rounded-lg border-0 text-[0.85rem]"
               style={{
                 background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
