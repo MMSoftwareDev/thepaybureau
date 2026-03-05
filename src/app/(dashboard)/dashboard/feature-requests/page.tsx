@@ -19,7 +19,7 @@ import {
 
 // ─── Types ───────────────────────────────────────────────────────────
 
-type FeatureStatus = 'submitted' | 'planned' | 'considering' | 'will_not_implement' | 'future'
+type FeatureStatus = 'submitted' | 'planned' | 'considering' | 'working_on' | 'will_not_implement' | 'future'
 
 interface FeatureRequest {
   id: string
@@ -43,6 +43,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; color: string; bg: s
   submitted: { label: 'Submitted', color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
   planned: { label: 'Planned', color: '#2563eb', bg: 'rgba(37,99,235,0.1)' },
   considering: { label: 'Considering', color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
+  working_on: { label: 'Working On', color: '#059669', bg: 'rgba(5,150,105,0.1)' },
   future: { label: 'Future', color: '#7c3aed', bg: 'rgba(124,58,237,0.1)' },
   will_not_implement: { label: 'Won\'t Do', color: '#dc2626', bg: 'rgba(220,38,38,0.1)' },
 }
@@ -58,6 +59,7 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'submitted', label: 'Submitted' },
   { value: 'planned', label: 'Planned' },
   { value: 'considering', label: 'Considering' },
+  { value: 'working_on', label: 'Working On' },
   { value: 'future', label: 'Future' },
   { value: 'will_not_implement', label: 'Won\'t Do' },
 ]

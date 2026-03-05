@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS feature_requests (
   title VARCHAR(200) NOT NULL,
   description TEXT,
   status VARCHAR(30) NOT NULL DEFAULT 'submitted'
-    CHECK (status IN ('submitted', 'planned', 'considering', 'will_not_implement', 'future')),
+    CHECK (status IN ('submitted', 'planned', 'considering', 'working_on', 'will_not_implement', 'future')),
   created_by_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_by_email VARCHAR(255),
   created_by_name VARCHAR(255),
