@@ -2,6 +2,7 @@
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { writeAuditLog, diffChanges } from '@/lib/audit'
 
 export async function GET() {
   try {
@@ -70,15 +71,15 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { client_id, ...updates } = updateSchema.parse(body)
 
-    // Verify client belongs to tenant
-    const { data: client, error: clientError } = await supabase
+    // Fetch existing client for audit diff
+    const { data: existingClient, error: clientError } = await supabase
       .from('clients')
-      .select('id')
+      .select('id, name, pension_provider, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
       .eq('id', client_id)
       .eq('tenant_id', user.tenant_id)
       .single()
 
-    if (clientError || !client) {
+    if (clientError || !existingClient) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
@@ -91,6 +92,25 @@ export async function PUT(request: NextRequest) {
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 400 })
+    }
+
+    // Audit log: pension fields updated
+    const changes = diffChanges(
+      existingClient as unknown as Record<string, unknown>,
+      updated as unknown as Record<string, unknown>
+    )
+    if (changes) {
+      writeAuditLog({
+        tenantId: user.tenant_id,
+        userId: authUser.id,
+        userEmail: authUser.email!,
+        action: 'UPDATE',
+        resourceType: 'client',
+        resourceId: client_id,
+        resourceName: updated.name,
+        changes,
+        request,
+      })
     }
 
     return NextResponse.json(updated)

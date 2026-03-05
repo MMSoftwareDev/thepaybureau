@@ -224,6 +224,50 @@ export interface Database {
           updated_at?: string | null
         }
       }
+      audit_logs: {
+        Row: {
+          id: string
+          tenant_id: string
+          user_id: string
+          user_email: string
+          action: 'CREATE' | 'UPDATE' | 'DELETE'
+          resource_type: string
+          resource_id: string | null
+          resource_name: string | null
+          changes: Json | null
+          ip_address: string | null
+          user_agent: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          user_id: string
+          user_email: string
+          action: 'CREATE' | 'UPDATE' | 'DELETE'
+          resource_type: string
+          resource_id?: string | null
+          resource_name?: string | null
+          changes?: Json | null
+          ip_address?: string | null
+          user_agent?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          user_id?: string
+          user_email?: string
+          action?: 'CREATE' | 'UPDATE' | 'DELETE'
+          resource_type?: string
+          resource_id?: string | null
+          resource_name?: string | null
+          changes?: Json | null
+          ip_address?: string | null
+          user_agent?: string | null
+          created_at?: string
+        }
+      }
       checklist_items: {
         Row: {
           id: string

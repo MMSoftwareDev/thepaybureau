@@ -11,6 +11,7 @@ import {
 } from '@/lib/hmrc-deadlines'
 import { z } from 'zod'
 import type { User } from '@supabase/supabase-js'
+import { writeAuditLog } from '@/lib/audit'
 
 async function getOrCreateUser(supabase: ReturnType<typeof createServerSupabaseClient>, authUser: User) {
   let { data: user } = await supabase
@@ -224,6 +225,18 @@ export async function POST(request: NextRequest) {
         console.error('Checklist items creation error:', itemsError)
       }
     }
+
+    // Audit log: client created
+    writeAuditLog({
+      tenantId: user.tenant_id,
+      userId: authUser.id,
+      userEmail: authUser.email!,
+      action: 'CREATE',
+      resourceType: 'client',
+      resourceId: client.id,
+      resourceName: client.name,
+      request,
+    })
 
     return NextResponse.json({
       ...client,

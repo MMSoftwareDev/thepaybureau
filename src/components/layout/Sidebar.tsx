@@ -19,6 +19,7 @@ import {
   Moon,
   Command,
   BarChart3,
+  ScrollText,
 } from 'lucide-react'
 
 interface NavSection {
@@ -57,6 +58,12 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { name: 'Payroll Runs', href: '/dashboard/payrolls', icon: ClipboardCheck },
       { name: 'Pension Declarations', href: '/dashboard/pensions', icon: Shield },
+    ],
+  },
+  {
+    label: 'ADMIN',
+    items: [
+      { name: 'Audit Log', href: '/dashboard/audit-log', icon: ScrollText },
     ],
   },
 ]

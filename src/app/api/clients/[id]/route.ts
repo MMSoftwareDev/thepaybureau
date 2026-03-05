@@ -3,6 +3,7 @@
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { writeAuditLog, diffChanges } from '@/lib/audit'
 
 // Validation schema for client updates (all fields optional)
 const checklistTemplateSchema = z.object({
@@ -132,10 +133,10 @@ export async function PUT(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Check if client exists and belongs to user's tenant
+    // Fetch existing client for audit diff
     const { data: existingClient } = await supabase
       .from('clients')
-      .select('id')
+      .select('*')
       .eq('id', id)
       .eq('tenant_id', user.tenant_id)
       .single()
@@ -158,6 +159,25 @@ export async function PUT(
     if (error) {
       console.error('Database error updating client:', error)
       return NextResponse.json({ error: 'Failed to update client' }, { status: 400 })
+    }
+
+    // Audit log: client updated
+    const changes = diffChanges(
+      existingClient as unknown as Record<string, unknown>,
+      client as unknown as Record<string, unknown>
+    )
+    if (changes) {
+      writeAuditLog({
+        tenantId: user.tenant_id,
+        userId: authUser.id,
+        userEmail: authUser.email!,
+        action: 'UPDATE',
+        resourceType: 'client',
+        resourceId: id,
+        resourceName: client.name,
+        changes,
+        request,
+      })
     }
 
     // Update checklist templates if provided
@@ -235,6 +255,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    // Fetch client name before deletion for audit log
+    const { data: clientToDelete } = await supabase
+      .from('clients')
+      .select('name')
+      .eq('id', id)
+      .eq('tenant_id', user.tenant_id)
+      .single()
+
+    if (!clientToDelete) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 })
+    }
+
     // Delete client (related records will cascade) - scoped to tenant
     const { error } = await supabase
       .from('clients')
@@ -246,6 +278,18 @@ export async function DELETE(
       console.error('Database error deleting client:', error)
       return NextResponse.json({ error: 'Failed to delete client' }, { status: 400 })
     }
+
+    // Audit log: client deleted
+    writeAuditLog({
+      tenantId: user.tenant_id,
+      userId: authUser.id,
+      userEmail: authUser.email!,
+      action: 'DELETE',
+      resourceType: 'client',
+      resourceId: id,
+      resourceName: clientToDelete.name,
+      request,
+    })
 
     return NextResponse.json({
       message: 'Client deleted successfully',
