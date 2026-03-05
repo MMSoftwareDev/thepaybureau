@@ -298,14 +298,12 @@ export default function PayrollsPage() {
   const toggleChecklistItem = async (item: ChecklistItem) => {
     setTogglingItem(item.id)
     try {
-      const { error: updateError } = await supabase
-        .from('checklist_items')
-        .update({
-          is_completed: !item.is_completed,
-          completed_at: !item.is_completed ? new Date().toISOString() : null,
-        })
-        .eq('id', item.id)
-      if (updateError) throw updateError
+      const res = await fetch('/api/payroll-runs/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle_item', item_id: item.id, is_completed: !item.is_completed }),
+      })
+      if (!res.ok) throw new Error('Failed to toggle item')
 
       // Optimistic update
       const updatedChecklist = (runItems: ChecklistItem[]) =>
@@ -375,11 +373,12 @@ export default function PayrollsPage() {
     const incompleteIds = run.checklist_items.filter((i) => !i.is_completed).map((i) => i.id)
     if (incompleteIds.length === 0) return
     try {
-      const { error: updateError } = await supabase
-        .from('checklist_items')
-        .update({ is_completed: true, completed_at: new Date().toISOString() })
-        .in('id', incompleteIds)
-      if (updateError) throw updateError
+      const res = await fetch('/api/payroll-runs/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_all_complete', payroll_run_id: run.id }),
+      })
+      if (!res.ok) throw new Error('Failed to mark all complete')
 
       // Close side panel if open for this run
       if (selectedRun?.id === run.id) {
@@ -422,8 +421,12 @@ export default function PayrollsPage() {
   const saveNotes = async (runId: string, newNotes: string) => {
     setSavingNotes(runId)
     try {
-      const { error: updateError } = await supabase.from('payroll_runs').update({ notes: newNotes }).eq('id', runId)
-      if (updateError) throw updateError
+      const res = await fetch('/api/payroll-runs/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_notes', payroll_run_id: runId, notes: newNotes }),
+      })
+      if (!res.ok) throw new Error('Failed to save notes')
     } catch (err) {
       console.error('Error saving notes:', err)
     } finally {
@@ -437,13 +440,12 @@ export default function PayrollsPage() {
     try {
       const run = runs.find((r) => r.id === runId)
       const maxOrder = run ? Math.max(0, ...run.checklist_items.map((i) => i.sort_order)) : 0
-      const { error: insertError } = await supabase.from('checklist_items').insert({
-        payroll_run_id: runId,
-        name: newStepName.trim(),
-        is_completed: false,
-        sort_order: maxOrder + 1,
+      const res = await fetch('/api/payroll-runs/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_step', payroll_run_id: runId, name: newStepName.trim(), sort_order: maxOrder + 1 }),
       })
-      if (insertError) throw insertError
+      if (!res.ok) throw new Error('Failed to add step')
       setNewStepName('')
       await fetchRuns()
       // Refresh selectedRun
