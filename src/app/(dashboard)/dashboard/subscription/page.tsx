@@ -159,11 +159,9 @@ function SubscriptionPage() {
   }
 
   const cardStyle = {
-    backgroundColor: colors.glass.card,
-    backdropFilter: 'blur(20px)',
-    borderRadius: '16px',
+    backgroundColor: colors.surface,
+    borderRadius: '12px',
     border: `1px solid ${colors.border}`,
-    boxShadow: `0 4px 20px ${colors.shadow.light}`,
   }
 
   if (!mounted) {
@@ -172,7 +170,7 @@ function SubscriptionPage() {
         <div className="h-10 w-64 rounded-xl" style={{ background: colors.border }} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-96 rounded-2xl" style={{ background: colors.border }} />
+            <div key={i} className="h-96 rounded-lg" style={{ background: colors.border }} />
           ))}
         </div>
       </div>
@@ -186,12 +184,12 @@ function SubscriptionPage() {
       {/* Header */}
       <div>
         <h1
-          className="text-3xl md:text-4xl font-bold"
+          className="text-xl md:text-2xl font-bold"
           style={{ color: colors.text.primary }}
         >
           Subscription
         </h1>
-        <p className="text-base md:text-lg mt-2" style={{ color: colors.text.secondary }}>
+        <p className="text-[0.82rem] mt-0.5" style={{ color: colors.text.muted }}>
           {subscription?.subscription
             ? 'Manage your subscription and billing'
             : 'Choose the plan that fits your bureau'}
@@ -229,7 +227,7 @@ function SubscriptionPage() {
               onClick={handlePortal}
               disabled={portalLoading}
               variant="outline"
-              className="rounded-xl font-semibold"
+              className="rounded-lg font-semibold"
               style={{
                 borderColor: colors.border,
                 color: colors.text.primary,
@@ -267,7 +265,7 @@ function SubscriptionPage() {
                     : `1px solid ${colors.border}`,
                 boxShadow: isCurrent
                   ? `0 8px 30px ${colors.primary}20`
-                  : cardStyle.boxShadow,
+                  : 'none',
               }}
             >
               {/* Popular badge */}
@@ -307,7 +305,7 @@ function SubscriptionPage() {
                   </p>
                   <div className="flex items-baseline gap-1">
                     <span
-                      className="text-4xl font-bold"
+                      className="text-3xl font-bold"
                       style={{ color: colors.text.primary }}
                     >
                       {tier.price === 0 ? 'Free' : `£${tier.price}`}
@@ -339,7 +337,7 @@ function SubscriptionPage() {
                 {isCurrent ? (
                   <Button
                     disabled
-                    className="w-full rounded-xl font-semibold py-5"
+                    className="w-full rounded-lg font-semibold py-5"
                     style={{
                       backgroundColor: `${colors.primary}15`,
                       color: colors.primary,
@@ -352,7 +350,7 @@ function SubscriptionPage() {
                   <Button
                     onClick={() => handleCheckout(tier.key)}
                     disabled={loading || checkoutLoading === tier.key}
-                    className="w-full rounded-xl font-semibold py-5 text-white border-0"
+                    className="w-full rounded-lg font-semibold py-5 text-white border-0"
                     style={{
                       background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
                       boxShadow: `0 4px 15px ${colors.primary}30`,
@@ -370,7 +368,7 @@ function SubscriptionPage() {
                     onClick={handlePortal}
                     disabled={portalLoading}
                     variant="outline"
-                    className="w-full rounded-xl font-semibold py-5"
+                    className="w-full rounded-lg font-semibold py-5"
                     style={{
                       borderColor: colors.border,
                       color: colors.text.secondary,

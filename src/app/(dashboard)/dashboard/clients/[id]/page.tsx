@@ -189,18 +189,16 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   }
 
   const cardStyle = {
-    backgroundColor: colors.glass.card,
-    backdropFilter: 'blur(20px)',
-    borderRadius: '16px',
+    backgroundColor: colors.surface,
+    borderRadius: '12px',
     border: `1px solid ${colors.border}`,
-    boxShadow: `0 4px 20px ${colors.shadow.light}`,
   }
 
   if (!mounted) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-12 w-64 rounded-xl" style={{ background: colors.border }} />
-        <div className="h-32 rounded-2xl" style={{ background: colors.border }} />
+        <div className="h-32 rounded-lg" style={{ background: colors.border }} />
       </div>
     )
   }
@@ -214,7 +212,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-48 rounded-2xl animate-pulse" style={{ background: colors.border }} />
+            <div key={i} className="h-48 rounded-lg animate-pulse" style={{ background: colors.border }} />
           ))}
         </div>
       </div>
@@ -240,7 +238,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         <Button
           variant="ghost"
           onClick={() => router.push('/dashboard/clients')}
-          className="self-start rounded-xl px-3"
+          className="self-start rounded-lg px-3"
           style={{ color: colors.text.secondary }}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -248,7 +246,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         </Button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl md:text-3xl font-bold truncate" style={{ color: colors.text.primary }}>
+            <h1 className="text-xl md:text-2xl font-bold truncate" style={{ color: colors.text.primary }}>
               {client.name}
             </h1>
             <Badge
@@ -271,7 +269,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           <Button
             variant="outline"
             onClick={() => router.push(`/dashboard/clients/${id}/edit`)}
-            className="rounded-xl font-semibold"
+            className="rounded-lg font-semibold"
             style={{
               borderColor: colors.border,
               color: colors.text.primary,
@@ -285,7 +283,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             variant="outline"
             onClick={handleDelete}
             disabled={deleting}
-            className="rounded-xl font-semibold"
+            className="rounded-lg font-semibold"
             style={{
               borderColor: colors.error,
               color: colors.error,
@@ -413,10 +411,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             </CardTitle>
             <Button
               onClick={handleGenerateNextRun}
-              className="text-white font-semibold py-2 px-4 rounded-xl border-0 text-[0.82rem]"
+              className="text-white font-semibold py-2 px-4 rounded-lg border-0 text-[0.82rem]"
               style={{
                 background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                boxShadow: `0 4px 15px ${colors.shadow.medium}`,
               }}
             >
               <Plus className="w-4 h-4 mr-1.5" />
@@ -558,7 +555,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               <Button
                 variant="ghost"
                 onClick={() => router.push(`/dashboard/clients/${id}/edit`)}
-                className="mt-2 text-[0.82rem] rounded-xl"
+                className="mt-2 text-[0.82rem] rounded-lg"
                 style={{ color: colors.primary }}
               >
                 Add steps in edit mode
