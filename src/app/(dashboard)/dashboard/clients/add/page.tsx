@@ -258,8 +258,6 @@ function AddClientContent() {
 
   useEffect(() => {
     if (!formData.pay_frequency || !formData.pay_day) return
-    // Only auto-fill if both period fields are currently empty
-    if (formData.period_start && formData.period_end) return
 
     try {
       const freq = formData.pay_frequency as PayFrequency
@@ -276,8 +274,8 @@ function AddClientContent() {
 
       setFormData((prev) => ({
         ...prev,
-        period_start: prev.period_start || formatDateStr(periodStart),
-        period_end: prev.period_end || formatDateStr(periodEnd),
+        period_start: formatDateStr(periodStart),
+        period_end: formatDateStr(periodEnd),
       }))
     } catch {
       // Ignore calculation errors for unsupported combos
@@ -601,6 +599,8 @@ function AddClientContent() {
             onValueChange={(value) => {
               updateField('pay_frequency', value)
               updateField('pay_day', '')
+              updateField('period_start', '')
+              updateField('period_end', '')
             }}
           >
             <SelectTrigger className={inputClassName} style={inputStyle}>
