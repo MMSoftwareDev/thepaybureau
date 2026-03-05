@@ -11,12 +11,20 @@ export default function NotFound() {
         <p className="text-gray-600 dark:text-gray-400 mb-8">
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center justify-center rounded-lg bg-[#401D6C] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#5B2D99]"
-        >
-          Back to Dashboard
-        </Link>
+        <div className="flex gap-4">
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-lg bg-[#401D6C] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#5B2D99]"
+          >
+            Go to Home
+          </Link>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center justify-center rounded-lg border border-[#401D6C] px-6 py-3 text-sm font-semibold text-[#401D6C] transition-colors hover:bg-[#F8F5FF]"
+          >
+            Dashboard
+          </Link>
+        </div>
       </div>
     </div>
   )

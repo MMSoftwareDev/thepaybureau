@@ -46,17 +46,18 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // Check if user already exists
+    // Check if user already exists — use a generic message to prevent email enumeration
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
       .eq('email', validatedData.email)
       .single()
-    
+
     if (existingUser) {
-      return NextResponse.json({ 
-        error: 'An account with this email already exists' 
-      }, { status: 400 })
+      return NextResponse.json({
+        success: true,
+        message: 'If this email is not already registered, you will receive a verification email shortly.'
+      })
     }
     
     // Build the callback URL — validate origin against allowed domains
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user profile record
-    const { data: userProfile, error: userError } = await supabase
+    const { error: userError } = await supabase
       .from('users')
       .insert({
         id: authData.user.id,
@@ -156,12 +157,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Account created successfully! Please check your email to verify your account.',
-      data: {
-        userId: authData.user.id,
-        tenantId: tenant.id,
-        companyName: tenant.name,
-        email: validatedData.email
-      }
     })
     
   } catch (error) {

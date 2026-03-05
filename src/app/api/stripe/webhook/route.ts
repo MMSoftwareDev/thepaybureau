@@ -3,6 +3,34 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
+// In-memory idempotency cache to prevent duplicate webhook processing.
+// Stripe may deliver the same event multiple times — this ensures we only
+// process each event ID once. TTL-based cleanup prevents unbounded growth.
+const processedEvents = new Map<string, number>()
+const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+function hasProcessed(eventId: string): boolean {
+  const timestamp = processedEvents.get(eventId)
+  if (!timestamp) return false
+  if (Date.now() - timestamp > IDEMPOTENCY_TTL_MS) {
+    processedEvents.delete(eventId)
+    return false
+  }
+  return true
+}
+
+function markProcessed(eventId: string): void {
+  processedEvents.set(eventId, Date.now())
+
+  // Periodic cleanup: remove expired entries when map grows large
+  if (processedEvents.size > 1000) {
+    const now = Date.now()
+    for (const [id, ts] of processedEvents) {
+      if (now - ts > IDEMPOTENCY_TTL_MS) processedEvents.delete(id)
+    }
+  }
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.text()
   const sig = req.headers.get('stripe-signature')
@@ -18,6 +46,11 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('Webhook signature verification failed:', err)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
+  }
+
+  // Idempotency check — skip already-processed events
+  if (hasProcessed(event.id)) {
+    return NextResponse.json({ received: true, deduplicated: true })
   }
 
   const supabase = createServerSupabaseClient()
@@ -83,5 +116,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  markProcessed(event.id)
   return NextResponse.json({ received: true })
 }

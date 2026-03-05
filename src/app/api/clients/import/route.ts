@@ -5,6 +5,7 @@ import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { writeAuditLog } from '@/lib/audit'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import {
   calculateNextPayDate,
   calculatePeriodDates,
@@ -46,6 +47,16 @@ interface ImportResult {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 import operations per IP per 15 minutes
+    const ip = getClientIp(request)
+    const limiter = await rateLimit(`import:${ip}`, { limit: 5, windowSeconds: 900 })
+    if (!limiter.success) {
+      return NextResponse.json(
+        { error: 'Too many import attempts. Please try again later.' },
+        { status: 429 }
+      )
+    }
+
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
