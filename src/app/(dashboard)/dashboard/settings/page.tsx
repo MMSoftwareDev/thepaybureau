@@ -415,10 +415,10 @@ export default function SettingsPage() {
   if (!mounted) {
     return (
       <div className="space-y-6 max-w-3xl mx-auto animate-pulse">
-        <div className="h-14 rounded-2xl" style={{ background: colors.border }} />
-        <div className="h-72 rounded-2xl" style={{ background: colors.border }} />
-        <div className="h-72 rounded-2xl" style={{ background: colors.border }} />
-        <div className="h-96 rounded-2xl" style={{ background: colors.border }} />
+        <div className="h-14 rounded-lg" style={{ background: colors.border }} />
+        <div className="h-72 rounded-lg" style={{ background: colors.border }} />
+        <div className="h-72 rounded-lg" style={{ background: colors.border }} />
+        <div className="h-96 rounded-lg" style={{ background: colors.border }} />
       </div>
     )
   }
@@ -521,7 +521,7 @@ export default function SettingsPage() {
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 placeholder="Your name"
-                className="mt-1.5 h-10 rounded-xl border-0 text-[0.88rem] font-medium"
+                className="mt-1.5 h-10 rounded-lg border-0 text-[0.88rem] font-medium"
                 style={inputStyle}
               />
             </div>
@@ -533,7 +533,7 @@ export default function SettingsPage() {
                 id="profile-email"
                 value={userEmail}
                 readOnly
-                className="mt-1.5 h-10 rounded-xl border-0 text-[0.88rem] font-medium opacity-60 cursor-not-allowed"
+                className="mt-1.5 h-10 rounded-lg border-0 text-[0.88rem] font-medium opacity-60 cursor-not-allowed"
                 style={inputStyle}
               />
             </div>
@@ -542,10 +542,9 @@ export default function SettingsPage() {
             <Button
               onClick={handleSaveProfile}
               disabled={savingProfile}
-              className="text-white font-semibold py-2 px-5 rounded-xl border-0 transition-all duration-300 hover:-translate-y-0.5"
+              className="text-white font-semibold py-2 px-5 rounded-lg border-0"
               style={{
                 background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
-                boxShadow: '0 8px 24px rgba(64, 29, 108, 0.25)',
               }}
             >
               {savingProfile ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Profile</>}
@@ -590,7 +589,7 @@ export default function SettingsPage() {
                   placeholder="At least 8 characters"
                   autoComplete="new-password"
                   disabled={savingPassword}
-                  className="h-10 rounded-xl border-0 text-[0.88rem] font-medium pr-10"
+                  className="h-10 rounded-lg border-0 text-[0.88rem] font-medium pr-10"
                   style={{
                     ...inputStyle,
                     ...(passwordError ? { borderColor: colors.error } : {}),
@@ -627,7 +626,7 @@ export default function SettingsPage() {
                 placeholder="Re-enter your password"
                 autoComplete="new-password"
                 disabled={savingPassword}
-                className="mt-1.5 h-10 rounded-xl border-0 text-[0.88rem] font-medium"
+                className="mt-1.5 h-10 rounded-lg border-0 text-[0.88rem] font-medium"
                 style={{
                   ...inputStyle,
                   ...(confirmError ? { borderColor: colors.error } : {}),
@@ -644,10 +643,9 @@ export default function SettingsPage() {
             <Button
               onClick={handleChangePassword}
               disabled={savingPassword}
-              className="text-white font-semibold py-2 px-5 rounded-xl border-0 transition-all duration-300 hover:-translate-y-0.5"
+              className="text-white font-semibold py-2 px-5 rounded-lg border-0"
               style={{
                 background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
-                boxShadow: '0 8px 24px rgba(64, 29, 108, 0.25)',
               }}
             >
               {savingPassword ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Updating...</> : <><Lock className="w-4 h-4 mr-2" />Update Password</>}
@@ -791,10 +789,9 @@ export default function SettingsPage() {
             <Button
               onClick={handleSaveChecklist}
               disabled={savingChecklist}
-              className="text-white font-semibold py-2 px-5 rounded-xl border-0 transition-all duration-300 hover:-translate-y-0.5"
+              className="text-white font-semibold py-2 px-5 rounded-lg border-0"
               style={{
                 background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
-                boxShadow: '0 8px 24px rgba(64, 29, 108, 0.25)',
               }}
             >
               {savingChecklist ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Templates</>}

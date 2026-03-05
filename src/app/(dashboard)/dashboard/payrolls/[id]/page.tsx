@@ -244,18 +244,16 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
   // ── Render ───────────────────────────────────────────────────────────────────
 
   const cardStyle = {
-    backgroundColor: colors.glass.card,
-    backdropFilter: 'blur(20px)',
-    borderRadius: '16px',
+    backgroundColor: colors.surface,
+    borderRadius: '12px',
     border: `1px solid ${colors.border}`,
-    boxShadow: `0 4px 20px ${colors.shadow.light}`,
   }
 
   if (!mounted) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-12 w-64 rounded-xl" style={{ background: colors.border }} />
-        <div className="h-32 rounded-2xl" style={{ background: colors.border }} />
+        <div className="h-32 rounded-lg" style={{ background: colors.border }} />
       </div>
     )
   }
@@ -273,13 +271,13 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
       <div className="min-h-[60vh] flex items-center justify-center">
         <Card className="max-w-md border-0" style={cardStyle}>
           <CardContent className="p-8 text-center">
-            <AlertTriangle className="w-16 h-16 mx-auto mb-4" style={{ color: colors.error }} />
+            <AlertTriangle className="w-12 h-12 mx-auto mb-4" style={{ color: colors.error }} />
             <h3 className="text-xl font-bold mb-3" style={{ color: colors.text.primary }}>
               {error || 'Payroll run not found'}
             </h3>
             <Button
               onClick={() => router.push('/dashboard/payrolls')}
-              className="text-white font-semibold px-6 py-3 rounded-xl shadow-lg"
+              className="text-white font-semibold px-6 py-3 rounded-lg"
               style={{
                 background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
               }}
@@ -306,7 +304,7 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
         <Button
           variant="ghost"
           onClick={() => router.push(`/dashboard/clients/${run.client_id}`)}
-          className="self-start rounded-xl px-3"
+          className="self-start rounded-lg px-3"
           style={{ color: colors.text.secondary }}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -314,7 +312,7 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
         </Button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl md:text-3xl font-bold truncate" style={{ color: colors.text.primary }}>
+            <h1 className="text-xl md:text-2xl font-bold truncate" style={{ color: colors.text.primary }}>
               {run.clients?.name ?? 'Unknown Client'}
             </h1>
             {run.clients?.pay_frequency && (
@@ -511,16 +509,16 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
                 rows={5}
                 className="w-full rounded-lg p-3 text-sm font-medium resize-none focus:outline-none transition-all duration-300"
                 style={{
-                  backgroundColor: colors.glass.surface,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
                   color: colors.text.primary,
-                  border: `1px solid ${colors.borderElevated}`,
+                  border: `1px solid ${colors.border}`,
                 }}
                 onFocus={(e) => {
                   e.target.style.borderColor = `${colors.primary}60`
                   e.target.style.boxShadow = `0 0 0 2px ${colors.primary}20`
                 }}
                 onBlurCapture={(e) => {
-                  e.target.style.borderColor = colors.borderElevated
+                  e.target.style.borderColor = colors.border
                   e.target.style.boxShadow = 'none'
                 }}
               />
@@ -532,10 +530,9 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
             <Button
               onClick={generateNextPeriod}
               disabled={generating}
-              className="w-full text-white font-semibold rounded-xl shadow-lg transition-all duration-300"
+              className="w-full text-white font-semibold rounded-lg"
               style={{
                 background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-                boxShadow: `0 10px 25px ${colors.primary}30`,
               }}
             >
               {generating ? (
