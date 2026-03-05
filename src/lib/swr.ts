@@ -1,5 +1,5 @@
 // src/lib/swr.ts
-import useSWR, { type SWRConfiguration } from 'swr'
+import useSWR, { type SWRConfiguration, mutate } from 'swr'
 
 const fetcher = (url: string) => fetch(url).then(res => {
   if (!res.ok) throw new Error('Failed to fetch')
@@ -25,6 +25,10 @@ export function useDashboardStats() {
 
 export function useTrainingRecords() {
   return useSWR('/api/training', fetcher, defaultConfig)
+}
+
+export function clearSWRCache() {
+  mutate(() => true, undefined, { revalidate: false })
 }
 
 export { fetcher, defaultConfig }
