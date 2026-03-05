@@ -158,7 +158,7 @@ export default function FeatureRequestsPage() {
       })
       if (res.ok) {
         const data = await res.json()
-        setRequests(prev => prev.map(r => r.id === editingRequest.id ? { ...r, ...data.request } : r))
+        setRequests(prev => prev.map(r => r.id === editingRequest.id ? { ...r, ...data.request, vote_count: r.vote_count, user_has_voted: r.user_has_voted } : r))
         closeForm()
         toast('Updated')
       }
@@ -294,7 +294,7 @@ export default function FeatureRequestsPage() {
                   }}
                 >
                   {Object.entries(STATUS_CONFIG).map(([value, { label }]) => (
-                    <option key={value} value={value}>{label}</option>
+                    <option key={value} value={value} style={{ background: colors.surface, color: colors.text.primary }}>{label}</option>
                   ))}
                 </select>
               </div>
@@ -352,7 +352,7 @@ export default function FeatureRequestsPage() {
             }}
           >
             {SORT_OPTIONS.map(({ value, label }) => (
-              <option key={value} value={value}>{label}</option>
+              <option key={value} value={value} style={{ background: colors.surface, color: colors.text.primary }}>{label}</option>
             ))}
           </select>
         </div>
