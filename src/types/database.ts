@@ -97,6 +97,12 @@ export interface Database {
           tax_period_start: string | null
           pension_provider: string | null
           pension_staging_date: string | null
+          pension_reenrolment_date: string | null
+          declaration_of_compliance_deadline: string | null
+          payroll_software: string | null
+          period_start: string | null
+          period_end: string | null
+          employment_allowance: boolean | null
           contact_name: string | null
           contact_email: string | null
           contact_phone: string | null
@@ -123,6 +129,12 @@ export interface Database {
           tax_period_start?: string | null
           pension_provider?: string | null
           pension_staging_date?: string | null
+          pension_reenrolment_date?: string | null
+          declaration_of_compliance_deadline?: string | null
+          payroll_software?: string | null
+          period_start?: string | null
+          period_end?: string | null
+          employment_allowance?: boolean | null
           contact_name?: string | null
           contact_email?: string | null
           contact_phone?: string | null
@@ -149,6 +161,12 @@ export interface Database {
           tax_period_start?: string | null
           pension_provider?: string | null
           pension_staging_date?: string | null
+          pension_reenrolment_date?: string | null
+          declaration_of_compliance_deadline?: string | null
+          payroll_software?: string | null
+          period_start?: string | null
+          period_end?: string | null
+          employment_allowance?: boolean | null
           contact_name?: string | null
           contact_email?: string | null
           contact_phone?: string | null
