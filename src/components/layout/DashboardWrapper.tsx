@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import Sidebar from '@/components/layout/Sidebar'
 import Navbar from '@/components/layout/Navbar'
+import TrafficLight from '@/components/ui/traffic-light'
 
 interface DashboardWrapperProps {
   children: React.ReactNode
@@ -75,6 +76,8 @@ export default function DashboardWrapper({ children, user, avatarUrl }: Dashboar
           </div>
         </main>
       </div>
+
+      <TrafficLight />
     </div>
   )
 }
