@@ -131,3 +131,16 @@ export const toggleChecklistItemSchema = z.object({
   id: z.string().uuid(),
   is_completed: z.boolean()
 })
+
+// Named checklist templates (tenant-level)
+export const checklistTemplateSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1, 'Template name is required').max(100),
+  is_default: z.boolean(),
+  steps: z.array(z.object({
+    name: z.string().min(1, 'Step name is required').max(255),
+    sort_order: z.number().int().min(0),
+  })).min(1, 'At least one step is required'),
+})
+
+export const checklistTemplatesSchema = z.array(checklistTemplateSchema).min(1, 'At least one template is required')

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -141,7 +142,7 @@ export default function LoginPage() {
         <div className="relative z-10">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="ThePayBureau" className="h-[42px] w-[42px] rounded-xl" />
+            <Image src="/logo.png" alt="ThePayBureau" width={42} height={42} className="rounded-xl" />
             <span className="font-[family-name:var(--font-body)] text-[1.25rem] font-extrabold tracking-tight text-white">
               ThePayBureau
             </span>

@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { writeAuditLog } from '@/lib/audit'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { checklistTemplatesSchema } from '@/lib/validations'
 
 const updateProfileSchema = z.object({
   action: z.literal('update_profile'),
@@ -30,11 +31,17 @@ const saveChecklistDefaultsSchema = z.object({
   })),
 })
 
+const saveChecklistTemplatesSchema = z.object({
+  action: z.literal('save_checklist_templates'),
+  templates: checklistTemplatesSchema,
+})
+
 const actionSchema = z.discriminatedUnion('action', [
   updateProfileSchema,
   changePasswordSchema,
   updateAvatarSchema,
   saveChecklistDefaultsSchema,
+  saveChecklistTemplatesSchema,
 ])
 
 export async function POST(request: NextRequest) {
@@ -196,12 +203,119 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true })
       }
+
+      case 'save_checklist_templates': {
+        // Validate exactly one default
+        const defaultCount = data.templates.filter((t) => t.is_default).length
+        if (defaultCount !== 1) {
+          return NextResponse.json({ error: 'Exactly one template must be set as default' }, { status: 400 })
+        }
+
+        const { data: tenant } = await supabase
+          .from('tenants')
+          .select('settings')
+          .eq('id', user.tenant_id)
+          .single()
+
+        const currentSettings = (tenant?.settings || {}) as Record<string, unknown>
+        const defaultTemplate = data.templates.find((t) => t.is_default)!
+
+        const { error: updateError } = await supabase
+          .from('tenants')
+          .update({
+            settings: {
+              ...currentSettings,
+              checklist_templates: data.templates,
+              default_checklist: defaultTemplate.steps,
+            },
+          })
+          .eq('id', user.tenant_id)
+
+        if (updateError) {
+          return NextResponse.json({ error: updateError.message }, { status: 400 })
+        }
+
+        writeAuditLog({
+          tenantId: user.tenant_id,
+          userId: authUser.id,
+          userEmail: authUser.email!,
+          action: 'UPDATE',
+          resourceType: 'checklist_templates',
+          resourceId: user.tenant_id,
+          resourceName: 'Checklist templates',
+          changes: {
+            templates: {
+              from: ((currentSettings.checklist_templates as unknown[])?.length ?? 1) + ' templates',
+              to: `${data.templates.length} templates`,
+            },
+          },
+          request,
+        })
+
+        return NextResponse.json({ success: true })
+      }
     }
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 })
     }
     console.error('Unexpected error in POST /api/settings:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+const DEFAULT_CHECKLIST_STEPS = [
+  { name: 'Receive payroll changes', sort_order: 0 },
+  { name: 'Process payroll', sort_order: 1 },
+  { name: 'Review & approve', sort_order: 2 },
+  { name: 'Send payslips', sort_order: 3 },
+  { name: 'Submit RTI to HMRC', sort_order: 4 },
+  { name: 'BACS payment', sort_order: 5 },
+  { name: 'Pension submission', sort_order: 6 },
+]
+
+export async function GET() {
+  try {
+    const authUser = await getAuthUser()
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const supabase = createServerSupabaseClient()
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', authUser.id)
+      .single()
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const { data: tenant } = await supabase
+      .from('tenants')
+      .select('settings')
+      .eq('id', user.tenant_id)
+      .single()
+
+    const settings = (tenant?.settings || {}) as Record<string, unknown>
+
+    // Return checklist_templates if they exist, else wrap default_checklist as a single template
+    if (settings.checklist_templates) {
+      return NextResponse.json({ templates: settings.checklist_templates })
+    }
+
+    const steps = (settings.default_checklist as { name: string; sort_order: number }[]) || DEFAULT_CHECKLIST_STEPS
+    return NextResponse.json({
+      templates: [{
+        id: 'default',
+        name: 'Default',
+        is_default: true,
+        steps,
+      }],
+    })
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

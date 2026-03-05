@@ -91,7 +91,20 @@ export default function AdminAnalyticsPage() {
     fetchData()
   }, [])
 
-  if (!mounted) return null
+  if (!mounted) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-14 rounded-xl" style={{ background: colors.border }} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-28 rounded-xl" style={{ background: colors.border }} />
+          ))}
+        </div>
+        <div className="h-80 rounded-xl" style={{ background: colors.border }} />
+        <div className="h-96 rounded-xl" style={{ background: colors.border }} />
+      </div>
+    )
+  }
 
   const cardStyle = {
     backgroundColor: colors.surface,

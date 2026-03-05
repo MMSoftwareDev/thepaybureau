@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -90,7 +91,7 @@ export default function ForgotPasswordPage() {
         <div className="relative z-10">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="ThePayBureau" className="h-[42px] w-[42px] rounded-xl" />
+            <Image src="/logo.png" alt="ThePayBureau" width={42} height={42} className="rounded-xl" />
             <span className="font-[family-name:var(--font-body)] text-[1.25rem] font-extrabold tracking-tight text-white">
               ThePayBureau
             </span>
@@ -208,7 +209,7 @@ export default function ForgotPasswordPage() {
             <>
               {/* Mobile logo */}
               <div className="mb-8 flex items-center gap-2 md:hidden">
-                <img src="/logo.png" alt="ThePayBureau" className="h-9 w-9 rounded-lg" />
+                <Image src="/logo.png" alt="ThePayBureau" width={36} height={36} className="rounded-lg" />
                 <span className="font-[family-name:var(--font-body)] text-lg font-extrabold tracking-tight text-[var(--login-text)]">
                   ThePayBureau
                 </span>

@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import Image from 'next/image'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import {
@@ -172,7 +173,7 @@ export default function Sidebar({ user, avatarUrl, isAdmin = false, mobileOpen =
           onClick={() => navigate('/dashboard')}
           className="flex items-center gap-2.5 group"
         >
-          <img src="/logo.png" alt="ThePayBureau" className="h-7 w-7 rounded-md flex-shrink-0" />
+          <Image src="/logo.png" alt="ThePayBureau" width={28} height={28} className="rounded-md flex-shrink-0" priority />
           <span
             className="text-[0.875rem] font-semibold tracking-tight"
             style={{ color: colors.text.primary }}
@@ -393,10 +394,12 @@ export default function Sidebar({ user, avatarUrl, isAdmin = false, mobileOpen =
           style={{ cursor: 'default' }}
         >
           {avatarUrl ? (
-            <img
+            <Image
               src={avatarUrl}
               alt={getUserName()}
-              className="h-7 w-7 rounded-md object-cover flex-shrink-0"
+              width={28}
+              height={28}
+              className="rounded-md object-cover flex-shrink-0"
             />
           ) : (
             <div

@@ -263,15 +263,14 @@ function ClientsContent() {
   // Prevent hydration mismatch
   if (!mounted) {
     return (
-      <div className="space-y-8 animate-pulse">
-        <div className="h-20 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
-        <div className="grid grid-cols-4 gap-8">
-          <div className="h-32 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
-          <div className="h-32 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
-          <div className="h-32 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
-          <div className="h-32 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
+      <div className="space-y-6 animate-pulse">
+        <div className="h-14 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-28 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
+          ))}
         </div>
-        <div className="h-96 rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
+        <div className="h-[28rem] rounded-xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg }}></div>
       </div>
     )
   }

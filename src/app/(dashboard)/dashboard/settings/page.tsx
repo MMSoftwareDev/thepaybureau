@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +22,9 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Star,
+  Trash2,
+  Copy,
 } from 'lucide-react'
 
 interface ChecklistDefault {
@@ -28,8 +32,16 @@ interface ChecklistDefault {
   sort_order: number
 }
 
+interface ChecklistTemplate {
+  id: string
+  name: string
+  is_default: boolean
+  steps: ChecklistDefault[]
+}
+
 interface TenantSettings {
   default_checklist?: ChecklistDefault[]
+  checklist_templates?: ChecklistTemplate[]
   [key: string]: unknown
 }
 
@@ -54,7 +66,8 @@ export default function SettingsPage() {
   const [savingPassword, setSavingPassword] = useState(false)
   const [passwordMessage, setPasswordMessage] = useState('')
 
-  const [checklistItems, setChecklistItems] = useState<ChecklistDefault[]>([])
+  const [templates, setTemplates] = useState<ChecklistTemplate[]>([])
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null)
   const [, setTenantSettings] = useState<TenantSettings>({})
   const [savingChecklist, setSavingChecklist] = useState(false)
   const [checklistMessage, setChecklistMessage] = useState('')
@@ -94,7 +107,23 @@ export default function SettingsPage() {
         const tenant = userRecord.tenants as { settings: TenantSettings | null } | null
         const settings = (tenant?.settings || {}) as TenantSettings
         setTenantSettings(settings)
-        setChecklistItems(settings.default_checklist || DEFAULT_CHECKLIST)
+
+        // Load named templates, or migrate legacy default_checklist
+        if (settings.checklist_templates?.length) {
+          setTemplates(settings.checklist_templates)
+          const defaultTpl = settings.checklist_templates.find((t) => t.is_default)
+          setActiveTemplateId(defaultTpl?.id || settings.checklist_templates[0].id)
+        } else {
+          const steps = settings.default_checklist || DEFAULT_CHECKLIST
+          const migrated: ChecklistTemplate = {
+            id: crypto.randomUUID(),
+            name: 'Default',
+            is_default: true,
+            steps,
+          }
+          setTemplates([migrated])
+          setActiveTemplateId(migrated.id)
+        }
       }
     } catch (err) {
       console.error('Error fetching settings data:', err)
@@ -277,30 +306,95 @@ export default function SettingsPage() {
     }
   }
 
-  const updateChecklistItem = (index: number, name: string) =>
-    setChecklistItems((prev) => prev.map((item, i) => (i === index ? { ...item, name } : item)))
-  const removeChecklistItem = (index: number) =>
-    setChecklistItems((prev) => prev.filter((_, i) => i !== index))
-  const addChecklistItem = () =>
-    setChecklistItems((prev) => [...prev, { name: '', sort_order: prev.length }])
+  const activeTemplate = templates.find((t) => t.id === activeTemplateId) || templates[0]
+
+  const updateTemplateStep = (index: number, name: string) =>
+    setTemplates((prev) => prev.map((t) =>
+      t.id === activeTemplateId
+        ? { ...t, steps: t.steps.map((s, i) => (i === index ? { ...s, name } : s)) }
+        : t
+    ))
+
+  const removeTemplateStep = (index: number) =>
+    setTemplates((prev) => prev.map((t) =>
+      t.id === activeTemplateId
+        ? { ...t, steps: t.steps.filter((_, i) => i !== index) }
+        : t
+    ))
+
+  const addTemplateStep = () =>
+    setTemplates((prev) => prev.map((t) =>
+      t.id === activeTemplateId
+        ? { ...t, steps: [...t.steps, { name: '', sort_order: t.steps.length }] }
+        : t
+    ))
+
+  const updateTemplateName = (name: string) =>
+    setTemplates((prev) => prev.map((t) =>
+      t.id === activeTemplateId ? { ...t, name } : t
+    ))
+
+  const addTemplate = () => {
+    const newTemplate: ChecklistTemplate = {
+      id: crypto.randomUUID(),
+      name: 'New Template',
+      is_default: false,
+      steps: [{ name: '', sort_order: 0 }],
+    }
+    setTemplates((prev) => [...prev, newTemplate])
+    setActiveTemplateId(newTemplate.id)
+  }
+
+  const duplicateTemplate = () => {
+    if (!activeTemplate) return
+    const dup: ChecklistTemplate = {
+      id: crypto.randomUUID(),
+      name: `${activeTemplate.name} (Copy)`,
+      is_default: false,
+      steps: activeTemplate.steps.map((s) => ({ ...s })),
+    }
+    setTemplates((prev) => [...prev, dup])
+    setActiveTemplateId(dup.id)
+  }
+
+  const deleteTemplate = () => {
+    if (templates.length <= 1) return
+    const wasDefault = activeTemplate?.is_default
+    const remaining = templates.filter((t) => t.id !== activeTemplateId)
+    if (wasDefault && remaining.length > 0) {
+      remaining[0].is_default = true
+    }
+    setTemplates(remaining)
+    setActiveTemplateId(remaining[0].id)
+  }
+
+  const setAsDefault = () =>
+    setTemplates((prev) => prev.map((t) => ({
+      ...t,
+      is_default: t.id === activeTemplateId,
+    })))
 
   const handleSaveChecklist = async () => {
     if (!tenantId) return
     setSavingChecklist(true)
     try {
+      const normalized = templates.map((t) => ({
+        ...t,
+        steps: t.steps.map((s, idx) => ({ name: s.name, sort_order: idx })),
+      }))
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'save_checklist_defaults',
-          checklist: checklistItems.map((item, idx) => ({ name: item.name, sort_order: idx })),
+          action: 'save_checklist_templates',
+          templates: normalized,
         }),
       })
       if (!res.ok) throw new Error('Failed to save')
-      showMessage(setChecklistMessage, 'Defaults saved!')
+      showMessage(setChecklistMessage, 'Templates saved!')
     } catch (err) {
-      console.error('Error saving checklist defaults:', err)
-      showMessage(setChecklistMessage, 'Error saving defaults. Please try again.')
+      console.error('Error saving checklist templates:', err)
+      showMessage(setChecklistMessage, 'Error saving templates. Please try again.')
     } finally {
       setSavingChecklist(false)
     }
@@ -322,8 +416,9 @@ export default function SettingsPage() {
     return (
       <div className="space-y-6 max-w-3xl mx-auto animate-pulse">
         <div className="h-14 rounded-2xl" style={{ background: colors.border }} />
-        <div className="h-52 rounded-2xl" style={{ background: colors.border }} />
-        <div className="h-52 rounded-2xl" style={{ background: colors.border }} />
+        <div className="h-72 rounded-2xl" style={{ background: colors.border }} />
+        <div className="h-72 rounded-2xl" style={{ background: colors.border }} />
+        <div className="h-96 rounded-2xl" style={{ background: colors.border }} />
       </div>
     )
   }
@@ -362,10 +457,12 @@ export default function SettingsPage() {
           <div className="flex items-center gap-4 mb-5">
             <div className="relative group">
               {avatarUrl ? (
-                <img
+                <Image
                   src={avatarUrl}
                   alt="Profile"
-                  className="w-16 h-16 rounded-xl object-cover"
+                  width={64}
+                  height={64}
+                  className="rounded-xl object-cover"
                 />
               ) : (
                 <div
@@ -564,53 +661,131 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Default Checklist */}
+      {/* Checklist Templates */}
       <Card className="border-0" style={cardStyle}>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-3 text-base font-bold" style={{ color: colors.text.primary }}>
             <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.primary}12` }}>
               <ListChecks className="w-[18px] h-[18px]" style={{ color: colors.primary }} />
             </div>
-            Default Checklist Template
+            Checklist Templates
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-4">
-          <p className="text-[0.82rem] mb-5" style={{ color: colors.text.secondary }}>
-            Define the default checklist steps that are pre-populated when creating a new client.
+          <p className="text-[0.82rem] mb-4" style={{ color: colors.text.secondary }}>
+            Create named checklist templates to choose from when onboarding clients.
           </p>
-          <div className="space-y-2.5">
-            {checklistItems.map((item, index) => (
-              <div key={index} className="flex items-center gap-2.5">
-                <span className="text-[0.75rem] font-bold w-7 text-center flex-shrink-0" style={{ color: colors.text.muted }}>
-                  {index + 1}
-                </span>
+
+          {/* Template tabs */}
+          <div className="flex flex-wrap items-center gap-2 mb-5">
+            {templates.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTemplateId(t.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[0.82rem] font-semibold transition-all"
+                style={{
+                  background: t.id === activeTemplateId
+                    ? `${colors.primary}18`
+                    : colors.lightBg,
+                  color: t.id === activeTemplateId ? colors.primary : colors.text.secondary,
+                  border: `1px solid ${t.id === activeTemplateId ? colors.primary : colors.border}`,
+                }}
+              >
+                {t.is_default && <Star className="w-3 h-3" />}
+                {t.name || 'Untitled'}
+              </button>
+            ))}
+            <button
+              onClick={addTemplate}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[0.82rem] font-semibold transition-colors"
+              style={{ color: colors.text.muted, border: `1px dashed ${colors.border}` }}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add
+            </button>
+          </div>
+
+          {/* Active template editor */}
+          {activeTemplate && (
+            <div className="space-y-4">
+              {/* Template name + actions */}
+              <div className="flex items-center gap-2.5">
                 <Input
-                  value={item.name}
-                  onChange={(e) => updateChecklistItem(index, e.target.value)}
-                  placeholder="Step name"
-                  className="flex-1 h-9 rounded-lg border-0 text-[0.85rem] font-medium"
+                  value={activeTemplate.name}
+                  onChange={(e) => updateTemplateName(e.target.value)}
+                  placeholder="Template name"
+                  className="flex-1 h-9 rounded-lg border-0 text-[0.85rem] font-semibold"
                   style={inputStyle}
                 />
                 <button
-                  onClick={() => removeChecklistItem(index)}
-                  className="w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
-                  style={{ color: colors.error }}
+                  onClick={setAsDefault}
+                  className="h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-[0.78rem] font-semibold transition-colors whitespace-nowrap"
+                  style={{
+                    color: activeTemplate.is_default ? colors.primary : colors.text.muted,
+                    background: activeTemplate.is_default ? `${colors.primary}12` : 'transparent',
+                  }}
+                  title={activeTemplate.is_default ? 'This is the default template' : 'Set as default'}
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <Star className="w-3.5 h-3.5" />
+                  {activeTemplate.is_default ? 'Default' : 'Set default'}
                 </button>
+                <button
+                  onClick={duplicateTemplate}
+                  className="w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors"
+                  style={{ color: colors.text.muted }}
+                  title="Duplicate template"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+                {templates.length > 1 && (
+                  <button
+                    onClick={deleteTemplate}
+                    className="w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
+                    style={{ color: colors.error }}
+                    title="Delete template"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
-            ))}
-          </div>
-          <Button
-            onClick={addChecklistItem}
-            variant="outline"
-            size="sm"
-            className="mt-3 rounded-lg font-semibold text-[0.82rem]"
-            style={{ borderColor: colors.border, color: colors.text.secondary }}
-          >
-            <Plus className="w-3.5 h-3.5 mr-1.5" />
-            Add Step
-          </Button>
+
+              {/* Steps */}
+              <div className="space-y-2.5">
+                {activeTemplate.steps.map((step, index) => (
+                  <div key={index} className="flex items-center gap-2.5">
+                    <span className="text-[0.75rem] font-bold w-7 text-center flex-shrink-0" style={{ color: colors.text.muted }}>
+                      {index + 1}
+                    </span>
+                    <Input
+                      value={step.name}
+                      onChange={(e) => updateTemplateStep(index, e.target.value)}
+                      placeholder="Step name"
+                      className="flex-1 h-9 rounded-lg border-0 text-[0.85rem] font-medium"
+                      style={inputStyle}
+                    />
+                    <button
+                      onClick={() => removeTemplateStep(index)}
+                      className="w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
+                      style={{ color: colors.error }}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                onClick={addTemplateStep}
+                variant="outline"
+                size="sm"
+                className="rounded-lg font-semibold text-[0.82rem]"
+                style={{ borderColor: colors.border, color: colors.text.secondary }}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                Add Step
+              </Button>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 mt-6 pt-5 border-t" style={{ borderColor: colors.border }}>
             <Button
@@ -622,7 +797,7 @@ export default function SettingsPage() {
                 boxShadow: '0 8px 24px rgba(64, 29, 108, 0.25)',
               }}
             >
-              {savingChecklist ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Defaults</>}
+              {savingChecklist ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Templates</>}
             </Button>
             {checklistMessage && (
               <span className="text-[0.82rem] font-semibold" style={{ color: checklistMessage.includes('Error') ? colors.error : colors.success }}>
