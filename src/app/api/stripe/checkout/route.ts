@@ -1,9 +1,20 @@
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { getStripe, PLANS, PlanKey } from '@/lib/stripe'
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 10 checkout attempts per IP per 15 minutes
+    const ip = getClientIp(req)
+    const limiter = await rateLimit(`checkout:${ip}`, { limit: 10, windowSeconds: 900 })
+    if (!limiter.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      )
+    }
+
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

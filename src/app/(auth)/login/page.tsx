@@ -90,7 +90,7 @@ export default function LoginPage() {
           router.push('/dashboard')
         }, 500)
       }
-    } catch (_) {
+    } catch {
       setLoginError('An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)

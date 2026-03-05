@@ -72,7 +72,11 @@ export async function rateLimit(
   const limiter = getLimiter(config)
 
   // Fall back to in-memory if Redis is not configured
+  // WARNING: In-memory rate limiting is per-instance and resets on deploy — not suitable for production
   if (!limiter) {
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('Rate limiting: Redis not configured — using in-memory fallback. Set UPSTASH_REDIS_REST_URL for production.')
+    }
     return memoryRateLimit(key, config)
   }
 

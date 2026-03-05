@@ -12,7 +12,6 @@ import { format, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
 import {
   ArrowLeft,
-  Calendar,
   CheckCircle2,
   Clock,
   Loader2,
@@ -20,7 +19,6 @@ import {
   AlertTriangle,
   ListChecks,
   StickyNote,
-  Building2,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────────

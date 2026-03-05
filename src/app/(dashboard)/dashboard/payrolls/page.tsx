@@ -563,7 +563,6 @@ function PayrollsPage() {
           onPrevPeriod={goToPrevPeriod}
           onNextPeriod={goToNextPeriod}
           colors={colors}
-          isDark={isDark}
         />
         <div className="min-h-[50vh] flex items-center justify-center">
           <div className="text-center p-10">
@@ -606,7 +605,6 @@ function PayrollsPage() {
         onPrevPeriod={goToPrevPeriod}
         onNextPeriod={goToNextPeriod}
         colors={colors}
-        isDark={isDark}
         showSearch={showSearch}
         searchQuery={searchQuery}
         onToggleSearch={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery('') }}
@@ -726,7 +724,6 @@ interface PageHeaderProps {
   onPrevPeriod: () => void
   onNextPeriod: () => void
   colors: ReturnType<typeof getThemeColors>
-  isDark: boolean
   showSearch?: boolean
   searchQuery?: string
   onToggleSearch?: () => void
@@ -740,7 +737,6 @@ function PageHeader({
   onPrevPeriod,
   onNextPeriod,
   colors,
-  isDark,
   showSearch,
   searchQuery,
   onToggleSearch,
@@ -1063,7 +1059,7 @@ interface RunListViewProps {
   onMarkComplete: (run: PayrollRun) => void
 }
 
-function RunListView({ runs, colors, isDark, onOpenChecklist, onMarkComplete }: RunListViewProps) {
+function RunListView({ runs, colors, isDark, onOpenChecklist }: RunListViewProps) {
   const [sortField, setSortField] = useState<'client' | 'status' | 'progress' | 'pay_date'>('pay_date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 

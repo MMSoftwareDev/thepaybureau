@@ -10,16 +10,16 @@ export default function TermsPage() {
       <div className="max-w-3xl mx-auto px-6 py-16">
         <div className="mb-8">
           <Link
-            href="/login"
+            href="/"
             className="text-sm font-medium text-[#401D6C] hover:underline"
           >
-            &larr; Back to Login
+            &larr; Back to Home
           </Link>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 md:p-12">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Terms of Service</h1>
-          <p className="text-sm text-gray-500 mb-8">Last updated: 4 March 2025</p>
+          <p className="text-sm text-gray-500 mb-8">Last updated: 5 March 2026</p>
 
           <div className="prose prose-gray max-w-none space-y-6 text-[0.92rem] leading-relaxed text-gray-700">
             <section>

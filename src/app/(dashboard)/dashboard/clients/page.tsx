@@ -1,7 +1,6 @@
 'use client'
 
 import { Suspense, useEffect, useState, useMemo } from 'react'
-import { createClientSupabaseClient } from '@/lib/supabase'
 import { useClients } from '@/lib/swr'
 import { useDebounce } from '@/hooks/useDebounce'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,17 +16,12 @@ import {
   Users,
   Search,
   Plus,
-  Filter,
-  Download,
   Edit,
   Eye,
   Trash2,
-  Loader2,
   ArrowUp,
   ArrowDown,
   FileText,
-  Phone,
-  Mail,
   Calendar,
   Copy,
   Upload
@@ -255,19 +249,7 @@ function ClientsContent() {
   // Get unique industries for filter
   const uniqueIndustries = [...new Set((clients as Client[]).map(c => c.industry).filter(Boolean))].sort()
 
-  // Get status badge styling
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return { bg: colors.success, text: 'Active' }
-      case 'prospect':
-        return { bg: colors.primary, text: 'Prospect' }
-      case 'inactive':
-        return { bg: colors.text.muted, text: 'Inactive' }
-      default:
-        return { bg: colors.text.muted, text: status }
-    }
-  }
+
 
   // Get summary statistics
   const typedClients = clients as Client[]
@@ -625,7 +607,6 @@ function ClientsContent() {
               </TableHeader>
               <TableBody>
                 {filteredClients.map((client) => {
-                  const statusBadge = getStatusBadge(client.status)
                   return (
                     <TableRow
                       key={client.id}

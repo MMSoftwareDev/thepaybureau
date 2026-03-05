@@ -1,5 +1,14 @@
 // src/app/page.tsx — Marketing landing page
 import Link from 'next/link'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'ThePayBureau - Never Miss Another Payroll Deadline',
+  description: 'Professional payroll bureau management for UK specialists. Track HMRC deadlines, manage client checklists, auto-enrolment tracking, and pension compliance. Free forever for individuals.',
+  alternates: {
+    canonical: '/',
+  },
+}
 
 const GRAIN_TEXTURE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E")`
 
@@ -113,7 +122,7 @@ export default function LandingPage() {
         .landing-nav-login { display: inline-block; }
         @media (max-width: 768px) {
           .landing-hero-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
-          .landing-nav-login { display: none; }
+          .landing-nav-login { display: inline-block; }
         }
       `}</style>
       {/* ═══ NAVBAR ═══ */}
@@ -570,10 +579,14 @@ export default function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, flexWrap: 'wrap', marginBottom: 12 }}>
           <Link href="/terms" style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Terms</Link>
           <Link href="/privacy" style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Privacy</Link>
+          <a href="mailto:support@thepaybureau.com" style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Support</a>
           <Link href="/login" style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Log in</Link>
         </div>
-        <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.3)' }}>
-          &copy; {new Date().getFullYear()} ThePayBureau. Built by payroll specialists, for payroll specialists.
+        <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.3)', marginBottom: 6 }}>
+          &copy; {new Date().getFullYear()} ThePayBureau Ltd. Built by payroll specialists, for payroll specialists.
+        </p>
+        <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.2)' }}>
+          ThePayBureau Ltd — Registered in England and Wales
         </p>
       </footer>
     </div>
