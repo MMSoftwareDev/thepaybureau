@@ -67,6 +67,8 @@ export default function DashboardWrapper({ children, user, avatarUrl, isAdmin }:
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Navbar
           onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+          user={user}
+          avatarUrl={avatarUrl}
         />
 
         <main

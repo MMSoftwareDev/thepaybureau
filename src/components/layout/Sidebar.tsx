@@ -4,7 +4,6 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { createClientSupabaseClient } from '@/lib/supabase'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import {
   LayoutDashboard,
@@ -15,13 +14,13 @@ import {
   CreditCard,
   Settings as SettingsIcon,
   Search,
-  LogOut,
   Sun,
   Moon,
   Command,
   BarChart3,
   ScrollText,
   GraduationCap,
+  Lightbulb,
 } from 'lucide-react'
 
 interface NavSection {
@@ -74,9 +73,15 @@ const NAV_SECTIONS: NavSection[] = [
       { name: 'Audit Log', href: '/dashboard/audit-log', icon: ScrollText },
     ],
   },
+  {
+    label: 'COMMUNITY',
+    items: [
+      { name: 'Feature Requests', href: '/dashboard/feature-requests', icon: Lightbulb },
+    ],
+  },
 ]
 
-export default function Sidebar({ user, avatarUrl, isAdmin = false, mobileOpen = false, onMobileClose }: SidebarProps) {
+export default function Sidebar({ isAdmin = false, mobileOpen = false, onMobileClose }: SidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
@@ -84,8 +89,6 @@ export default function Sidebar({ user, avatarUrl, isAdmin = false, mobileOpen =
   const [searchOpen, setSearchOpen] = useState(false)
   const { isDark, toggleTheme } = useTheme()
   const colors = getThemeColors(isDark)
-  const supabase = createClientSupabaseClient()
-
   useEffect(() => { setMounted(true) }, [])
 
   // Keyboard shortcut: Cmd/Ctrl + K to toggle search
@@ -120,32 +123,9 @@ export default function Sidebar({ user, avatarUrl, isAdmin = false, mobileOpen =
     }
   }
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut()
-      router.push('/login')
-    } catch (error) {
-      console.error('Error signing out:', error)
-    }
-  }
-
   const navigate = (href: string) => {
     router.push(href)
     onMobileClose?.()
-  }
-
-  const getUserName = () => {
-    if (!mounted) return 'User'
-    return user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'
-  }
-
-  const getUserEmail = () => {
-    return user?.email || ''
-  }
-
-  const getUserInitial = () => {
-    if (!mounted) return 'U'
-    return user?.user_metadata?.name?.[0] || user?.email?.[0]?.toUpperCase() || 'U'
   }
 
   if (!mounted) {
@@ -399,54 +379,6 @@ export default function Sidebar({ user, avatarUrl, isAdmin = false, mobileOpen =
           </span>
         </button>
 
-        {/* Divider */}
-        <div className="h-px mb-2" style={{ background: colors.border }} />
-
-        {/* User */}
-        <div className="flex items-center gap-2.5 px-1.5 py-1.5 rounded-md"
-          style={{ cursor: 'default' }}
-        >
-          {avatarUrl ? (
-            <Image
-              src={avatarUrl}
-              alt={getUserName()}
-              width={28}
-              height={28}
-              className="rounded-md object-cover flex-shrink-0"
-            />
-          ) : (
-            <div
-              className="h-7 w-7 rounded-md flex items-center justify-center text-white text-[0.7rem] font-bold flex-shrink-0"
-              style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
-            >
-              {getUserInitial()}
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="text-[0.78rem] font-semibold truncate leading-tight" style={{ color: colors.text.primary }}>
-              {getUserName()}
-            </div>
-            <div className="text-[0.65rem] truncate leading-tight" style={{ color: colors.text.muted }}>
-              {getUserEmail()}
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="h-6 w-6 flex items-center justify-center rounded transition-colors duration-150 flex-shrink-0"
-            style={{ color: colors.text.muted }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = colors.error
-              e.currentTarget.style.background = isDark ? 'rgba(239,68,68,0.1)' : 'rgba(217,48,37,0.06)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = colors.text.muted
-              e.currentTarget.style.background = 'transparent'
-            }}
-            title="Sign out"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-          </button>
-        </div>
       </div>
     </nav>
   )

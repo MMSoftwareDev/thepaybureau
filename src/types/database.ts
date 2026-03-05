@@ -363,6 +363,61 @@ export interface Database {
         }
       }
     }
+      feature_requests: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          status: 'submitted' | 'planned' | 'considering' | 'will_not_implement' | 'future'
+          created_by_user_id: string | null
+          created_by_email: string | null
+          created_by_name: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          status?: 'submitted' | 'planned' | 'considering' | 'will_not_implement' | 'future'
+          created_by_user_id?: string | null
+          created_by_email?: string | null
+          created_by_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          status?: 'submitted' | 'planned' | 'considering' | 'will_not_implement' | 'future'
+          created_by_user_id?: string | null
+          created_by_email?: string | null
+          created_by_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      feature_request_votes: {
+        Row: {
+          id: string
+          feature_request_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          feature_request_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          feature_request_id?: string
+          user_id?: string
+          created_at?: string
+        }
+      }
     Views: {
       [_ in never]: never
     }
