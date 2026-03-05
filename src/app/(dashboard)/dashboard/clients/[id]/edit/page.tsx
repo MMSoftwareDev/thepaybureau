@@ -267,8 +267,6 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
 
   useEffect(() => {
     if (!formData.pay_frequency || !formData.pay_day) return
-    // Only auto-fill if both period fields are currently empty
-    if (formData.period_start && formData.period_end) return
 
     try {
       const freq = formData.pay_frequency as PayFrequency
@@ -285,8 +283,8 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
 
       setFormData((prev) => ({
         ...prev,
-        period_start: prev.period_start || formatDate(periodStart),
-        period_end: prev.period_end || formatDate(periodEnd),
+        period_start: formatDate(periodStart),
+        period_end: formatDate(periodEnd),
       }))
     } catch {
       // Ignore calculation errors for unsupported combos
@@ -561,6 +559,8 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
             onValueChange={(value) => {
               updateField('pay_frequency', value)
               updateField('pay_day', '')
+              updateField('period_start', '')
+              updateField('period_end', '')
             }}
           >
             <SelectTrigger className={inputClassName} style={inputStyle}>
