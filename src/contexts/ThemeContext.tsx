@@ -120,9 +120,9 @@ export const getThemeColors = (isDark: boolean) => ({
   accent: isDark ? '#FFA599' : '#FF8073',
 
   // Backgrounds
-  lightBg: isDark ? '#0F0F23' : '#FAF7FF',
-  surface: isDark ? '#1A1B2E' : '#FFFFFF',
-  surfaceElevated: isDark ? '#16213E' : '#FFFFFF',
+  lightBg: isDark ? '#1A1A1A' : '#FAF7FF',
+  surface: isDark ? '#333333' : '#FFFFFF',
+  surfaceElevated: isDark ? '#2A2A2A' : '#FFFFFF',
 
   // Semantic
   success: isDark ? '#10B981' : '#188038',
@@ -137,22 +137,22 @@ export const getThemeColors = (isDark: boolean) => ({
   },
 
   // Borders
-  border: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E8E2F0',
-  borderElevated: isDark ? 'rgba(255, 255, 255, 0.12)' : '#D4CBE3',
+  border: isDark ? 'rgba(255, 255, 255, 0.10)' : '#E8E2F0',
+  borderElevated: isDark ? 'rgba(255, 255, 255, 0.15)' : '#D4CBE3',
 
   // Glass effects
   glass: {
     background: isDark
-      ? 'linear-gradient(135deg, rgba(15, 15, 35, 0.95) 0%, rgba(26, 27, 46, 0.98) 100%)'
+      ? 'linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(51, 51, 51, 0.98) 100%)'
       : 'linear-gradient(135deg, #FAF7FF 0%, #FFFFFF 100%)',
-    surface: isDark ? 'rgba(26, 27, 46, 0.6)' : 'rgba(255, 255, 255, 0.8)',
-    surfaceHover: isDark ? 'rgba(22, 33, 62, 0.8)' : 'rgba(255, 255, 255, 0.95)',
-    surfaceActive: isDark ? 'rgba(22, 33, 62, 0.4)' : 'rgba(255, 255, 255, 0.6)',
-    card: isDark ? 'rgba(26, 27, 46, 0.7)' : 'rgba(255, 255, 255, 0.92)',
+    surface: isDark ? 'rgba(51, 51, 51, 0.6)' : 'rgba(255, 255, 255, 0.8)',
+    surfaceHover: isDark ? 'rgba(60, 60, 60, 0.8)' : 'rgba(255, 255, 255, 0.95)',
+    surfaceActive: isDark ? 'rgba(60, 60, 60, 0.4)' : 'rgba(255, 255, 255, 0.6)',
+    card: isDark ? 'rgba(51, 51, 51, 0.7)' : 'rgba(255, 255, 255, 0.92)',
     sidebar: isDark
-      ? 'linear-gradient(135deg, rgba(15, 15, 35, 0.98) 0%, rgba(22, 33, 62, 0.95) 100%)'
+      ? 'linear-gradient(135deg, rgba(26, 26, 26, 0.98) 0%, rgba(45, 45, 45, 0.95) 100%)'
       : 'linear-gradient(135deg, #FAF7FF 0%, rgba(255,255,255,0.95) 100%)',
-    navbar: isDark ? 'rgba(15, 15, 35, 0.95)' : '#FFFFFF',
+    navbar: isDark ? 'rgba(26, 26, 26, 0.95)' : '#FFFFFF',
   },
 
   // Shadows
