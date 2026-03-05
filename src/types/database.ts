@@ -368,7 +368,7 @@ export interface Database {
           id: string
           title: string
           description: string | null
-          status: 'submitted' | 'planned' | 'considering' | 'will_not_implement' | 'future'
+          status: 'submitted' | 'planned' | 'considering' | 'working_on' | 'will_not_implement' | 'future'
           created_by_user_id: string | null
           created_by_email: string | null
           created_by_name: string | null
@@ -379,7 +379,7 @@ export interface Database {
           id?: string
           title: string
           description?: string | null
-          status?: 'submitted' | 'planned' | 'considering' | 'will_not_implement' | 'future'
+          status?: 'submitted' | 'planned' | 'considering' | 'working_on' | 'will_not_implement' | 'future'
           created_by_user_id?: string | null
           created_by_email?: string | null
           created_by_name?: string | null
@@ -390,7 +390,7 @@ export interface Database {
           id?: string
           title?: string
           description?: string | null
-          status?: 'submitted' | 'planned' | 'considering' | 'will_not_implement' | 'future'
+          status?: 'submitted' | 'planned' | 'considering' | 'working_on' | 'will_not_implement' | 'future'
           created_by_user_id?: string | null
           created_by_email?: string | null
           created_by_name?: string | null
