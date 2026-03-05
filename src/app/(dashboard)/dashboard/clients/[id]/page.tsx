@@ -385,8 +385,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             <InfoRow label="Contact Name" value={client.contact_name} colors={colors} />
             <InfoRow label="Contact Email" value={client.contact_email} colors={colors} />
             <InfoRow label="Contact Phone" value={client.contact_phone} colors={colors} />
-            <InfoRow label="Company Email" value={client.email} colors={colors} />
-            <InfoRow label="Company Phone" value={client.phone} colors={colors} />
           </CardContent>
         </Card>
       </div>

@@ -59,8 +59,6 @@ interface FormData {
   contact_name: string
   contact_email: string
   contact_phone: string
-  email: string
-  phone: string
   notes: string
 }
 
@@ -170,8 +168,6 @@ function AddClientContent() {
     contact_name: '',
     contact_email: '',
     contact_phone: '',
-    email: '',
-    phone: '',
     notes: '',
   })
 
@@ -215,8 +211,6 @@ function AddClientContent() {
           contact_name: client.contact_name || '',
           contact_email: client.contact_email || '',
           contact_phone: client.contact_phone || '',
-          email: client.email || '',
-          phone: client.phone || '',
           notes: client.notes || '',
         })
 
@@ -372,8 +366,6 @@ function AddClientContent() {
         contact_name: formData.contact_name || undefined,
         contact_email: formData.contact_email || undefined,
         contact_phone: formData.contact_phone || undefined,
-        email: formData.email || undefined,
-        phone: formData.phone || undefined,
         notes: formData.notes || undefined,
         checklist_items: checklistItems
           .filter((item) => item.name.trim())
@@ -800,44 +792,6 @@ function AddClientContent() {
           className={inputClassName}
           style={inputStyle}
         />
-      </div>
-
-      <div
-        className="pt-6 border-t space-y-6"
-        style={{ borderColor: colors.borderElevated }}
-      >
-        <h4 className="text-sm font-bold uppercase tracking-wide" style={{ color: colors.text.muted }}>
-          Company Contact Details
-        </h4>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <Label htmlFor="email" className="font-semibold" style={{ color: colors.text.primary }}>
-              Company Email
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => updateField('email', e.target.value)}
-              placeholder="info@company.com"
-              className={inputClassName}
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <Label htmlFor="phone" className="font-semibold" style={{ color: colors.text.primary }}>
-              Company Phone
-            </Label>
-            <Input
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => updateField('phone', e.target.value)}
-              placeholder="+44 20 1234 5678"
-              className={inputClassName}
-              style={inputStyle}
-            />
-          </div>
-        </div>
       </div>
 
       <div>
