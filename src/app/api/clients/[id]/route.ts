@@ -158,7 +158,7 @@ export async function PUT(
 
     if (error) {
       console.error('Database error updating client:', error)
-      return NextResponse.json({ error: 'Failed to update client' }, { status: 400 })
+      return NextResponse.json({ error: error.message || 'Failed to update client' }, { status: 400 })
     }
 
     // Audit log: client updated
