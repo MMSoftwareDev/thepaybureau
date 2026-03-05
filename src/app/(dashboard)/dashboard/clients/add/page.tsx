@@ -175,8 +175,28 @@ function AddClientContent() {
     DEFAULT_CHECKLIST
   )
 
+  // Named templates from tenant settings
+  const [availableTemplates, setAvailableTemplates] = useState<
+    { id: string; name: string; is_default: boolean; steps: { name: string; sort_order: number }[] }[]
+  >([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
+
   useEffect(() => {
     setMounted(true)
+    // Fetch saved checklist templates
+    fetch('/api/settings')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.templates?.length) {
+          setAvailableTemplates(data.templates)
+          const defaultTpl = data.templates.find((t: { is_default: boolean }) => t.is_default)
+          if (defaultTpl) {
+            setSelectedTemplateId(defaultTpl.id)
+            setChecklistItems(defaultTpl.steps.map((s: { name: string }) => ({ name: s.name })))
+          }
+        }
+      })
+      .catch(() => { /* fall back to DEFAULT_CHECKLIST */ })
   }, [])
 
   // Pre-fill form when duplicating an existing client
@@ -813,11 +833,44 @@ function AddClientContent() {
 
   // ─── Step 5: Checklist Template ──────────────────────────────────
 
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplateId(templateId)
+    if (templateId === 'custom') return
+    const tpl = availableTemplates.find((t) => t.id === templateId)
+    if (tpl) {
+      setChecklistItems(tpl.steps.map((s) => ({ name: s.name })))
+    }
+  }
+
   const renderStep5 = () => (
     <div className="space-y-4">
       <p className="text-sm" style={{ color: colors.text.secondary }}>
         Define the payroll processing steps for this client. These will be used as a checklist for each pay run.
       </p>
+
+      {availableTemplates.length > 0 && !searchParams.get('duplicate') && (
+        <div>
+          <Label className="font-semibold text-sm" style={{ color: colors.text.primary }}>
+            Template
+          </Label>
+          <Select value={selectedTemplateId} onValueChange={handleTemplateSelect}>
+            <SelectTrigger
+              className="mt-1.5 rounded-xl border-0 shadow-lg"
+              style={inputStyle}
+            >
+              <SelectValue placeholder="Choose a template..." />
+            </SelectTrigger>
+            <SelectContent>
+              {availableTemplates.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}{t.is_default ? ' (Default)' : ''}
+                </SelectItem>
+              ))}
+              <SelectItem value="custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {checklistItems.map((item, index) => (
         <div
