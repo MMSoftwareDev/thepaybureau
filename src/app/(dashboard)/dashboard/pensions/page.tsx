@@ -224,9 +224,9 @@ export default function PensionDeclarationsPage() {
   // ─── Styles ────────────────────────────────────────────────────────
 
   const inputStyle = {
-    background: colors.glass.surface,
+    background: isDark ? 'rgba(255,255,255,0.05)' : '#fff',
     color: colors.text.primary,
-    border: `1px solid ${colors.borderElevated}`,
+    border: `1px solid ${colors.border}`,
   }
 
   const getStatusDot = (status: 'overdue' | 'due_soon' | 'ok' | 'none') => {
@@ -251,11 +251,11 @@ export default function PensionDeclarationsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="h-12 rounded-xl animate-pulse" style={{ background: colors.glass.surface }} />
-        <div className="h-16 rounded-2xl animate-pulse" style={{ background: colors.glass.surface }} />
+      <div className="space-y-6 animate-pulse">
+        <div className="h-12 rounded-lg" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
+        <div className="h-16 rounded-lg" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-20 rounded-2xl animate-pulse" style={{ background: colors.glass.surface }} />
+          <div key={i} className="h-16 rounded-lg" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
         ))}
       </div>
     )
@@ -275,7 +275,7 @@ export default function PensionDeclarationsPage() {
         </p>
         <Button
           onClick={fetchClients}
-          className="rounded-xl font-semibold text-white"
+          className="rounded-lg font-semibold text-white text-[0.85rem]"
           style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
         >
           <RefreshCw className="w-4 h-4 mr-2" />
@@ -291,16 +291,10 @@ export default function PensionDeclarationsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1
-          className="text-3xl md:text-4xl font-bold transition-colors duration-300"
-          style={{ color: colors.text.primary }}
-        >
+        <h1 className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>
           Pension Declarations
         </h1>
-        <p
-          className="text-base md:text-lg transition-colors duration-300 mt-1"
-          style={{ color: colors.text.secondary }}
-        >
+        <p className="text-[0.82rem] mt-0.5" style={{ color: colors.text.muted }}>
           Manage pension dates across all clients
           {clients.length !== nonExemptClients.length && (
             <span style={{ color: colors.text.muted }}>
@@ -325,15 +319,15 @@ export default function PensionDeclarationsPage() {
       )}
 
       {/* Summary bar */}
-      <div
-        className="flex flex-wrap gap-3 p-4 rounded-2xl"
+      <Card
+        className="border-0"
         style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark ? `0 4px 15px ${colors.shadow.medium}` : `0 4px 15px ${colors.shadow.light}`,
+          backgroundColor: colors.surface,
+          borderRadius: '12px',
+          border: `1px solid ${colors.border}`,
         }}
       >
+      <CardContent className="flex flex-wrap gap-3 p-4">
         {[
           { label: 'Total Clients', value: stats.total, filterKey: 'all' as const, color: colors.primary, icon: Shield },
           { label: 'Overdue', value: stats.overdue, filterKey: 'overdue' as const, color: colors.error, icon: AlertTriangle },
@@ -346,7 +340,7 @@ export default function PensionDeclarationsPage() {
             <button
               key={stat.filterKey}
               onClick={() => setFilter(isActive ? 'all' : stat.filterKey)}
-              className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-200 min-w-[140px]"
+              className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg min-w-[140px]"
               style={{
                 background: isActive ? `${stat.color}15` : 'transparent',
                 border: `1px solid ${isActive ? `${stat.color}40` : 'transparent'}`,
@@ -364,7 +358,8 @@ export default function PensionDeclarationsPage() {
             </button>
           )
         })}
-      </div>
+      </CardContent>
+      </Card>
 
       {/* Search */}
       <div className="relative max-w-md">
@@ -376,7 +371,7 @@ export default function PensionDeclarationsPage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by client name or provider..."
-          className="pl-10 rounded-xl border-0 shadow-lg"
+          className="pl-10 h-9 text-[0.85rem] rounded-lg font-medium"
           style={inputStyle}
         />
       </div>
@@ -391,13 +386,11 @@ export default function PensionDeclarationsPage() {
         </div>
       ) : (
         <Card
-          className="border-0 shadow-xl overflow-hidden"
+          className="border-0 overflow-hidden"
           style={{
-            backgroundColor: colors.glass.card,
-            backdropFilter: 'blur(20px)',
-            borderRadius: '16px',
-            border: `1px solid ${colors.borderElevated}`,
-            boxShadow: isDark ? `0 8px 25px ${colors.shadow.medium}` : `0 6px 20px ${colors.shadow.light}`,
+            backgroundColor: colors.surface,
+            borderRadius: '12px',
+            border: `1px solid ${colors.border}`,
           }}
         >
           <CardContent className="p-0">
@@ -406,7 +399,7 @@ export default function PensionDeclarationsPage() {
                 <thead>
                   <tr
                     style={{
-                      borderBottom: `1px solid ${colors.borderElevated}`,
+                      borderBottom: `1px solid ${colors.border}`,
                       background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
                     }}
                   >
@@ -551,9 +544,9 @@ export default function PensionDeclarationsPage() {
 
       {/* Legend */}
       <div
-        className="flex items-center gap-6 px-4 py-3 rounded-xl text-[0.75rem]"
+        className="flex items-center gap-6 px-4 py-3 rounded-lg text-[0.75rem]"
         style={{
-          background: colors.glass.surface,
+          background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
           border: `1px solid ${colors.border}`,
           color: colors.text.muted,
         }}

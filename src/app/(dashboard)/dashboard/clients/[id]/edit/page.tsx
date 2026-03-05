@@ -359,12 +359,12 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
   // ─── Shared styles ────────────────────────────────────────────────
 
   const inputStyle = {
-    background: colors.glass.surface,
+    background: isDark ? 'rgba(255,255,255,0.05)' : '#fff',
     color: colors.text.primary,
-    border: `1px solid ${colors.borderElevated}`,
+    border: `1px solid ${colors.border}`,
   }
 
-  const inputClassName = 'mt-2 rounded-xl border-0 shadow-lg transition-all duration-300'
+  const inputClassName = 'mt-2 rounded-lg border-0'
 
   const renderFieldError = (key: string) =>
     fieldErrors[key] ? (
@@ -779,9 +779,9 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
           <span
             className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
             style={{
-              background: colors.glass.surfaceActive,
+              background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
               color: colors.text.muted,
-              border: `1px solid ${colors.borderElevated}`,
+              border: `1px solid ${colors.border}`,
             }}
           >
             {index + 1}
@@ -790,7 +790,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
             value={item.name}
             onChange={(e) => updateChecklistItem(index, e.target.value)}
             placeholder="Step name..."
-            className="flex-1 rounded-xl border-0 shadow-lg transition-all duration-300"
+            className="flex-1 rounded-lg border-0"
             style={inputStyle}
           />
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -834,11 +834,10 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
         type="button"
         variant="outline"
         onClick={addChecklistItem}
-        className="w-full rounded-xl font-semibold transition-all duration-300 hover:scale-[1.01]"
+        className="w-full rounded-lg font-semibold text-[0.85rem]"
         style={{
-          borderColor: colors.borderElevated,
+          borderColor: colors.border,
           color: colors.text.secondary,
-          backgroundColor: colors.glass.surface,
         }}
       >
         <Plus className="w-4 h-4 mr-2" />
@@ -862,10 +861,10 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
 
   if (!mounted) {
     return (
-      <div className="space-y-8 animate-pulse max-w-4xl mx-auto">
-        <div className="h-20 rounded-xl bg-gray-200" />
-        <div className="h-16 rounded-xl bg-gray-200" />
-        <div className="h-96 rounded-xl bg-gray-200" />
+      <div className="space-y-6 animate-pulse max-w-4xl mx-auto">
+        <div className="h-16 rounded-lg" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
+        <div className="h-14 rounded-lg" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
+        <div className="h-80 rounded-lg" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
       </div>
     )
   }
@@ -875,17 +874,12 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
           <div
-            className="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-xl flex items-center justify-center"
-            style={{
-              background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-              boxShadow: isDark
-                ? `0 25px 50px ${colors.shadow.heavy}`
-                : `0 20px 40px ${colors.primary}30`,
-            }}
+            className="w-12 h-12 mx-auto mb-4 rounded-lg flex items-center justify-center"
+            style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
           >
-            <Building2 className="w-10 h-10 text-white animate-pulse" />
+            <Building2 className="w-6 h-6 text-white animate-pulse" />
           </div>
-          <p className="text-xl font-semibold" style={{ color: colors.text.primary }}>
+          <p className="text-[0.9rem] font-medium" style={{ color: colors.text.secondary }}>
             Loading client...
           </p>
         </div>
@@ -897,23 +891,22 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <Card
-          className="max-w-md border-0 shadow-2xl"
+          className="max-w-sm border-0"
           style={{
-            backgroundColor: colors.glass.card,
-            backdropFilter: 'blur(20px)',
-            borderRadius: '20px',
-            border: `1px solid ${colors.borderElevated}`,
+            backgroundColor: colors.surface,
+            borderRadius: '12px',
+            border: `1px solid ${colors.border}`,
           }}
         >
-          <CardContent className="p-8 text-center">
-            <h3 className="text-xl font-bold mb-3" style={{ color: colors.text.primary }}>
+          <CardContent className="p-6 text-center">
+            <h3 className="text-base font-bold mb-2" style={{ color: colors.text.primary }}>
               {error}
             </h3>
             <Button
               onClick={() => router.push('/dashboard/clients')}
-              className="text-white font-semibold px-6 py-3 rounded-xl shadow-lg"
+              className="text-white font-semibold px-5 py-2 rounded-lg border-0 text-[0.85rem]"
               style={{
-                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
               }}
             >
               Back to Clients
@@ -930,20 +923,14 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
   const CurrentIcon = currentTabInfo.icon
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1
-            className="text-3xl md:text-4xl font-bold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
+          <h1 className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>
             Edit Client
           </h1>
-          <p
-            className="text-base md:text-lg transition-colors duration-300 mt-2"
-            style={{ color: colors.text.secondary }}
-          >
+          <p className="text-[0.82rem] mt-0.5" style={{ color: colors.text.muted }}>
             {formData.name}
           </p>
         </div>
@@ -951,13 +938,8 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
         <Button
           variant="outline"
           onClick={() => router.push('/dashboard/clients')}
-          className="rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg self-start sm:self-auto"
-          style={{
-            borderColor: colors.borderElevated,
-            color: colors.text.secondary,
-            backgroundColor: colors.glass.surface,
-            backdropFilter: 'blur(10px)',
-          }}
+          className="font-semibold py-2 px-4 rounded-lg text-[0.85rem]"
+          style={{ borderColor: colors.border, color: colors.text.primary }}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Clients
@@ -965,76 +947,64 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {/* Tab navigation */}
-      <div
-        className="rounded-2xl p-4 md:p-6 shadow-xl"
+      <Card
+        className="border-0"
         style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 10px 25px ${colors.shadow.medium}`
-            : `0 6px 15px ${colors.shadow.light}`,
+          backgroundColor: colors.surface,
+          borderRadius: '12px',
+          border: `1px solid ${colors.border}`,
         }}
       >
-        <div className="flex flex-wrap gap-2">
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.key
-            const TabIcon = tab.icon
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300',
-                  isActive ? 'shadow-lg' : 'hover:shadow-md'
-                )}
-                style={{
-                  backgroundColor: isActive ? colors.primary : colors.glass.surface,
-                  color: isActive ? '#FFFFFF' : colors.text.secondary,
-                  border: `1px solid ${isActive ? colors.primary : colors.borderElevated}`,
-                  boxShadow: isActive ? `0 4px 15px ${colors.primary}40` : 'none',
-                }}
-              >
-                <TabIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">{tab.label}</span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-wrap gap-2">
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.key
+              const TabIcon = tab.icon
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-[0.82rem] font-semibold"
+                  style={{
+                    backgroundColor: isActive ? colors.primary : 'transparent',
+                    color: isActive ? '#FFFFFF' : colors.text.secondary,
+                    border: `1px solid ${isActive ? colors.primary : colors.border}`,
+                  }}
+                >
+                  <TabIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Form Card */}
       <Card
-        className="border-0 shadow-xl"
+        className="border-0"
         style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 15px 35px ${colors.shadow.medium}`
-            : `0 10px 25px ${colors.shadow.light}`,
+          backgroundColor: colors.surface,
+          borderRadius: '12px',
+          border: `1px solid ${colors.border}`,
         }}
       >
-        <CardHeader className="pb-6">
+        <CardHeader className="pb-4">
           <CardTitle
-            className="flex items-center text-xl md:text-2xl font-bold transition-colors duration-300"
+            className="flex items-center text-base md:text-lg font-bold"
             style={{ color: colors.text.primary }}
           >
             <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mr-4 shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                boxShadow: `0 8px 25px ${colors.primary}30`,
-              }}
+              className="w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center mr-3"
+              style={{ backgroundColor: `${colors.primary}10` }}
             >
-              <CurrentIcon className="w-6 h-6 text-white" />
+              <CurrentIcon className="w-4 h-4 md:w-5 md:h-5" style={{ color: colors.primary }} />
             </div>
             {currentTabInfo.label}
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="p-6 md:p-8">
+        <CardContent className="p-4 md:p-6">
           {error && formData.name && (
             <div
               className="mb-6 p-4 rounded-xl text-sm font-medium"
@@ -1052,17 +1022,17 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
 
           {/* Save button */}
           <div
-            className="flex justify-end items-center gap-4 pt-8 mt-8 border-t"
-            style={{ borderColor: colors.borderElevated }}
+            className="flex justify-end items-center gap-4 pt-6 mt-6 border-t"
+            style={{ borderColor: colors.border }}
           >
             <Button
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="text-white font-semibold py-3 px-8 rounded-xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+              className="text-white font-semibold py-2 px-5 rounded-lg border-0 text-[0.85rem]"
               style={{
-                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-                boxShadow: `0 10px 25px ${colors.primary}30`,
+                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+                opacity: saving ? 0.7 : 1,
               }}
             >
               {saving ? (

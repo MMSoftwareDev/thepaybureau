@@ -567,7 +567,7 @@ function PayrollsPage() {
         <div className="min-h-[50vh] flex items-center justify-center">
           <div className="text-center p-10">
             <div
-              className="w-16 h-16 mx-auto mb-5 rounded-2xl flex items-center justify-center"
+              className="w-12 h-12 mx-auto mb-4 rounded-lg flex items-center justify-center"
               style={{ backgroundColor: `${colors.primary}12` }}
             >
               <CalendarPlus className="w-8 h-8" style={{ color: colors.primary }} />
