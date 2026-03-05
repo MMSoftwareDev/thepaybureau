@@ -5,6 +5,7 @@ import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { writeAuditLog } from '@/lib/audit'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 const updateProfileSchema = z.object({
   action: z.literal('update_profile'),
@@ -38,6 +39,16 @@ const actionSchema = z.discriminatedUnion('action', [
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 20 settings changes per IP per 15 minutes
+    const ip = getClientIp(request)
+    const limiter = await rateLimit(`settings:${ip}`, { limit: 20, windowSeconds: 900 })
+    if (!limiter.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      )
+    }
+
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
