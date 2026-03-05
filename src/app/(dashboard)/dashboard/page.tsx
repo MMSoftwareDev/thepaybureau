@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { useDashboardStats } from '@/lib/swr'
@@ -52,11 +51,10 @@ interface RunSummary {
   currentStep?: string | null
 }
 
-interface PeriodProgress {
+interface CompletionTrendItem {
+  month: string
+  completed: number
   total: number
-  complete: number
-  inProgress: number
-  notStarted: number
 }
 
 interface ActivityItem {
@@ -71,7 +69,7 @@ interface DashboardStats {
   overdueRuns: RunSummary[]
   thisWeekRuns: RunSummary[]
   actionRequired: ActionItem[]
-  periodProgress: PeriodProgress
+  completionTrend: CompletionTrendItem[]
   totalClients: number
   totalEmployees: number
   dueThisWeek: number
@@ -142,11 +140,6 @@ export default function DashboardPage() {
     )
   }
 
-  // Period progress percentage
-  const periodPct = stats?.periodProgress?.total
-    ? Math.round((stats.periodProgress.complete / stats.periodProgress.total) * 100)
-    : 0
-
   return (
     <div className="space-y-5">
       {/* ── Greeting ── */}
@@ -192,7 +185,7 @@ export default function DashboardPage() {
 
       {/* ── Top 3 Summary Cards ── */}
       {!loading && !isEmptyState && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
           {/* Due Today */}
           <Card
             className="border-0 cursor-pointer transition-colors duration-150"
@@ -306,7 +299,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Period Progress */}
+          {/* Completed This Month */}
           <Card
             className="border-0 cursor-pointer transition-colors duration-150"
             style={{
@@ -321,43 +314,43 @@ export default function DashboardPage() {
                   className="text-[0.72rem] font-semibold uppercase tracking-[0.04em]"
                   style={{ color: colors.text.muted }}
                 >
-                  Period Progress
+                  Completed
                 </p>
                 <CheckCircle2 className="w-4 h-4" style={{ color: colors.text.muted }} />
               </div>
-              <div className="flex items-baseline gap-1.5 mb-2.5">
-                <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.text.primary }}>
-                  {stats?.periodProgress?.complete ?? 0}
-                  <span className="text-[0.82rem] font-normal" style={{ color: colors.text.muted }}>
-                    /{stats?.periodProgress?.total ?? 0}
-                  </span>
-                </p>
-                <span className="text-[0.82rem] font-normal" style={{ color: colors.text.muted }}>
-                  complete
+              <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.text.primary }}>
+                {stats?.completedThisMonth ?? 0}
+                <span className="text-[0.82rem] font-normal ml-1.5" style={{ color: colors.text.muted }}>
+                  this month
                 </span>
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Total Employees */}
+          <Card
+            className="border-0 cursor-pointer transition-colors duration-150"
+            style={{
+              ...cardStyle,
+              borderLeft: `3px solid ${colors.secondary}`,
+            }}
+            onClick={() => router.push('/dashboard/clients')}
+          >
+            <CardContent className="p-4 md:p-5">
+              <div className="flex items-center justify-between mb-2">
+                <p
+                  className="text-[0.72rem] font-semibold uppercase tracking-[0.04em]"
+                  style={{ color: colors.text.muted }}
+                >
+                  Employees
+                </p>
+                <Users className="w-4 h-4" style={{ color: colors.text.muted }} />
               </div>
-              <div className="relative">
-                <Progress
-                  value={periodPct}
-                  className="h-2.5 rounded-full"
-                  style={{
-                    backgroundColor: `${colors.border}`,
-                  }}
-                />
-                <div
-                  className="absolute top-0 left-0 h-2.5 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${periodPct}%`,
-                    background: periodPct === 100
-                      ? colors.success
-                      : `linear-gradient(90deg, ${colors.primary}, ${colors.secondary})`,
-                  }}
-                />
-              </div>
-              <p className="text-[0.72rem] mt-1.5" style={{ color: colors.text.muted }}>
-                {periodPct}%
-                {(stats?.periodProgress?.inProgress ?? 0) > 0 &&
-                  ` — ${stats?.periodProgress?.inProgress} in progress`}
+              <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.text.primary }}>
+                {stats?.totalEmployees ?? 0}
+                <span className="text-[0.82rem] font-normal ml-1.5" style={{ color: colors.text.muted }}>
+                  across {stats?.totalClients ?? 0} clients
+                </span>
               </p>
             </CardContent>
           </Card>
@@ -634,6 +627,49 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* ── Completion Trend ── */}
+      {!loading && !isEmptyState && (stats?.completionTrend?.length ?? 0) > 0 && (
+        <Card className="border-0" style={cardStyle}>
+          <CardContent className="p-4 md:p-5">
+            <h2
+              className="flex items-center gap-2 text-[0.9rem] font-bold mb-4"
+              style={{ color: colors.text.primary }}
+            >
+              <Activity className="w-4 h-4" style={{ color: colors.primary }} />
+              6-Month Trend
+            </h2>
+            <div className="flex items-end gap-2 h-28">
+              {stats?.completionTrend?.map((month) => {
+                const pct = month.total > 0 ? (month.completed / month.total) * 100 : 0
+                const barHeight = month.total > 0 ? Math.max(pct, 8) : 8
+                return (
+                  <div key={month.month} className="flex-1 flex flex-col items-center gap-1.5">
+                    <span className="text-[0.68rem] font-semibold" style={{ color: colors.text.muted }}>
+                      {month.total > 0 ? `${month.completed}/${month.total}` : '-'}
+                    </span>
+                    <div
+                      className="w-full rounded-t-md transition-all duration-500"
+                      style={{
+                        height: `${barHeight}%`,
+                        background: month.total === 0
+                          ? colors.border
+                          : pct === 100
+                            ? colors.success
+                            : `linear-gradient(180deg, ${colors.primary}, ${colors.secondary})`,
+                        opacity: month.total === 0 ? 0.3 : 1,
+                      }}
+                    />
+                    <span className="text-[0.68rem] font-medium" style={{ color: colors.text.muted }}>
+                      {month.month}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* ── Quick Actions ── */}
