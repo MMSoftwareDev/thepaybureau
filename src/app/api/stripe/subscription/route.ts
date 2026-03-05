@@ -1,6 +1,5 @@
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
-import { stripe } from '@/lib/stripe'
-import { PLANS } from '@/lib/stripe'
+import { getStripe, PLANS } from '@/lib/stripe'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -40,7 +39,7 @@ export async function GET() {
     let subscription = null
 
     if (customerId) {
-      const subscriptions = await stripe.subscriptions.list({
+      const subscriptions = await getStripe().subscriptions.list({
         customer: customerId,
         status: 'active',
         limit: 1,
