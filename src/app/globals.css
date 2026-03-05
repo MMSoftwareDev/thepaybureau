@@ -220,11 +220,11 @@
   --login-success-bg: rgba(16, 185, 129, 0.1);
   --login-focus: rgba(124, 92, 191, 0.2);
   /* Semantic aliases */
-  --login-surface: #333333;
+  --login-surface: #1A1B2E;
   --login-fg: #F1F5F9;
   --login-muted: #64748B;
   --login-label: #CBD5E1;
-  --login-input-bg: #3A3A3A;
+  --login-input-bg: #1E1B2E;
   --login-border-hover: rgba(255, 255, 255, 0.2);
 }
 
