@@ -118,8 +118,12 @@ export default function SettingsPage() {
     if (!userId) return
     setSavingProfile(true)
     try {
-      const { error } = await supabase.from('users').update({ name: userName }).eq('id', userId)
-      if (error) throw error
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_profile', name: userName }),
+      })
+      if (!res.ok) throw new Error('Failed to save')
       showMessage(setProfileMessage, 'Profile saved!')
     } catch (err) {
       console.error('Error saving profile:', err)
@@ -172,13 +176,13 @@ export default function SettingsPage() {
 
       const urlWithCacheBust = `${publicUrl}?t=${Date.now()}`
 
-      // Save URL to user record
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ avatar_url: urlWithCacheBust })
-        .eq('id', userId)
-
-      if (updateError) throw updateError
+      // Save URL to user record (via API for audit logging)
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_avatar', avatar_url: urlWithCacheBust }),
+      })
+      if (!res.ok) throw new Error('Failed to update avatar record')
 
       setAvatarUrl(urlWithCacheBust)
       window.dispatchEvent(new CustomEvent('avatar-updated', { detail: urlWithCacheBust }))
@@ -207,12 +211,13 @@ export default function SettingsPage() {
           .remove(existingFiles.map((f) => `${userId}/${f.name}`))
       }
 
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ avatar_url: null })
-        .eq('id', userId)
-
-      if (updateError) throw updateError
+      // Update user record via API for audit logging
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_avatar', avatar_url: null }),
+      })
+      if (!res.ok) throw new Error('Failed to update avatar record')
 
       setAvatarUrl(null)
       window.dispatchEvent(new CustomEvent('avatar-updated', { detail: null }))
@@ -251,8 +256,15 @@ export default function SettingsPage() {
 
     setSavingPassword(true)
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword })
-      if (error) throw error
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'change_password', password: newPassword }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to update password')
+      }
       setNewPassword('')
       setConfirmPassword('')
       setShowPassword(false)
@@ -276,16 +288,15 @@ export default function SettingsPage() {
     if (!tenantId) return
     setSavingChecklist(true)
     try {
-      const { error } = await supabase
-        .from('tenants')
-        .update({
-          settings: {
-            ...tenantSettings,
-            default_checklist: checklistItems.map((item, idx) => ({ name: item.name, sort_order: idx })),
-          },
-        })
-        .eq('id', tenantId)
-      if (error) throw error
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save_checklist_defaults',
+          checklist: checklistItems.map((item, idx) => ({ name: item.name, sort_order: idx })),
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to save')
       showMessage(setChecklistMessage, 'Defaults saved!')
     } catch (err) {
       console.error('Error saving checklist defaults:', err)
