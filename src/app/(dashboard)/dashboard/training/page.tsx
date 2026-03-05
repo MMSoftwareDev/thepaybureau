@@ -1,11 +1,13 @@
 // src/app/(dashboard)/dashboard/training/page.tsx
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { useToast } from '@/components/ui/toast'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { useTrainingRecords } from '@/lib/swr'
+import { useDebounce } from '@/hooks/useDebounce'
 import {
   GraduationCap,
   Plus,
@@ -71,11 +73,11 @@ export default function TrainingPage() {
   const colors = getThemeColors(isDark)
   const { toast } = useToast()
 
-  const [records, setRecords] = useState<TrainingRecord[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: records = [], isLoading: loading, mutate } = useTrainingRecords()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 200)
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending'>('all')
   const [showFilters, setShowFilters] = useState(false)
 
@@ -88,23 +90,6 @@ export default function TrainingPage() {
   const [formCompleted, setFormCompleted] = useState(false)
   const [formCompletedDate, setFormCompletedDate] = useState('')
   const [saving, setSaving] = useState(false)
-
-  const fetchRecords = useCallback(async () => {
-    try {
-      const res = await fetch('/api/training')
-      if (!res.ok) throw new Error('Failed to fetch')
-      const data = await res.json()
-      setRecords(data)
-    } catch (err) {
-      console.error('Failed to fetch training records:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchRecords()
-  }, [fetchRecords])
 
   const resetForm = () => {
     setFormTitle('')
@@ -159,7 +144,7 @@ export default function TrainingPage() {
 
       toast(editingId ? 'Training record updated' : 'Training record added', 'success')
       resetForm()
-      fetchRecords()
+      mutate()
     } catch {
       toast('Failed to save training record', 'error')
     } finally {
@@ -169,19 +154,27 @@ export default function TrainingPage() {
 
   const toggleCompleted = async (record: TrainingRecord) => {
     const nowCompleted = !record.completed
+    const completedDate = nowCompleted ? new Date().toISOString().split('T')[0] : null
+
+    // Optimistic update: reflect in UI instantly
+    const previous = records
+    mutate(
+      (records as TrainingRecord[]).map((r: TrainingRecord) =>
+        r.id === record.id ? { ...r, completed: nowCompleted, completed_date: completedDate } : r
+      ),
+      false
+    )
+
     try {
       const res = await fetch('/api/training', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: record.id,
-          completed: nowCompleted,
-          completed_date: nowCompleted ? new Date().toISOString().split('T')[0] : null,
-        }),
+        body: JSON.stringify({ id: record.id, completed: nowCompleted, completed_date: completedDate }),
       })
       if (!res.ok) throw new Error('Failed to update')
-      fetchRecords()
     } catch {
+      // Rollback on error
+      mutate(previous, false)
       toast('Failed to update', 'error')
     }
   }
@@ -191,23 +184,23 @@ export default function TrainingPage() {
       const res = await fetch(`/api/training?id=${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Failed to delete')
       toast('Training record deleted', 'success')
-      fetchRecords()
+      mutate((records as TrainingRecord[]).filter((r: TrainingRecord) => r.id !== id), false)
     } catch {
       toast('Failed to delete', 'error')
     }
   }
 
   // Filter records
-  const filtered = records.filter(r => {
+  const filtered = (records as TrainingRecord[]).filter((r: TrainingRecord) => {
     if (statusFilter === 'completed' && !r.completed) return false
     if (statusFilter === 'pending' && r.completed) return false
-    if (search && !r.title.toLowerCase().includes(search.toLowerCase()) &&
-        !(r.provider || '').toLowerCase().includes(search.toLowerCase())) return false
+    if (debouncedSearch && !r.title.toLowerCase().includes(debouncedSearch.toLowerCase()) &&
+        !(r.provider || '').toLowerCase().includes(debouncedSearch.toLowerCase())) return false
     return true
   })
 
-  const completedCount = records.filter(r => r.completed).length
-  const pendingCount = records.length - completedCount
+  const completedCount = (records as TrainingRecord[]).filter((r: TrainingRecord) => r.completed).length
+  const pendingCount = (records as TrainingRecord[]).length - completedCount
 
   return (
     <div className="space-y-6">

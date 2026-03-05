@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { createClientSupabaseClient } from '@/lib/supabase'
+import { useDashboardStats } from '@/lib/swr'
 import {
   Users,
   Clock,
@@ -99,8 +100,7 @@ const ACTIVITY_CONFIG: Record<
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: stats, isLoading: loading } = useDashboardStats() as { data: DashboardStats | undefined, isLoading: boolean }
   const [mounted, setMounted] = useState(false)
   const [userName, setUserName] = useState('')
   const router = useRouter()
@@ -109,31 +109,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setMounted(true)
-    const fetchUser = async () => {
-      const supabase = createClientSupabaseClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+    const supabase = createClientSupabaseClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         setUserName(user.user_metadata?.name || user.email?.split('@')[0] || '')
       }
-    }
-    fetchUser()
-  }, [])
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true)
-      try {
-        const res = await fetch('/api/dashboard/stats')
-        if (res.ok) setStats(await res.json())
-      } catch (error) {
-        console.error('Failed to fetch dashboard stats:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchStats()
+    })
   }, [])
 
   const isEmptyState =
