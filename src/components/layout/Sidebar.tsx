@@ -11,7 +11,7 @@ import {
   UserPlus,
   ClipboardCheck,
   Shield,
-
+  CreditCard,
   Settings as SettingsIcon,
   Search,
   LogOut,
@@ -70,6 +70,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'ADMIN',
     items: [
       { name: 'Audit Log', href: '/dashboard/audit-log', icon: ScrollText },
+      { name: 'Subscription', href: '/dashboard/subscription', icon: CreditCard },
     ],
   },
 ]
