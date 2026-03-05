@@ -29,7 +29,8 @@ import {
   Phone,
   Mail,
   Calendar,
-  Copy
+  Copy,
+  Upload
 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
@@ -356,16 +357,27 @@ function ClientsContent() {
             Manage your payroll bureau clients.
           </p>
         </div>
-        <Button
-          onClick={() => router.push('/dashboard/clients/add')}
-          className="text-white font-semibold py-2 px-5 rounded-lg border-0 text-[0.85rem]"
-          style={{
-            background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-          }}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Client
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => router.push('/dashboard/clients/import')}
+            className="font-semibold py-2 px-4 rounded-lg text-[0.85rem]"
+            style={{ borderColor: colors.border, color: colors.text.primary }}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            Import CSV
+          </Button>
+          <Button
+            onClick={() => router.push('/dashboard/clients/add')}
+            className="text-white font-semibold py-2 px-5 rounded-lg border-0 text-[0.85rem]"
+            style={{
+              background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+            }}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Client
+          </Button>
+        </div>
       </div>
 
       {/* Summary Stats */}
