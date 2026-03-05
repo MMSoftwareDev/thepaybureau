@@ -72,7 +72,6 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'ADMIN',
     items: [
       { name: 'Audit Log', href: '/dashboard/audit-log', icon: ScrollText },
-      { name: 'Subscription', href: '/dashboard/subscription', icon: CreditCard },
     ],
   },
 ]
@@ -364,6 +363,20 @@ export default function Sidebar({ user, avatarUrl, isAdmin = false, mobileOpen =
           <SettingsIcon className="w-4 h-4" style={{ color: colors.text.muted }} />
           <span className="text-[0.8rem] font-medium">Settings</span>
         </button>
+
+        {/* Subscription (greyed out — V2) */}
+        <div
+          className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-px"
+          style={{
+            color: colors.text.muted,
+            opacity: 0.45,
+            cursor: 'not-allowed',
+          }}
+        >
+          <CreditCard className="w-4 h-4" style={{ color: colors.text.muted }} />
+          <span className="text-[0.8rem] font-medium">Subscription</span>
+          <span className="text-[0.6rem] ml-auto" style={{ color: colors.text.muted }}>Coming Soon</span>
+        </div>
 
         {/* Theme toggle */}
         <button
