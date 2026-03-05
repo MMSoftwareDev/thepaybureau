@@ -55,7 +55,7 @@ export default function SettingsPage() {
   const [passwordMessage, setPasswordMessage] = useState('')
 
   const [checklistItems, setChecklistItems] = useState<ChecklistDefault[]>([])
-  const [tenantSettings, setTenantSettings] = useState<TenantSettings>({})
+  const [, setTenantSettings] = useState<TenantSettings>({})
   const [savingChecklist, setSavingChecklist] = useState(false)
   const [checklistMessage, setChecklistMessage] = useState('')
 

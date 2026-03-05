@@ -78,7 +78,6 @@ export async function GET() {
       .eq('tenant_id', user.tenant_id)
 
     const today = startOfDay(new Date())
-    const weekFromNow = addDays(today, 7)
     const monthStart = startOfMonth(today)
 
     const allRuns = runs || []

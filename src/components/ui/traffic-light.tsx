@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
+import { useTheme } from '@/contexts/ThemeContext'
 import { Activity, ChevronDown, ChevronUp, ExternalLink, RefreshCw } from 'lucide-react'
 
 interface Monitor {
@@ -69,7 +69,6 @@ export default function TrafficLight() {
   const previousStatusRef = useRef<OverallStatus>('loading')
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { isDark } = useTheme()
-  const colors = getThemeColors(isDark)
 
   const fetchStatus = useCallback(async () => {
     try {

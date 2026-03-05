@@ -26,7 +26,6 @@ export async function GET() {
     const now = new Date()
     const thirtyDaysAgo = subDays(now, 30)
     const sevenDaysAgo = subDays(now, 7)
-    const ninetyDaysAgo = subDays(now, 90)
 
     // ── All users (from auth-linked public.users table) ──
     const { data: allUsers } = await supabase
