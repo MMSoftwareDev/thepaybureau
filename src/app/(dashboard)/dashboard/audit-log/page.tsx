@@ -15,6 +15,7 @@ import {
   Trash2,
   Filter,
   X,
+  Download,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 
@@ -104,6 +105,34 @@ export default function AuditLogPage() {
   const [resourceFilter, setResourceFilter] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const params = new URLSearchParams()
+      if (search) params.set('search', search)
+      if (actionFilter) params.set('action', actionFilter)
+      if (resourceFilter) params.set('resource_type', resourceFilter)
+
+      const res = await fetch(`/api/audit-logs/export?${params}`)
+      if (!res.ok) throw new Error('Export failed')
+
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `audit-log-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Export failed:', err)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const fetchLogs = useCallback(async () => {
     setLoading(true)
@@ -157,8 +186,23 @@ export default function AuditLogPage() {
             Track every change made across your account
           </p>
         </div>
-        <div className="text-sm" style={{ color: colors.text.muted }}>
-          {total.toLocaleString()} total entries
+        <div className="flex items-center gap-3">
+          <span className="text-sm" style={{ color: colors.text.muted }}>
+            {total.toLocaleString()} total entries
+          </span>
+          <button
+            onClick={handleExport}
+            disabled={exporting || total === 0}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border disabled:opacity-40"
+            style={{
+              borderColor: colors.border,
+              color: colors.text.secondary,
+              background: 'transparent',
+            }}
+          >
+            <Download size={14} />
+            {exporting ? 'Exporting...' : 'Export CSV'}
+          </button>
         </div>
       </div>
 
