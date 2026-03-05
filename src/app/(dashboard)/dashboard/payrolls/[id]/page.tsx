@@ -172,15 +172,12 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
   const toggleChecklistItem = async (item: ChecklistItem) => {
     setTogglingItem(item.id)
     try {
-      const { error: updateError } = await supabase
-        .from('checklist_items')
-        .update({
-          is_completed: !item.is_completed,
-          completed_at: !item.is_completed ? new Date().toISOString() : null,
-        })
-        .eq('id', item.id)
-
-      if (updateError) throw updateError
+      const res = await fetch('/api/payroll-runs/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle_item', item_id: item.id, is_completed: !item.is_completed }),
+      })
+      if (!res.ok) throw new Error('Failed to toggle item')
       await fetchRun()
     } catch (err) {
       console.error('Error toggling checklist item:', err)
@@ -193,19 +190,12 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
     if (!run) return
     setMarkingAll(true)
     try {
-      const incompleteItems = run.checklist_items.filter((i) => !i.is_completed)
-      const ids = incompleteItems.map((i) => i.id)
-      if (ids.length === 0) return
-
-      const { error: updateError } = await supabase
-        .from('checklist_items')
-        .update({
-          is_completed: true,
-          completed_at: new Date().toISOString(),
-        })
-        .in('id', ids)
-
-      if (updateError) throw updateError
+      const res = await fetch('/api/payroll-runs/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_all_complete', payroll_run_id: run.id }),
+      })
+      if (!res.ok) throw new Error('Failed to mark all complete')
       await fetchRun()
     } catch (err) {
       console.error('Error marking all complete:', err)
@@ -218,12 +208,12 @@ export default function PayrollRunDetailPage({ params }: { params: Promise<{ id:
     if (!run || localNotes === (run.notes ?? '')) return
     setSavingNotes(true)
     try {
-      const { error: updateError } = await supabase
-        .from('payroll_runs')
-        .update({ notes: localNotes })
-        .eq('id', run.id)
-
-      if (updateError) throw updateError
+      const res = await fetch('/api/payroll-runs/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_notes', payroll_run_id: run.id, notes: localNotes }),
+      })
+      if (!res.ok) throw new Error('Failed to save notes')
       await fetchRun()
     } catch (err) {
       console.error('Error saving notes:', err)

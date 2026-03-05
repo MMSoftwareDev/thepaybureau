@@ -11,7 +11,7 @@ import {
   UserPlus,
   ClipboardCheck,
   Shield,
-  UserCheck,
+
   Settings as SettingsIcon,
   Search,
   LogOut,
@@ -51,7 +51,6 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { name: 'All Clients', href: '/dashboard/clients', icon: Users },
       { name: 'Add Client', href: '/dashboard/clients/add', icon: UserPlus },
-      { name: 'Client Onboarding', href: '/dashboard/clients/onboarding', icon: UserCheck },
     ],
   },
   {
