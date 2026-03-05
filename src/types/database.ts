@@ -418,6 +418,29 @@ export interface Database {
           created_at?: string
         }
       }
+      email_logs: {
+        Row: {
+          id: string
+          email_type: string
+          recipient_email: string
+          reference_id: string
+          sent_at: string
+        }
+        Insert: {
+          id?: string
+          email_type: string
+          recipient_email: string
+          reference_id: string
+          sent_at?: string
+        }
+        Update: {
+          id?: string
+          email_type?: string
+          recipient_email?: string
+          reference_id?: string
+          sent_at?: string
+        }
+      }
     Views: {
       [_ in never]: never
     }
