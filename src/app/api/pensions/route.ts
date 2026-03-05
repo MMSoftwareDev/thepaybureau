@@ -87,6 +87,7 @@ export async function PUT(request: NextRequest) {
       .from('clients')
       .update(updates)
       .eq('id', client_id)
+      .eq('tenant_id', user.tenant_id)
       .select('id, name, status, pension_provider, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
       .single()
 

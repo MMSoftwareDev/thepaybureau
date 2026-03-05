@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -73,7 +73,15 @@ const PLAN_TIERS = [
   },
 ]
 
-export default function SubscriptionPage() {
+export default function SubscriptionPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
+      <SubscriptionPage />
+    </Suspense>
+  )
+}
+
+function SubscriptionPage() {
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(true)
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null)
