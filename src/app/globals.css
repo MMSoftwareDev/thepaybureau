@@ -3,6 +3,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+:root {
+  --font-inter: 'Inter', system-ui, sans-serif;
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
