@@ -249,3 +249,138 @@
   .login-mesh-bg { animation: none !important; }
   .login-pulse-dot { animation: none !important; }
 }
+
+/* ═══════════════════════════════════════════
+   LANDING PAGE — ClickUp-inspired redesign
+   ═══════════════════════════════════════════ */
+
+/* Gradient text utility */
+.gradient-text-hero {
+  background: linear-gradient(90deg, #202020, #8f8f8f);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-text-dark {
+  background: linear-gradient(0deg, #8f8f8f -15%, #eee 78%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Noise texture overlay */
+.noise-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E");
+  background-size: 250px 142px;
+  background-repeat: repeat;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+}
+
+/* Dot pattern */
+.dot-pattern {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.2) 2px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.dot-pattern-dark {
+  background-image: radial-gradient(circle, rgba(0,0,0,0.06) 1.5px, transparent 0);
+  background-size: 20px 20px;
+}
+
+/* Glow effects */
+.glow-purple {
+  background: radial-gradient(50% 50% at 50% 50%, rgba(91,45,153,0.15) 0%, transparent 100%);
+  filter: blur(100px);
+}
+
+.glow-orange {
+  background: radial-gradient(50% 50% at 50% 50%, rgba(255,91,54,0.12) 0%, transparent 100%);
+  filter: blur(80px);
+}
+
+/* Feature card glass effect */
+.glass-card-dark {
+  background: rgba(255,255,255,0.01);
+  border: 1px solid #202023;
+  box-shadow: inset 0 -32px 64px 0 rgba(255,255,255,0.08);
+  backdrop-filter: blur(4px);
+}
+
+.glass-card-light {
+  background: rgba(255,255,255,0.7);
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.04);
+  backdrop-filter: blur(8px);
+}
+
+/* Gradient border animation */
+@property --landing-gradient-angle {
+  syntax: "<angle>";
+  initial-value: 45deg;
+  inherits: false;
+}
+
+@keyframes rotateGradientBorder {
+  0% { --landing-gradient-angle: 45deg; opacity: 0; }
+  5% { --landing-gradient-angle: 45deg; opacity: 1; }
+  45% { --landing-gradient-angle: 405deg; opacity: 1; }
+  50% { --landing-gradient-angle: 405deg; opacity: 0; }
+  100% { --landing-gradient-angle: 405deg; opacity: 0; }
+}
+
+.animated-border-badge {
+  position: relative;
+}
+
+.animated-border-badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 50px;
+  background-image: conic-gradient(
+    from var(--landing-gradient-angle) at 50% 50%,
+    #5B2D99 -10.8deg,
+    #D64C8A 37.06deg,
+    rgba(214,76,138,0.09) 49.67deg,
+    rgba(91,45,153,0) 265.91deg,
+    #5B2D99 301.53deg,
+    #D64C8A 349deg,
+    #5B2D99 397.06deg
+  );
+  animation: rotateGradientBorder 7s linear infinite;
+}
+
+/* Hover transitions */
+.hover-lift {
+  transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              box-shadow 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+}
+
+/* Landing page section fade-in on scroll */
+@keyframes landingFadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.landing-fade-up {
+  animation: landingFadeUp 0.6s ease-out forwards;
+}
+
+/* CTA gradient background */
+.cta-gradient-bg {
+  background: linear-gradient(135deg, #401D6C 0%, #5B2D99 40%, #D64C8A 100%);
+}
+
+/* Monospace accent text */
+.mono-accent {
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

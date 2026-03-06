@@ -1,4 +1,4 @@
-// src/app/page.tsx — Marketing landing page
+// src/app/page.tsx — Marketing landing page (ClickUp-inspired redesign)
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Metadata } from 'next'
@@ -11,48 +11,86 @@ export const metadata: Metadata = {
   },
 }
 
-const GRAIN_TEXTURE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E")`
-
 const FEATURES = [
   {
-    icon: '📋',
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+      </svg>
+    ),
+    label: 'CHECKLISTS',
     title: 'Payroll-Specific Checklists',
     desc: 'Pre-built for monthly, weekly, 4-weekly payrolls. Year-end, new starters, leavers — all ready to use.',
   },
   {
-    icon: '🔔',
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" />
+      </svg>
+    ),
+    label: 'DEADLINES',
     title: 'HMRC Deadline Intelligence',
     desc: 'Never miss RTI, FPS, EPS deadlines. Auto-calculates based on pay dates and frequencies.',
   },
   {
-    icon: '👥',
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
+      </svg>
+    ),
+    label: 'DASHBOARD',
     title: 'Client Dashboard',
     desc: "See every client's status instantly. Know who's done, in progress, or needs attention.",
   },
   {
-    icon: '📊',
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    ),
+    label: 'REPORTS',
     title: 'Manager Reports',
     desc: 'Export professional status reports. Show your efficiency and never miss a deadline.',
   },
+]
+
+const BOTTOM_STATS = [
   {
-    icon: '✅',
-    title: 'Auto-Enrolment Tracking',
-    desc: 'Track postponement dates, opt-outs, and re-enrolment cycles for every client.',
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#b38cff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" /><polyline points="12,6 12,12 16,14" />
+      </svg>
+    ),
+    title: '58 seconds',
+    desc: 'Average setup time',
   },
   {
-    icon: '📝',
-    title: 'Client Notes',
-    desc: "Special pay arrangements, director's NI, irregular patterns — all documented in one place.",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#b38cff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22,4 12,14.01 9,11.01" />
+      </svg>
+    ),
+    title: 'Zero missed',
+    desc: 'Deadlines reported last month',
+  },
+  {
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#b38cff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
+      </svg>
+    ),
+    title: '500+',
+    desc: 'Bureau specialists this month',
   },
 ]
 
 const PAIN_POINTS = [
-  { icon: '😱', text: "That panic when you can't remember if you submitted RTI for Smith & Co" },
-  { icon: '🔥', text: 'Your manager asking for an update whilst you scramble through 15 spreadsheets' },
-  { icon: '😰', text: "3am wake-ups wondering if you missed someone's payroll" },
-  { icon: '📱', text: 'Getting client calls asking where their payslips are' },
-  { icon: '🏃‍♀️', text: 'Racing against HMRC deadlines with no clear overview' },
-  { icon: '😵', text: 'Spending hours updating multiple spreadsheets for the same information' },
+  { text: "Can't remember if you submitted RTI for Smith & Co" },
+  { text: 'Manager asking for an update whilst you scramble through 15 spreadsheets' },
+  { text: "3am wake-ups wondering if you missed someone's payroll" },
+  { text: 'Getting client calls asking where their payslips are' },
+  { text: 'Racing against HMRC deadlines with no clear overview' },
+  { text: 'Spending hours updating multiple spreadsheets for the same information' },
 ]
 
 const NEW_REALITY = [
@@ -110,221 +148,264 @@ const DASHBOARD_ROWS = [
   { client: 'Miller & Associates', status: 'OVERDUE', statusColor: '#EF4444', due: 'Yesterday!' },
   { client: 'Brighton Care', status: 'DUE SOON', statusColor: '#F59E0B', due: 'Tomorrow' },
   { client: 'Clearview Dental', status: 'PROCESSING', statusColor: '#6366F1', due: 'Today' },
-  { client: 'Johnson Engineering', status: 'COMPLETE', statusColor: '#10B981', due: 'Done ✓' },
+  { client: 'Johnson Engineering', status: 'COMPLETE', statusColor: '#10B981', due: 'Done' },
   { client: 'Thompson Logistics', status: 'ON TRACK', statusColor: '#10B981', due: '31st Jan' },
 ]
 
 export default function LandingPage() {
   return (
-    <div style={{ fontFamily: 'var(--font-body), system-ui, sans-serif', color: '#1a1a2e' }}>
-      <style>{`
-        .landing-hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
-        .landing-nav-actions { display: flex; align-items: center; gap: 12px; }
-        .landing-nav-login { display: inline-block; }
-        @media (max-width: 768px) {
-          .landing-hero-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
-          .landing-nav-login { display: inline-block; }
-        }
-      `}</style>
+    <div className="overflow-x-clip w-screen bg-white" style={{ fontFamily: 'var(--font-body), Plus Jakarta Sans, system-ui, sans-serif' }}>
+
       {/* ═══ NAVBAR ═══ */}
-      <nav
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-          backdropFilter: 'blur(16px)',
-          background: 'rgba(255,255,255,0.88)',
-          borderBottom: '1px solid rgba(0,0,0,0.06)',
-        }}
-      >
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+      <nav className="sticky top-0 z-50 backdrop-blur-xl bg-white/90 border-b border-black/[0.04]">
+        <div className="max-w-[1440px] mx-auto px-5 h-[72px] flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <Image src="/logo-full.png" alt="ThePayBureau" width={66} height={36} className="h-9 w-auto" />
           </div>
-          <div className="landing-nav-actions">
+          <div className="flex items-center gap-3">
             <Link
               href="/login"
-              className="landing-nav-login"
-              style={{ fontSize: '0.88rem', fontWeight: 600, color: '#401D6C', textDecoration: 'none', padding: '8px 16px', borderRadius: 8 }}
+              className="hidden sm:inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-[#202020] rounded-lg hover:bg-[#f0f0f0] transition-colors duration-100"
             >
               Log in
             </Link>
             <Link
               href="/signup"
-              style={{
-                fontSize: '0.88rem',
-                fontWeight: 700,
-                color: '#fff',
-                textDecoration: 'none',
-                padding: '10px 22px',
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, #401D6C, #5B2D99)',
-              }}
+              className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-[#202020] hover:opacity-85 transition-opacity duration-100"
             >
-              Sign Up Free
+              Get Started Free
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* ═══ SOCIAL PROOF BAR ═══ */}
-      <div style={{ background: '#F3F0FF', borderBottom: '1px solid #E9E4F5', padding: '10px 24px', textAlign: 'center', fontSize: '0.82rem', color: '#5B2D99', fontWeight: 500 }}>
-        Average setup time: 58 seconds &nbsp;|&nbsp; Zero missed deadlines reported last month &nbsp;|&nbsp; Join 500+ bureau specialists this month
-      </div>
+      {/* ═══ HERO SECTION ═══ */}
+      <section className="relative w-full pt-20 pb-0 md:pt-24">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-[rgba(246,233,232,0)]" />
 
-      {/* ═══ HERO ═══ */}
-      <section
-        style={{
-          position: 'relative',
-          overflow: 'hidden',
-          background: 'linear-gradient(180deg, #fff 0%, #F8F5FF 100%)',
-          padding: '80px 24px 60px',
-        }}
-      >
-        <div className="landing-hero-grid" style={{ maxWidth: 1200, margin: '0 auto' }}>
-          {/* Left — copy */}
-          <div>
-            <div style={{ display: 'inline-block', background: '#F3F0FF', borderRadius: 20, padding: '6px 16px', fontSize: '0.82rem', fontWeight: 600, color: '#5B2D99', marginBottom: 20 }}>
+        <div className="relative z-10 flex flex-col items-center text-center">
+          {/* Eyebrow badge */}
+          <div className="animated-border-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#e8e8e8] text-[#202020] text-sm font-semibold mb-6" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
+            <span className="relative z-[2] flex items-center gap-1">
               For Bureau Owners & Specialists
-            </div>
-            <h1
-              style={{
-                fontFamily: 'var(--font-display), Georgia, serif',
-                fontSize: 'clamp(2.2rem, 4vw, 3.2rem)',
-                lineHeight: 1.15,
-                fontWeight: 800,
-                color: '#1a1a2e',
-                margin: '0 0 24px 0',
-              }}
-            >
-              Never Miss Another{' '}
-              <span
-                style={{
-                  background: 'linear-gradient(135deg, #5B2D99, #D64C8A)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >
-                Payroll Deadline
-              </span>
-            </h1>
-            <p style={{ fontSize: '1.1rem', lineHeight: 1.7, color: '#555', maxWidth: 480, margin: '0 0 12px 0' }}>
-              &ldquo;My manager asked what system I was using because I haven&apos;t missed a deadline in 3 months. Best career move ever.&rdquo;
-            </p>
-            <p style={{ fontSize: '0.85rem', color: '#888', marginBottom: 28 }}>
-              — Sarah Mitchell, Manchester Bureau (42 clients)
-            </p>
-
-            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px', display: 'grid', gap: 10 }}>
-              {[
-                'Never miss another HMRC deadline',
-                'See all your payrolls in one dashboard',
-                'Impress your manager with your organisation',
-                'Set up in 60 seconds (seriously)',
-                'Free forever for individuals',
-              ].map((item) => (
-                <li key={item} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.95rem', color: '#333' }}>
-                  <span style={{ color: '#10B981', fontSize: '1.1rem' }}>&#10003;</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-
-            <Link
-              href="/signup"
-              style={{
-                display: 'inline-block',
-                padding: '14px 32px',
-                borderRadius: 12,
-                background: 'linear-gradient(135deg, #401D6C, #5B2D99)',
-                color: '#fff',
-                fontSize: '1rem',
-                fontWeight: 700,
-                textDecoration: 'none',
-                boxShadow: '0 4px 24px rgba(91,45,153,0.25)',
-              }}
-            >
-              Start Organising My Payrolls Now
-            </Link>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </span>
           </div>
 
-          {/* Right — dashboard preview */}
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 16,
-              boxShadow: '0 8px 40px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)',
-              border: '1px solid #eee',
-              overflow: 'hidden',
-            }}
-          >
-            {/* Header bar */}
-            <div style={{ background: '#F8F5FF', padding: '16px 20px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1a1a2e' }}>Payroll Status Dashboard</span>
-              <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#10B981', background: '#ECFDF5', padding: '3px 10px', borderRadius: 10 }}>Live</span>
+          {/* Main title */}
+          <h1 className="gradient-text-hero max-w-[760px] mx-auto mb-6 px-5 md:px-0 font-bold text-[40px] md:text-[76px] leading-[1.05] tracking-[-0.04em]">
+            Never Miss Another Payroll Deadline
+          </h1>
+
+          {/* Subtitle */}
+          <p className="max-w-[560px] mx-auto mb-8 px-5 text-[#646464] text-base md:text-lg leading-relaxed" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
+            The professional dashboard for UK payroll specialists. Track HMRC deadlines, manage clients, and stay compliant — all in one place.
+          </p>
+
+          {/* CTA buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 items-center mb-14">
+            <Link
+              href="/signup"
+              className="inline-flex items-center justify-center h-12 px-5 rounded-xl bg-[#202020] text-white font-semibold text-lg tracking-tight hover:opacity-85 transition-opacity duration-100"
+              style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', letterSpacing: '-0.36px' }}
+            >
+              Start Organising My Payrolls
+            </Link>
+            <Link
+              href="#features"
+              className="inline-flex items-center gap-1 px-5 py-3 rounded-lg bg-[#f0f0f0] text-[#202020] font-semibold text-sm hover:bg-[#e6e6e6] transition-colors duration-100"
+              style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}
+            >
+              Learn more
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </Link>
+          </div>
+        </div>
+
+        {/* Hero layered section — Dashboard preview */}
+        <div className="relative z-[9] max-w-[1440px] mx-auto px-5 md:px-5">
+          <div className="relative overflow-hidden rounded-none md:rounded-[0_0_40px_40px] bg-white h-auto" style={{ background: 'linear-gradient(to bottom, rgba(246,233,232,0), rgba(255,91,54,0.08))' }}>
+            {/* Noise texture */}
+            <div className="noise-overlay absolute inset-0 opacity-40" />
+
+            {/* Dashboard mockup */}
+            <div className="relative z-10 max-w-[1000px] mx-auto px-4 py-10 md:py-16">
+              <div className="bg-white rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)] border border-black/[0.06] overflow-hidden">
+                {/* Header bar */}
+                <div className="bg-[#FAFAFA] px-5 py-4 border-b border-black/[0.06] flex items-center justify-between">
+                  <span className="text-sm font-bold text-[#202020]">Payroll Status Dashboard</span>
+                  <span className="text-xs font-semibold text-[#10B981] bg-[#ECFDF5] px-2.5 py-0.5 rounded-full">Live</span>
+                </div>
+
+                {/* Stats row */}
+                <div className="grid grid-cols-2 md:grid-cols-4 border-b border-black/[0.06]">
+                  {[
+                    { n: '12', label: 'Complete', color: '#10B981' },
+                    { n: '3', label: 'In Progress', color: '#6366F1' },
+                    { n: '2', label: 'Due Soon', color: '#F59E0B' },
+                    { n: '1', label: 'Overdue', color: '#EF4444' },
+                  ].map((s) => (
+                    <div key={s.label} className="px-4 py-3.5 text-center border-r border-black/[0.04] last:border-r-0">
+                      <div className="text-2xl font-extrabold" style={{ color: s.color }}>{s.n}</div>
+                      <div className="text-xs text-[#999] font-medium">{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Table */}
+                <div className="hidden md:block">
+                  <div className="grid grid-cols-[1fr_auto_auto] px-5 py-2.5 text-[11px] font-semibold text-[#999] uppercase tracking-wider border-b border-black/[0.04]">
+                    <span>Client</span>
+                    <span>Status</span>
+                    <span className="text-right">Due</span>
+                  </div>
+                  {DASHBOARD_ROWS.map((row) => (
+                    <div key={row.client} className="grid grid-cols-[1fr_auto_auto] px-5 py-3 text-sm border-b border-black/[0.02] items-center">
+                      <span className="font-semibold text-[#202020]">{row.client}</span>
+                      <span className="text-xs font-bold px-2.5 py-0.5 rounded-md" style={{ color: row.statusColor, background: `${row.statusColor}12` }}>{row.status}</span>
+                      <span className="text-sm text-[#666] text-right ml-4">{row.due}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ DARK FEATURE SECTION (Brain-style) ═══ */}
+      <section id="features" className="relative w-full max-w-[1440px] mx-auto px-0 md:px-5 mt-0 md:mt-5">
+        <div className="relative flex flex-col items-center overflow-hidden rounded-none md:rounded-[32px] bg-black">
+          {/* Noise overlay */}
+          <div className="noise-overlay absolute inset-0 z-0 opacity-30" />
+
+          {/* Dot patterns */}
+          <div className="dot-pattern absolute top-[-128px] left-1/2 -translate-x-1/2 w-[305px] h-[434px] opacity-10 hidden md:block" />
+          <div className="dot-pattern absolute top-[500px] right-5 w-[305px] h-[434px] opacity-10 hidden md:block" />
+
+          {/* Glow effects */}
+          <div className="absolute top-[300px] -left-[400px] w-[487px] h-[487px] rounded-full opacity-70 hidden md:block" style={{ background: 'radial-gradient(50% 50% at 50% 50%, rgba(48,48,48,0.01) 43%, #d9d9d9 100%)', filter: 'blur(200px)' }} />
+          <div className="absolute -top-[100px] -right-[200px] w-[487px] h-[487px] rounded-full opacity-70 hidden md:block" style={{ background: 'radial-gradient(50% 50% at 50% 50%, rgba(48,48,48,0.01) 43%, #d9d9d9 100%)', filter: 'blur(200px)' }} />
+
+          {/* Inner content */}
+          <div className="relative z-10 flex flex-col gap-6 items-center w-full max-w-[1080px] px-5 py-20 md:py-32">
+            {/* Header */}
+            <div className="flex flex-col gap-6 items-center w-full max-w-[754px] mb-10">
+              <p className="text-[#eee] font-extrabold text-[26px] text-center leading-[112%] tracking-[-1.3px]" style={{ fontFamily: 'var(--font-body), Plus Jakarta Sans, sans-serif' }}>
+                Built for Payroll Specialists
+              </p>
+              <h2 className="gradient-text-dark font-bold text-[40px] md:text-[76px] leading-[105%] tracking-[-0.04em] text-center pb-2">
+                Everything You Actually Need
+              </h2>
+              <Link
+                href="/signup"
+                className="inline-flex items-center justify-center h-12 px-5 rounded-xl bg-white text-[#202020] font-[650] text-lg cursor-pointer border-0 hover:opacity-85 transition-opacity duration-100"
+                style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', letterSpacing: '-0.36px' }}
+              >
+                Get Started Free
+              </Link>
             </div>
 
-            {/* Stats row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderBottom: '1px solid #eee' }}>
-              {[
-                { n: '12', label: 'Complete', color: '#10B981' },
-                { n: '3', label: 'In Progress', color: '#6366F1' },
-                { n: '2', label: 'Due Soon', color: '#F59E0B' },
-                { n: '1', label: 'Overdue', color: '#EF4444' },
-              ].map((s) => (
-                <div key={s.label} style={{ padding: '14px 16px', textAlign: 'center', borderRight: '1px solid #eee' }}>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: s.color }}>{s.n}</div>
-                  <div style={{ fontSize: '0.72rem', color: '#888', fontWeight: 500 }}>{s.label}</div>
+            {/* Feature cards grid */}
+            <div className="flex flex-col md:flex-row gap-5 items-stretch w-full">
+              {FEATURES.slice(0, 2).map((f) => (
+                <div key={f.title} className="glass-card-dark rounded-3xl flex-1 flex flex-col justify-between">
+                  <div className="px-8 pt-10 md:px-10 md:pt-10 flex flex-col gap-3">
+                    <div className="flex gap-1.5 items-center">
+                      <span className="text-[#b38cff]">{f.icon}</span>
+                      <span className="mono-accent text-[#b38cff] text-base font-medium leading-5">{f.label}</span>
+                    </div>
+                    <h3 className="text-[#eee] text-[26px] font-[650] leading-[125%] tracking-[-0.91px]">{f.title}</h3>
+                    <p className="text-[#b4b4b4] text-base leading-6 tracking-[-0.32px] pb-10" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>{f.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Table */}
-            <div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '10px 20px', fontSize: '0.7rem', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid #eee' }}>
-                <span>Client</span>
-                <span>Status</span>
-                <span style={{ textAlign: 'right' }}>Due</span>
+            <div className="flex flex-col md:flex-row gap-5 items-stretch w-full">
+              {FEATURES.slice(2, 4).map((f) => (
+                <div key={f.title} className="glass-card-dark rounded-3xl flex-1 flex flex-col justify-between">
+                  <div className="px-8 pt-10 md:px-10 md:pt-10 flex flex-col gap-3">
+                    <div className="flex gap-1.5 items-center">
+                      <span className="text-[#b38cff]">{f.icon}</span>
+                      <span className="mono-accent text-[#b38cff] text-base font-medium leading-5">{f.label}</span>
+                    </div>
+                    <h3 className="text-[#eee] text-[26px] font-[650] leading-[125%] tracking-[-0.91px]">{f.title}</h3>
+                    <p className="text-[#b4b4b4] text-base leading-6 tracking-[-0.32px] pb-10" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>{f.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Additional features row */}
+            <div className="glass-card-dark rounded-3xl w-full">
+              <div className="relative flex flex-col md:flex-row items-stretch justify-between overflow-hidden">
+                <div className="flex flex-col gap-4 items-start p-8 md:p-14 md:w-1/2">
+                  <div className="flex gap-1.5 items-center">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#b38cff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
+                    <span className="mono-accent text-[#b38cff] text-base font-medium">AUTO-ENROLMENT</span>
+                  </div>
+                  <h3 className="text-[#eee] text-[26px] font-[650] leading-[125%] tracking-[-0.91px] mb-2">
+                    Auto-Enrolment & Pension Tracking
+                  </h3>
+                  <p className="text-[#b4b4b4] text-lg leading-6 tracking-[-0.36px]" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
+                    Track postponement dates, opt-outs, and re-enrolment cycles for every client. Plus client notes for special pay arrangements, director&apos;s NI, and irregular patterns.
+                  </p>
+                  <p className="text-[#b4b4b4] text-sm mt-2 leading-6" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
+                    Auto-reminds you about: RTI submissions, P45s, P60s, Auto-enrolment, Re-enrolment, Holiday pay calculations
+                  </p>
+                </div>
+                {/* Decorative dot pattern on right side */}
+                <div className="hidden md:block md:w-1/2 relative">
+                  <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 0)', backgroundSize: '9px 9px', mask: 'radial-gradient(ellipse 60% 57% at 60% 45%, #000 10%, #000 20%, transparent 105%)' }} />
+                  <div className="absolute inset-0" style={{ background: 'conic-gradient(from -39deg at 50% 50%, rgba(0,145,255,0.08) 0deg, rgba(250,36,206,0.12) 56deg, rgba(252,109,123,0.08) 187deg, rgba(253,154,70,0.08) 210deg, rgba(246,134,197,0.12) 234deg, rgba(79,185,250,0.08) 342deg)', filter: 'blur(60px)', mixBlendMode: 'plus-lighter', opacity: 0.5 }} />
+                </div>
               </div>
-              {DASHBOARD_ROWS.map((row) => (
-                <div key={row.client} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '12px 20px', fontSize: '0.85rem', borderBottom: '1px solid #f5f5f5', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 600, color: '#1a1a2e' }}>{row.client}</span>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: row.statusColor, background: `${row.statusColor}12`, padding: '3px 10px', borderRadius: 6 }}>{row.status}</span>
-                  <span style={{ fontSize: '0.82rem', color: '#666', textAlign: 'right' }}>{row.due}</span>
+            </div>
+
+            {/* Bottom stats */}
+            <div className="flex flex-col sm:flex-row gap-px items-stretch w-full relative">
+              <div className="absolute top-0 left-0 right-0 h-px z-[1]" style={{ background: 'radial-gradient(ellipse, #2e2e2e 40%, transparent 100%)' }} />
+              {BOTTOM_STATS.map((stat, i) => (
+                <div key={stat.title} className="flex-1 flex flex-col gap-3 items-center py-8 px-6 relative">
+                  {i === 1 && (
+                    <div className="hidden md:block absolute inset-0 pointer-events-none" style={{
+                      background: 'linear-gradient(90deg,#202023,#202023) top/100% 1px no-repeat, linear-gradient(180deg,#202023,#202023 50%,transparent) 100%/1px 100% no-repeat, linear-gradient(180deg,#202023,#202023 50%,transparent) 0/1px 100% no-repeat',
+                    }} />
+                  )}
+                  {stat.icon}
+                  <div className="flex flex-col gap-1 items-center">
+                    <span className="text-[#eee] font-semibold text-lg leading-6 tracking-[-0.36px] text-center" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>{stat.title}</span>
+                    <span className="text-[#b4b4b4] font-normal text-base leading-[22px] tracking-[-0.32px] text-center" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>{stat.desc}</span>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
-
       </section>
 
       {/* ═══ PAIN POINTS ═══ */}
-      <section style={{ background: '#FAFAFA', padding: '80px 24px' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>The Daily Struggle</p>
-          <h2 style={{ fontFamily: 'var(--font-display), Georgia, serif', fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 800, color: '#1a1a2e', marginBottom: 8 }}>
-            Sound Familiar?
-          </h2>
-          <p style={{ color: '#777', fontSize: '1rem', marginBottom: 48 }}>Every payroll specialist knows these moments of panic...</p>
+      <section className="relative w-full py-20 md:py-24">
+        <div className="max-w-[900px] mx-auto px-5 text-center">
+          <div className="flex flex-col items-center gap-6 mb-14">
+            <span className="mono-accent text-sm font-semibold text-[#F59E0B] tracking-wider">THE DAILY STRUGGLE</span>
+            <h2 className="gradient-text-hero font-bold text-[32px] md:text-[56px] leading-[1.1] tracking-[-0.03em]">
+              Sound Familiar?
+            </h2>
+            <p className="text-[#999] text-base md:text-lg max-w-[480px]" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
+              Every payroll specialist knows these moments of panic...
+            </p>
+          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {PAIN_POINTS.map((p) => (
-              <div
-                key={p.text}
-                style={{
-                  background: '#fff',
-                  border: '1px solid #eee',
-                  borderRadius: 12,
-                  padding: '24px 20px',
-                  textAlign: 'left',
-                  display: 'flex',
-                  gap: 14,
-                  alignItems: 'flex-start',
-                }}
-              >
-                <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>{p.icon}</span>
-                <span style={{ fontSize: '0.9rem', color: '#444', lineHeight: 1.5 }}>{p.text}</span>
+              <div key={p.text} className="glass-card-light rounded-2xl p-6 text-left flex gap-4 items-start hover-lift">
+                <span className="flex-shrink-0 w-8 h-8 rounded-full bg-[#FEF3C7] flex items-center justify-center">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                </span>
+                <span className="text-[15px] text-[#444] leading-relaxed" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>{p.text}</span>
               </div>
             ))}
           </div>
@@ -332,140 +413,80 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ NEW REALITY ═══ */}
-      <section style={{ background: '#fff', padding: '80px 24px' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#5B2D99', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Your New Reality</p>
-          <h2 style={{ fontFamily: 'var(--font-display), Georgia, serif', fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 800, color: '#1a1a2e', marginBottom: 8 }}>
-            This Could Be Your Day Instead
-          </h2>
-          <p style={{ color: '#777', fontSize: '1rem', marginBottom: 48 }}>How organised payroll specialists work</p>
+      <section className="relative w-full py-20 md:py-24 bg-[#FAFAFA]">
+        <div className="dot-pattern-dark absolute inset-0 opacity-50" />
+        <div className="relative max-w-[1000px] mx-auto px-5 text-center">
+          <div className="flex flex-col items-center gap-6 mb-14">
+            <span className="mono-accent text-sm font-semibold text-[#5B2D99] tracking-wider">YOUR NEW REALITY</span>
+            <h2 className="gradient-text-hero font-bold text-[32px] md:text-[56px] leading-[1.1] tracking-[-0.03em]">
+              This Could Be Your Day
+            </h2>
+            <p className="text-[#999] text-base md:text-lg max-w-[480px]" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
+              How organised payroll specialists work
+            </p>
+          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {NEW_REALITY.map((item) => (
-              <div
-                key={item.title}
-                style={{
-                  background: '#F8F5FF',
-                  borderRadius: 12,
-                  padding: '28px 24px',
-                  textAlign: 'left',
-                }}
-              >
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#5B2D99', marginBottom: 8 }}>{item.title}</h3>
-                <p style={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1a2e', marginBottom: 4 }}>{item.subtitle}</p>
-                <p style={{ fontSize: '0.82rem', color: '#777' }}>{item.desc}</p>
+              <div key={item.title} className="glass-card-light rounded-2xl p-7 text-left hover-lift">
+                <h3 className="text-sm font-bold text-[#5B2D99] mb-2 uppercase tracking-wide">{item.title}</h3>
+                <p className="text-base font-semibold text-[#202020] mb-1">{item.subtitle}</p>
+                <p className="text-sm text-[#999]" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>{item.desc}</p>
               </div>
             ))}
           </div>
 
-          {/* Recognition callout */}
-          <div
-            style={{
-              marginTop: 48,
-              background: 'linear-gradient(135deg, #401D6C, #5B2D99)',
-              borderRadius: 16,
-              padding: '40px 32px',
-              color: '#fff',
-            }}
-          >
-            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: 12 }}>
-              When Your Manager Sees How Organised You Are...
-            </h3>
-            <p style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.75)', maxWidth: 560, margin: '0 auto 28px', lineHeight: 1.6 }}>
-              They&apos;ll want the whole bureau on this system. When that happens, you&apos;ll be recognised as the one who brought positive change.
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, maxWidth: 700, margin: '0 auto' }}>
-              {[
-                { icon: '🏆', text: 'Be seen as a problem-solver' },
-                { icon: '📈', text: 'Stand out at performance reviews' },
-                { icon: '👀', text: 'Get noticed by senior management' },
-                { icon: '🎯', text: 'Handle more clients with less stress' },
-              ].map((b) => (
-                <div key={b.text} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.1)', borderRadius: 10, padding: '12px 16px' }}>
-                  <span style={{ fontSize: '1.2rem' }}>{b.icon}</span>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{b.text}</span>
-                </div>
-              ))}
+          {/* Recognition callout — dark card */}
+          <div className="relative mt-14 overflow-hidden rounded-3xl bg-black text-white">
+            <div className="noise-overlay absolute inset-0 opacity-20" />
+            <div className="relative z-10 p-10 md:p-14">
+              <h3 className="gradient-text-dark text-[24px] md:text-[32px] font-bold tracking-[-0.03em] mb-4 pb-1">
+                When Your Manager Sees How Organised You Are...
+              </h3>
+              <p className="text-[#b4b4b4] text-base max-w-[560px] mx-auto mb-8 leading-relaxed" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
+                They&apos;ll want the whole bureau on this system. When that happens, you&apos;ll be recognised as the one who brought positive change.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 max-w-[800px] mx-auto">
+                {[
+                  { icon: '🏆', text: 'Be seen as a problem-solver' },
+                  { icon: '📈', text: 'Stand out at reviews' },
+                  { icon: '👀', text: 'Get noticed by management' },
+                  { icon: '🎯', text: 'Handle more, stress less' },
+                ].map((b) => (
+                  <div key={b.text} className="glass-card-dark rounded-xl px-4 py-3 flex items-center gap-3">
+                    <span className="text-lg">{b.icon}</span>
+                    <span className="text-sm font-semibold text-[#eee]">{b.text}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ═══ FEATURES ═══ */}
-      <section style={{ background: '#FAFAFA', padding: '80px 24px' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#5B2D99', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Built for Payroll Specialists</p>
-          <h2 style={{ fontFamily: 'var(--font-display), Georgia, serif', fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 800, color: '#1a1a2e', marginBottom: 8 }}>
-            Everything You Actually Need
-          </h2>
-          <p style={{ color: '#777', fontSize: '0.95rem', marginBottom: 48 }}>
-            Auto-reminds you about: RTI submissions, P45s, P60s, Auto-enrolment, Re-enrolment, Holiday pay calculations
-          </p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
-            {FEATURES.map((f) => (
-              <div
-                key={f.title}
-                style={{
-                  background: '#fff',
-                  border: '1px solid #eee',
-                  borderRadius: 14,
-                  padding: '28px 24px',
-                  textAlign: 'left',
-                }}
-              >
-                <span style={{ fontSize: '2rem', display: 'block', marginBottom: 12 }}>{f.icon}</span>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#1a1a2e', marginBottom: 8 }}>{f.title}</h3>
-                <p style={{ fontSize: '0.88rem', color: '#666', lineHeight: 1.55 }}>{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ═══ HOW IT WORKS ═══ */}
-      <section style={{ background: '#fff', padding: '80px 24px' }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#5B2D99', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Quick Start</p>
-          <h2 style={{ fontFamily: 'var(--font-display), Georgia, serif', fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 800, color: '#1a1a2e', marginBottom: 8 }}>
-            What Happens After You Sign Up
-          </h2>
-          <p style={{ color: '#777', fontSize: '1rem', marginBottom: 48 }}>Be organised in literally 60 seconds</p>
+      <section className="relative w-full py-20 md:py-24">
+        <div className="max-w-[800px] mx-auto px-5 text-center">
+          <div className="flex flex-col items-center gap-6 mb-14">
+            <span className="mono-accent text-sm font-semibold text-[#5B2D99] tracking-wider">QUICK START</span>
+            <h2 className="gradient-text-hero font-bold text-[32px] md:text-[56px] leading-[1.1] tracking-[-0.03em]">
+              Set Up in 60 Seconds
+            </h2>
+            <p className="text-[#999] text-base md:text-lg" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
+              Be organised in literally one minute
+            </p>
+          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          <div className="flex flex-col gap-0">
             {STEPS.map((step, i) => (
-              <div
-                key={step.title}
-                style={{
-                  display: 'flex',
-                  gap: 24,
-                  textAlign: 'left',
-                  padding: '28px 0',
-                  borderBottom: i < STEPS.length - 1 ? '1px solid #eee' : 'none',
-                  alignItems: 'flex-start',
-                }}
-              >
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #401D6C, #5B2D99)',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: '1rem',
-                    flexShrink: 0,
-                  }}
-                >
+              <div key={step.title} className="flex gap-6 text-left py-7 items-start" style={{ borderBottom: i < STEPS.length - 1 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
+                <div className="w-11 h-11 rounded-full bg-[#202020] text-white flex items-center justify-center font-extrabold text-base flex-shrink-0">
                   {i + 1}
                 </div>
                 <div>
-                  <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#5B2D99', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{step.time}</p>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#1a1a2e', marginBottom: 6 }}>{step.title}</h3>
-                  <p style={{ fontSize: '0.9rem', color: '#666', lineHeight: 1.55 }}>{step.desc}</p>
+                  <p className="mono-accent text-xs font-semibold text-[#5B2D99] mb-1">{step.time}</p>
+                  <h3 className="text-base font-bold text-[#202020] mb-1.5">{step.title}</h3>
+                  <p className="text-sm text-[#999] leading-relaxed" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>{step.desc}</p>
                 </div>
               </div>
             ))}
@@ -474,48 +495,31 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ TESTIMONIALS ═══ */}
-      <section style={{ background: '#F8F5FF', padding: '80px 24px' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#5B2D99', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Real Stories</p>
-          <h2 style={{ fontFamily: 'var(--font-display), Georgia, serif', fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 800, color: '#1a1a2e', marginBottom: 8 }}>
-            From Chaos to Control
-          </h2>
-          <p style={{ color: '#777', fontSize: '1rem', marginBottom: 48 }}>How payroll specialists transformed their work life</p>
+      <section className="relative w-full py-20 md:py-24 bg-[#FAFAFA]">
+        <div className="dot-pattern-dark absolute inset-0 opacity-30" />
+        <div className="relative max-w-[1000px] mx-auto px-5 text-center">
+          <div className="flex flex-col items-center gap-6 mb-14">
+            <span className="mono-accent text-sm font-semibold text-[#5B2D99] tracking-wider">REAL STORIES</span>
+            <h2 className="gradient-text-hero font-bold text-[32px] md:text-[56px] leading-[1.1] tracking-[-0.03em]">
+              From Chaos to Control
+            </h2>
+            <p className="text-[#999] text-base md:text-lg" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
+              How payroll specialists transformed their work life
+            </p>
+          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {TESTIMONIALS.map((t) => (
-              <div
-                key={t.name}
-                style={{
-                  background: '#fff',
-                  borderRadius: 14,
-                  padding: '28px 24px',
-                  textAlign: 'left',
-                  border: '1px solid #eee',
-                }}
-              >
-                <div style={{ fontSize: '2rem', color: '#D4BFF0', marginBottom: 12 }}>&ldquo;</div>
-                <p style={{ fontSize: '0.9rem', color: '#444', lineHeight: 1.6, marginBottom: 20 }}>{t.quote}</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #5B2D99, #D64C8A)',
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                    }}
-                  >
+              <div key={t.name} className="glass-card-light rounded-3xl p-7 text-left hover-lift">
+                <div className="text-3xl text-[#D4BFF0] mb-3">&ldquo;</div>
+                <p className="text-[15px] text-[#444] leading-relaxed mb-6" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>{t.quote}</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ background: 'linear-gradient(135deg, #5B2D99, #D64C8A)' }}>
                     {t.initials}
                   </div>
                   <div>
-                    <p style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1a1a2e' }}>{t.name}</p>
-                    <p style={{ fontSize: '0.78rem', color: '#888' }}>{t.detail}</p>
+                    <p className="text-sm font-bold text-[#202020]">{t.name}</p>
+                    <p className="text-xs text-[#999]">{t.detail}</p>
                   </div>
                 </div>
               </div>
@@ -524,71 +528,95 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ FINAL CTA ═══ */}
-      <section
-        style={{
-          position: 'relative',
-          overflow: 'hidden',
-          background: 'linear-gradient(135deg, #2A1145, #401D6C)',
-          padding: '80px 24px',
-          textAlign: 'center',
-        }}
-      >
-        {/* Grain */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            opacity: 0.1,
-            mixBlendMode: 'overlay',
-            backgroundImage: GRAIN_TEXTURE,
-            backgroundSize: '128px 128px',
-            pointerEvents: 'none',
-          }}
-        />
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: 600, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: 'var(--font-display), Georgia, serif', fontSize: 'clamp(1.8rem, 3vw, 2.6rem)', fontWeight: 800, color: '#fff', marginBottom: 12 }}>
-            Ready to Impress Your Manager?
-          </h2>
-          <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.65)', marginBottom: 32, lineHeight: 1.6 }}>
-            Join 500+ specialists who&apos;ve already transformed their payroll management
-          </p>
-          <Link
-            href="/signup"
-            style={{
-              display: 'inline-block',
-              padding: '16px 36px',
-              borderRadius: 12,
-              background: '#fff',
-              color: '#401D6C',
-              fontSize: '1.05rem',
-              fontWeight: 800,
-              textDecoration: 'none',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
-            }}
-          >
-            Start Organising My Payrolls Now
-          </Link>
-          <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', marginTop: 20 }}>
-            60-second setup &nbsp;&bull;&nbsp; No credit card &nbsp;&bull;&nbsp; Free forever for individuals &nbsp;&bull;&nbsp; Professional email required
-          </p>
+      {/* ═══ FINAL CTA (ClickUp AI CTA style) ═══ */}
+      <section className="w-full max-w-[1440px] mx-auto px-0 md:px-5 py-0 md:py-5">
+        <div className="relative overflow-hidden rounded-none md:rounded-[32px] cta-gradient-bg flex flex-col items-center">
+          {/* Noise */}
+          <div className="noise-overlay absolute inset-0 z-[1] opacity-20" />
+
+          {/* Content */}
+          <div className="relative z-[2] flex flex-col gap-8 items-center py-12 md:py-14 px-5">
+            {/* Icon */}
+            <div className="w-[80px] h-[80px] md:w-[100px] md:h-[100px] p-4 rounded-[22px] md:rounded-[28px] bg-white flex items-center justify-center" style={{ boxShadow: 'inset 0 0 4px 0 #fff, inset 0 -5px 14px -2px rgba(91,45,153,0.67), 0 22px 13px rgba(27,23,84,0.08), 0 10px 10px rgba(27,23,84,0.13), 0 2px 5px rgba(27,23,84,0.15)' }}>
+              <Image src="/logo.png" alt="ThePayBureau" width={68} height={68} className="object-contain w-full h-full rounded-inherit" />
+            </div>
+
+            {/* Text */}
+            <div className="flex flex-col gap-5 items-center w-full">
+              <h2 className="text-white font-bold text-[36px] md:text-[60px] leading-[110%] tracking-[-0.035em] text-center max-w-[600px]">
+                Ready to Impress Your Manager?
+              </h2>
+            </div>
+
+            {/* CTA Button */}
+            <Link
+              href="/signup"
+              className="inline-flex items-center justify-center h-12 px-5 rounded-xl bg-white text-[#202020] font-bold text-lg tracking-tight border-0 hover:bg-white/85 transition-opacity duration-100"
+              style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', letterSpacing: '-0.72px' }}
+            >
+              Start Organising My Payrolls Now
+            </Link>
+
+            <p className="text-sm text-white/50 text-center max-w-[500px]" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
+              60-second setup &bull; No credit card &bull; Free forever for individuals &bull; Professional email required
+            </p>
+          </div>
+
+          {/* Mockup preview (desktop only) */}
+          <div className="relative z-[2] overflow-hidden px-10 md:px-24 hidden md:block" style={{ mask: 'linear-gradient(180deg, #000 0, #000 80%, transparent 110%)' }}>
+            <div className="relative p-[7px] pt-[7px] pb-0 border border-white/40 rounded-t-[18px] bg-white/20 backdrop-blur-sm">
+              <div className="bg-white rounded-t-[12px] overflow-hidden">
+                {/* Mini dashboard preview */}
+                <div className="bg-[#FAFAFA] px-5 py-3 border-b border-black/[0.06] flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#202020]">Payroll Status Dashboard</span>
+                  <span className="text-[10px] font-semibold text-[#10B981] bg-[#ECFDF5] px-2 py-0.5 rounded-full">Live</span>
+                </div>
+                <div className="grid grid-cols-4 border-b border-black/[0.04]">
+                  {[
+                    { n: '12', label: 'Complete', color: '#10B981' },
+                    { n: '3', label: 'In Progress', color: '#6366F1' },
+                    { n: '2', label: 'Due Soon', color: '#F59E0B' },
+                    { n: '1', label: 'Overdue', color: '#EF4444' },
+                  ].map((s) => (
+                    <div key={s.label} className="px-4 py-3 text-center border-r border-black/[0.04] last:border-r-0">
+                      <div className="text-xl font-extrabold" style={{ color: s.color }}>{s.n}</div>
+                      <div className="text-[10px] text-[#999] font-medium">{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {DASHBOARD_ROWS.slice(0, 3).map((row) => (
+                  <div key={row.client} className="grid grid-cols-[1fr_auto_auto] px-5 py-2.5 text-sm border-b border-black/[0.02] items-center">
+                    <span className="font-semibold text-[#202020] text-xs">{row.client}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ color: row.statusColor, background: `${row.statusColor}12` }}>{row.status}</span>
+                    <span className="text-xs text-[#666] text-right ml-4">{row.due}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* ═══ FOOTER ═══ */}
-      <footer style={{ background: '#1a1a2e', padding: '32px 24px', textAlign: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, flexWrap: 'wrap', marginBottom: 12 }}>
-          <Link href="/terms" style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Terms</Link>
-          <Link href="/privacy" style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Privacy</Link>
-          <a href="mailto:support@thepaybureau.com" style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Support</a>
-          <Link href="/login" style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>Log in</Link>
+      <footer className="bg-white border-t border-black/[0.06] py-8 px-5">
+        <div className="max-w-[1440px] mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-6 flex-wrap justify-center">
+              <Link href="/terms" className="text-sm text-[#999] hover:text-[#666] transition-colors" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>Terms</Link>
+              <Link href="/privacy" className="text-sm text-[#999] hover:text-[#666] transition-colors" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>Privacy</Link>
+              <a href="mailto:support@thepaybureau.com" className="text-sm text-[#999] hover:text-[#666] transition-colors" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>Support</a>
+              <Link href="/login" className="text-sm text-[#999] hover:text-[#666] transition-colors" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>Log in</Link>
+            </div>
+            <div className="text-center md:text-right">
+              <p className="text-xs text-[#ccc]" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
+                &copy; {new Date().getFullYear()} ThePayBureau Ltd. Built by payroll specialists, for payroll specialists.
+              </p>
+              <p className="text-[11px] text-[#ddd]" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif' }}>
+                ThePayBureau Ltd — Registered in England and Wales
+              </p>
+            </div>
+          </div>
         </div>
-        <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.3)', marginBottom: 6 }}>
-          &copy; {new Date().getFullYear()} ThePayBureau Ltd. Built by payroll specialists, for payroll specialists.
-        </p>
-        <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.2)' }}>
-          ThePayBureau Ltd — Registered in England and Wales
-        </p>
       </footer>
     </div>
   )
