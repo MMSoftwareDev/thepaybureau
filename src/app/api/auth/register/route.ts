@@ -2,6 +2,8 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { adminRegistrationSchema } from '@/lib/validations'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { sendEmail } from '@/lib/resend'
+import { welcomeEmail } from '@/lib/email-templates'
 import { z } from 'zod'
 import dns from 'dns/promises'
 
@@ -159,11 +161,17 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
     
+    // Send welcome email (fire-and-forget — don't block registration)
+    const welcome = welcomeEmail({ userName: validatedData.adminName })
+    sendEmail({ to: validatedData.email, ...welcome }).catch((err) =>
+      console.error('Welcome email failed:', err)
+    )
+
     return NextResponse.json({
       success: true,
       message: 'Account created successfully! Please check your email to verify your account.',
     })
-    
+
   } catch (error) {
     console.error('Registration error:', error)
     
