@@ -325,18 +325,11 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
         end.setDate(end.getDate() + 27)
         break
       case 'monthly': {
-        const lastDay = new Date(start.getFullYear(), start.getMonth() + 1, 0)
-        end = lastDay
-        break
-      }
-      case 'quarterly': {
-        const lastDay = new Date(start.getFullYear(), start.getMonth() + 3, 0)
-        end = lastDay
-        break
-      }
-      case 'biannually': {
-        const lastDay = new Date(start.getFullYear(), start.getMonth() + 6, 0)
-        end = lastDay
+        // Xth to (X-1)th of next month
+        // e.g. 1st Mar → 31st Mar, 5th Mar → 4th Apr
+        end = new Date(start)
+        end.setMonth(end.getMonth() + 1)
+        end.setDate(end.getDate() - 1)
         break
       }
       case 'annually': {
@@ -617,7 +610,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
   )
 
   const renderPayrollTab = () => {
-    const showMonthlyOptions = ['monthly', 'quarterly', 'biannually', 'annually'].includes(formData.pay_frequency)
+    const showMonthlyOptions = ['monthly'].includes(formData.pay_frequency)
     return (
       <div className="space-y-6">
         <div>
@@ -641,8 +634,6 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
               <SelectItem value="two_weekly">Two Weekly</SelectItem>
               <SelectItem value="four_weekly">Four Weekly</SelectItem>
               <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="quarterly">Quarterly</SelectItem>
-              <SelectItem value="biannually">Biannually</SelectItem>
               <SelectItem value="annually">Annually</SelectItem>
             </SelectContent>
           </Select>
