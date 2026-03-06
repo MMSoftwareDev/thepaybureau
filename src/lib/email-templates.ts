@@ -46,6 +46,75 @@ function layout(content: string): string {
 </html>`
 }
 
+export function welcomeEmail({
+  userName,
+}: {
+  userName: string
+}): { subject: string; html: string } {
+  return {
+    subject: 'Welcome to ThePayBureau — let\'s get you organised',
+    html: layout(`
+                <!-- Headline -->
+                <tr>
+                  <td style="padding-bottom:12px;">
+                    <h1 style="margin:0;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.03em;line-height:1.2;">
+                      Welcome to ThePayBureau
+                    </h1>
+                  </td>
+                </tr>
+                <!-- Body -->
+                <tr>
+                  <td style="padding-bottom:16px;">
+                    <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#6b7280;">Hi ${userName},</p>
+                    <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#374151;">
+                      Thanks for signing up! You&rsquo;re about to replace spreadsheets and sticky notes with a system built specifically for payroll professionals.
+                    </p>
+                    <p style="margin:0;font-size:15px;line-height:1.65;color:#374151;">
+                      Here&rsquo;s what you can do right away:
+                    </p>
+                  </td>
+                </tr>
+                <!-- Steps -->
+                <tr>
+                  <td style="padding-bottom:16px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">
+                      <tr>
+                        <td style="padding:20px;">
+                          <p style="margin:0 0 12px;font-size:14px;line-height:1.65;color:#374151;">
+                            <strong style="color:${BRAND_DEEP};">1.</strong> Add your first client and set their pay date
+                          </p>
+                          <p style="margin:0 0 12px;font-size:14px;line-height:1.65;color:#374151;">
+                            <strong style="color:${BRAND_DEEP};">2.</strong> Watch deadlines auto-generate based on their payroll frequency
+                          </p>
+                          <p style="margin:0;font-size:14px;line-height:1.65;color:#374151;">
+                            <strong style="color:${BRAND_DEEP};">3.</strong> Start checking off tasks and never miss a deadline again
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <!-- Message -->
+                <tr>
+                  <td style="padding-bottom:32px;">
+                    <p style="margin:0;font-size:15px;line-height:1.65;color:#374151;">
+                      Your dashboard is ready and waiting. Average setup time? 58 seconds.
+                    </p>
+                  </td>
+                </tr>
+                <!-- Button -->
+                <tr>
+                  <td style="padding-bottom:40px;">
+                    <a href="https://app.thepaybureau.com/dashboard"
+                       style="display:inline-block;background:${BRAND_PINK};color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:-0.01em;">
+                      Go to My Dashboard
+                    </a>
+                  </td>
+                </tr>
+    `),
+  }
+}
+
 export function complianceDeadlineEmail({
   userName,
   clientName,
