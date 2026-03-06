@@ -1,19 +1,19 @@
 import { PLANS } from '@/lib/stripe'
 
 describe('Stripe PLANS configuration', () => {
-  it('has starter plan with no price (free)', () => {
-    expect(PLANS.starter.price).toBe(0)
-    expect(PLANS.starter.priceId).toBeNull()
+  it('has free plan with no price', () => {
+    expect(PLANS.free.price).toBe(0)
+    expect(PLANS.free.priceId).toBeNull()
   })
 
-  it('has professional plan at £29', () => {
-    expect(PLANS.professional.price).toBe(29)
-    expect(PLANS.professional.clients).toBe(50)
+  it('has unlimited plan at £9/month and £7/month annual', () => {
+    expect(PLANS.unlimited.price).toBe(9)
+    expect(PLANS.unlimited.annualPrice).toBe(7)
+    expect(PLANS.unlimited.clients).toBe(Infinity)
   })
 
-  it('has enterprise plan at £79 with unlimited clients', () => {
-    expect(PLANS.enterprise.price).toBe(79)
-    expect(PLANS.enterprise.clients).toBe(Infinity)
+  it('free plan limited to 100 clients', () => {
+    expect(PLANS.free.clients).toBe(100)
   })
 
   it('all plans have feature lists', () => {
@@ -24,12 +24,10 @@ describe('Stripe PLANS configuration', () => {
   })
 
   it('plans have ascending prices', () => {
-    expect(PLANS.starter.price).toBeLessThan(PLANS.professional.price)
-    expect(PLANS.professional.price).toBeLessThan(PLANS.enterprise.price)
+    expect(PLANS.free.price).toBeLessThan(PLANS.unlimited.price)
   })
 
   it('plans have ascending client limits', () => {
-    expect(PLANS.starter.clients).toBeLessThan(PLANS.professional.clients)
-    expect(PLANS.professional.clients).toBeLessThan(PLANS.enterprise.clients)
+    expect(PLANS.free.clients).toBeLessThan(PLANS.unlimited.clients)
   })
 })

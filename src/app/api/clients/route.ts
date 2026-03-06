@@ -25,7 +25,7 @@ async function getOrCreateUser(supabase: ReturnType<typeof createServerSupabaseC
       .from('tenants')
       .insert({
         name: authUser.email?.split('@')[0] || 'My Bureau',
-        plan: 'starter',
+        plan: 'free',
       })
       .select()
       .single()

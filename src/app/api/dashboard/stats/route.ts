@@ -25,7 +25,7 @@ export async function GET() {
         .from('tenants')
         .insert({
           name: authUser.email?.split('@')[0] || 'My Bureau',
-          plan: 'starter',
+          plan: 'free',
         })
         .select()
         .single()

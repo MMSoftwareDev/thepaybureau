@@ -29,46 +29,36 @@ interface SubscriptionInfo {
 
 const PLAN_TIERS = [
   {
-    key: 'starter',
-    name: 'Starter',
+    key: 'free',
+    name: 'Free',
     price: 0,
+    annualPrice: 0,
     period: 'Free forever',
-    clients: '5 clients',
+    clients: '100 clients',
     features: [
-      'Up to 5 clients',
+      'Up to 100 clients',
       'Payroll checklists',
       'HMRC deadline tracking',
-      'Basic dashboard',
-    ],
-  },
-  {
-    key: 'professional',
-    name: 'Professional',
-    price: 29,
-    period: '/month',
-    clients: '50 clients',
-    popular: true,
-    features: [
-      'Up to 50 clients',
-      'Everything in Starter',
+      'Dashboard & reporting',
       'CSV import & export',
       'Audit log',
       'Pension tracking',
-      'Priority support',
     ],
   },
   {
-    key: 'enterprise',
-    name: 'Enterprise',
-    price: 79,
+    key: 'unlimited',
+    name: 'Unlimited',
+    price: 9,
+    annualPrice: 7,
     period: '/month',
     clients: 'Unlimited clients',
+    popular: true,
     features: [
       'Unlimited clients',
-      'Everything in Professional',
+      'Everything in Free',
       'Training & CPD tracking',
       'Custom checklist templates',
-      'Dedicated support',
+      'Priority support',
     ],
   },
 ]
@@ -87,6 +77,7 @@ function SubscriptionPage() {
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null)
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
 
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
@@ -126,7 +117,7 @@ function SubscriptionPage() {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, billingCycle }),
       })
       const data = await res.json()
       if (data.url) {
@@ -166,10 +157,10 @@ function SubscriptionPage() {
 
   if (!mounted) {
     return (
-      <div className="space-y-6 animate-pulse max-w-5xl mx-auto">
+      <div className="space-y-6 animate-pulse max-w-4xl mx-auto">
         <div className="h-10 w-64 rounded-xl" style={{ background: colors.border }} />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {[1, 2, 3].map((i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {[1, 2].map((i) => (
             <div key={i} className="h-96 rounded-lg" style={{ background: colors.border }} />
           ))}
         </div>
@@ -177,10 +168,10 @@ function SubscriptionPage() {
     )
   }
 
-  const currentPlan = subscription?.plan || 'starter'
+  const currentPlan = subscription?.plan || 'free'
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-8 max-w-4xl mx-auto">
       {/* Header */}
       <div>
         <h1
@@ -245,12 +236,46 @@ function SubscriptionPage() {
         </Card>
       )}
 
+      {/* Billing Cycle Toggle */}
+      <div className="flex items-center justify-center gap-3">
+        <button
+          onClick={() => setBillingCycle('monthly')}
+          className="text-sm font-semibold px-4 py-2 rounded-lg transition-all"
+          style={{
+            backgroundColor: billingCycle === 'monthly' ? colors.primary : 'transparent',
+            color: billingCycle === 'monthly' ? '#fff' : colors.text.muted,
+          }}
+        >
+          Monthly
+        </button>
+        <button
+          onClick={() => setBillingCycle('annual')}
+          className="text-sm font-semibold px-4 py-2 rounded-lg transition-all flex items-center gap-2"
+          style={{
+            backgroundColor: billingCycle === 'annual' ? colors.primary : 'transparent',
+            color: billingCycle === 'annual' ? '#fff' : colors.text.muted,
+          }}
+        >
+          Annual
+          <span
+            className="text-[0.68rem] font-bold px-1.5 py-0.5 rounded-md"
+            style={{
+              backgroundColor: billingCycle === 'annual' ? 'rgba(255,255,255,0.2)' : `${colors.success}20`,
+              color: billingCycle === 'annual' ? '#fff' : colors.success,
+            }}
+          >
+            Save 22%
+          </span>
+        </button>
+      </div>
+
       {/* Plan Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {PLAN_TIERS.map((tier) => {
           const isCurrent = currentPlan === tier.key
           const isUpgrade = PLAN_TIERS.findIndex(t => t.key === currentPlan) < PLAN_TIERS.findIndex(t => t.key === tier.key)
           const isDowngrade = PLAN_TIERS.findIndex(t => t.key === currentPlan) > PLAN_TIERS.findIndex(t => t.key === tier.key)
+          const displayPrice = billingCycle === 'annual' ? tier.annualPrice : tier.price
 
           return (
             <Card
@@ -308,14 +333,19 @@ function SubscriptionPage() {
                       className="text-3xl font-bold"
                       style={{ color: colors.text.primary }}
                     >
-                      {tier.price === 0 ? 'Free' : `£${tier.price}`}
+                      {displayPrice === 0 ? 'Free' : `£${displayPrice}`}
                     </span>
-                    {tier.price > 0 && (
+                    {displayPrice > 0 && (
                       <span className="text-sm" style={{ color: colors.text.muted }}>
-                        {tier.period}
+                        /month
                       </span>
                     )}
                   </div>
+                  {billingCycle === 'annual' && tier.price > 0 && (
+                    <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
+                      £{tier.annualPrice * 12}/year (billed annually)
+                    </p>
+                  )}
                 </div>
 
                 {/* Features */}
@@ -404,7 +434,7 @@ function SubscriptionPage() {
               },
               {
                 q: 'How does billing work?',
-                a: 'Plans are billed monthly via Stripe. You can cancel anytime from the billing portal and your plan will remain active until the end of the period.',
+                a: 'Plans are billed monthly or annually via Stripe. You can cancel anytime from the billing portal and your plan will remain active until the end of the period.',
               },
               {
                 q: 'Is my payment information secure?',
