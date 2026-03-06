@@ -1,26 +1,10 @@
 // src/app/layout.tsx
 import type { Metadata } from 'next'
-import { Inter, DM_Serif_Display, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ToastProvider } from '@/components/ui/toast'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import CookieConsent from '@/components/CookieConsent'
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
-
-const dmSerif = DM_Serif_Display({
-  weight: '400',
-  subsets: ['latin'],
-  variable: '--font-display',
-  style: ['normal', 'italic'],
-})
-
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  variable: '--font-body',
-  weight: ['300', '400', '500', '600', '700', '800'],
-})
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.thepaybureau.com'
 
@@ -71,8 +55,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@100..900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body
-        className={`${inter.variable} ${dmSerif.variable} ${plusJakarta.variable} ${inter.className}`}
+        className="font-sans"
         suppressHydrationWarning
       >
         <ThemeProvider defaultTheme="light" storageKey="thepaybureau-theme">
