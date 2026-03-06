@@ -5,6 +5,7 @@ import './globals.css'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ToastProvider } from '@/components/ui/toast'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import { Analytics } from '@vercel/analytics/next'
 import CookieConsent from '@/components/CookieConsent'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
@@ -82,6 +83,12 @@ export default function RootLayout({
         </ThemeProvider>
         <CookieConsent />
         <SpeedInsights />
+        <Analytics />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js')})}`,
+          }}
+        />
       </body>
     </html>
   )
