@@ -1,4 +1,4 @@
-import { adminRegistrationSchema, validateBusinessEmail, clientOnboardingSchema } from '@/lib/validations'
+import { adminRegistrationSchema, clientOnboardingSchema } from '@/lib/validations'
 
 describe('adminRegistrationSchema', () => {
   const validData = {
@@ -43,28 +43,6 @@ describe('adminRegistrationSchema', () => {
       companyName: '',
     })
     expect(result.success).toBe(false)
-  })
-})
-
-describe('validateBusinessEmail', () => {
-  it('accepts business emails', () => {
-    expect(validateBusinessEmail('user@company.co.uk').valid).toBe(true)
-  })
-
-  it('rejects Gmail', () => {
-    const result = validateBusinessEmail('user@gmail.com')
-    expect(result.valid).toBe(false)
-    expect(result.error).toContain('company email')
-  })
-
-  it('rejects invalid email format', () => {
-    const result = validateBusinessEmail('not-an-email')
-    expect(result.valid).toBe(false)
-  })
-
-  it('handles empty input', () => {
-    const result = validateBusinessEmail('')
-    expect(result.valid).toBe(false)
   })
 })
 

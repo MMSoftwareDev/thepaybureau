@@ -1,10 +1,17 @@
 import { getAuthUser, createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ip = getClientIp(request)
+  const limiter = await rateLimit(`vote:${ip}`, { limit: 20, windowSeconds: 900 })
+  if (!limiter.success) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
+
   const authUser = await getAuthUser()
   if (!authUser) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

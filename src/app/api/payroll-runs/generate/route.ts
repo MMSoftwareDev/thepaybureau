@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     if (runError) {
       console.error('Payroll run creation error:', runError)
-      return NextResponse.json({ error: runError.message }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to generate payroll run' }, { status: 400 })
     }
 
     // Fetch active checklist templates for this client

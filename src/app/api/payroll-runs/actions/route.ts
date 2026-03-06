@@ -5,6 +5,7 @@ import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { writeAuditLog } from '@/lib/audit'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 const toggleItemSchema = z.object({
   action: z.literal('toggle_item'),
@@ -39,6 +40,12 @@ const actionSchema = z.discriminatedUnion('action', [
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request)
+    const limiter = await rateLimit(`payroll-actions:${ip}`, { limit: 30, windowSeconds: 60 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+    }
+
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -94,7 +101,7 @@ export async function POST(request: NextRequest) {
           .eq('id', data.item_id)
 
         if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 400 })
+          return NextResponse.json({ error: 'Failed to update' }, { status: 400 })
         }
 
         const clientName = (run as unknown as { clients: { name: string } }).clients?.name || 'Unknown'
@@ -146,7 +153,7 @@ export async function POST(request: NextRequest) {
           .in('id', ids)
 
         if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 400 })
+          return NextResponse.json({ error: 'Failed to update' }, { status: 400 })
         }
 
         const clientName = (run as unknown as { clients: { name: string } }).clients?.name || 'Unknown'
@@ -183,7 +190,7 @@ export async function POST(request: NextRequest) {
           .eq('id', data.payroll_run_id)
 
         if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 400 })
+          return NextResponse.json({ error: 'Failed to update' }, { status: 400 })
         }
 
         if (run.notes !== data.notes) {
@@ -228,7 +235,7 @@ export async function POST(request: NextRequest) {
           .single()
 
         if (insertError) {
-          return NextResponse.json({ error: insertError.message }, { status: 400 })
+          return NextResponse.json({ error: 'Failed to add step' }, { status: 400 })
         }
 
         const clientName = (run as unknown as { clients: { name: string } }).clients?.name || 'Unknown'

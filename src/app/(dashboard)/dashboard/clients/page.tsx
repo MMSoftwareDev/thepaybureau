@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
-import { cn } from '@/lib/utils'
 import { format, parseISO } from 'date-fns'
 import {
   Building2,
@@ -43,7 +42,6 @@ interface Client {
   company_number?: string
   email?: string | null
   phone?: string | null
-  industry?: string
   employee_count?: number | null
   pay_frequency?: string | null
   paye_reference?: string | null
@@ -65,41 +63,6 @@ const formatFrequency = (freq: string | null | undefined): string => {
     monthly: 'Monthly',
   }
   return map[freq] || freq
-}
-
-// Get payroll status badge classes (matching payrolls page pattern)
-function getPayrollStatusBadgeClasses(status: string): string {
-  switch (status) {
-    case 'complete':
-      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-    case 'in_progress':
-      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-    case 'due_soon':
-      return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-    case 'overdue':
-      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-    case 'not_started':
-    default:
-      return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-  }
-}
-
-// Get payroll status label for display
-function getPayrollStatusLabel(status: string): string {
-  switch (status) {
-    case 'complete':
-      return 'Complete'
-    case 'in_progress':
-      return 'In Progress'
-    case 'due_soon':
-      return 'Due Soon'
-    case 'overdue':
-      return 'Overdue'
-    case 'not_started':
-      return 'Not Started'
-    default:
-      return status
-  }
 }
 
 // Format a date string safely
@@ -126,7 +89,6 @@ function ClientsContent() {
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '')
   const debouncedSearch = useDebounce(searchTerm, 200)
   const [statusFilter, setStatusFilter] = useState('all')
-  const [industryFilter, setIndustryFilter] = useState('all')
   const [employeeSizeFilter, setEmployeeSizeFilter] = useState('all')
   const [sortBy, setSortBy] = useState('name')
   const [sortOrder, setSortOrder] = useState('asc')
@@ -186,17 +148,12 @@ function ClientsContent() {
         client.name.toLowerCase().includes(term) ||
         client.email?.toLowerCase().includes(term) ||
         client.company_number?.toLowerCase().includes(term) ||
-        client.industry?.toLowerCase().includes(term) ||
         client.paye_reference?.toLowerCase().includes(term)
       )
     }
 
     if (statusFilter !== 'all') {
       filtered = filtered.filter(client => client.status === statusFilter)
-    }
-
-    if (industryFilter !== 'all') {
-      filtered = filtered.filter(client => client.industry === industryFilter)
     }
 
     if (employeeSizeFilter !== 'all') {
@@ -244,12 +201,7 @@ function ClientsContent() {
         return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
       }
     })
-  }, [debouncedSearch, statusFilter, industryFilter, employeeSizeFilter, sortBy, sortOrder, clients])
-
-  // Get unique industries for filter
-  const uniqueIndustries = [...new Set((clients as Client[]).map(c => c.industry).filter(Boolean))].sort()
-
-
+  }, [debouncedSearch, statusFilter, employeeSizeFilter, sortBy, sortOrder, clients])
 
   // Get summary statistics
   const typedClients = clients as Client[]
@@ -459,23 +411,6 @@ function ClientsContent() {
               </select>
 
               <select
-                aria-label="Filter by industry"
-                value={industryFilter}
-                onChange={(e) => setIndustryFilter(e.target.value)}
-                className="px-3 h-9 rounded-lg text-[0.82rem] font-medium focus:outline-none"
-                style={{
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
-                  color: colors.text.primary,
-                  border: `1px solid ${colors.border}`,
-                }}
-              >
-                <option value="all">All Industries</option>
-                {uniqueIndustries.map(industry => (
-                  <option key={industry} value={industry}>{industry}</option>
-                ))}
-              </select>
-
-              <select
                 aria-label="Filter by employee size"
                 value={employeeSizeFilter}
                 onChange={(e) => setEmployeeSizeFilter(e.target.value)}
@@ -530,25 +465,23 @@ function ClientsContent() {
           <div className="mt-3 flex items-center justify-between">
             <div className="text-[0.78rem] font-medium" style={{ color: colors.text.secondary }}>
               Showing {filteredClients.length} of {clients.length} clients
-              {(statusFilter !== 'all' || industryFilter !== 'all' || employeeSizeFilter !== 'all') && (
+              {(statusFilter !== 'all' || employeeSizeFilter !== 'all') && (
                 <span className="ml-2" style={{ color: colors.text.muted }}>
                   • Filtered by {[
                     statusFilter !== 'all' && `Status: ${statusFilter}`,
-                    industryFilter !== 'all' && `Industry: ${industryFilter}`,
                     employeeSizeFilter !== 'all' && `Size: ${employeeSizeFilter}`
                   ].filter(Boolean).join(', ')}
                 </span>
               )}
             </div>
             
-            {(searchTerm || statusFilter !== 'all' || industryFilter !== 'all' || employeeSizeFilter !== 'all') && (
+            {(searchTerm || statusFilter !== 'all' || employeeSizeFilter !== 'all') && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
                   setSearchTerm('')
                   setStatusFilter('all')
-                  setIndustryFilter('all')
                   setEmployeeSizeFilter('all')
                   setSortBy('name')
                   setSortOrder('asc')
@@ -596,7 +529,6 @@ function ClientsContent() {
               <TableHeader>
                 <TableRow style={{ borderColor: colors.border }}>
                   <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Client</TableHead>
-                  <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Industry</TableHead>
                   <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Pay Frequency</TableHead>
                   <TableHead className="font-bold" style={{ color: colors.text.secondary }}>Employees</TableHead>
                   <TableHead className="font-bold" style={{ color: colors.text.secondary }}>PAYE Ref</TableHead>
@@ -647,12 +579,6 @@ function ClientsContent() {
                             )}
                           </div>
                         </div>
-                      </TableCell>
-
-                      <TableCell>
-                        <span className="text-sm font-medium transition-colors duration-300" style={{ color: colors.text.primary }}>
-                          {client.industry || '-'}
-                        </span>
                       </TableCell>
 
                       <TableCell>

@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
           .eq('id', authUser.id)
 
         if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 400 })
+          return NextResponse.json({ error: 'Failed to save settings' }, { status: 400 })
         }
 
         if (previousName !== data.name) {
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         )
 
         if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 400 })
+          return NextResponse.json({ error: 'Failed to save settings' }, { status: 400 })
         }
 
         writeAuditLog({
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
           .eq('id', authUser.id)
 
         if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 400 })
+          return NextResponse.json({ error: 'Failed to save settings' }, { status: 400 })
         }
 
         writeAuditLog({
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
           .eq('id', user.tenant_id)
 
         if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 400 })
+          return NextResponse.json({ error: 'Failed to save settings' }, { status: 400 })
         }
 
         writeAuditLog({
@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
           .eq('id', user.tenant_id)
 
         if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 400 })
+          return NextResponse.json({ error: 'Failed to save settings' }, { status: 400 })
         }
 
         writeAuditLog({

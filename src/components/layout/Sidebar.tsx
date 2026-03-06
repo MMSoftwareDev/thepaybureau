@@ -344,19 +344,36 @@ export default function Sidebar({ isAdmin = false, mobileOpen = false, onMobileC
           <span className="text-[0.8rem] font-medium">Settings</span>
         </button>
 
-        {/* Subscription (greyed out — V2) */}
-        <div
-          className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-px"
+        {/* Subscription */}
+        <button
+          onClick={() => navigate('/dashboard/subscription')}
+          className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-px transition-all duration-150 relative"
           style={{
-            color: colors.text.muted,
-            opacity: 0.45,
-            cursor: 'not-allowed',
+            background: pathname.startsWith('/dashboard/subscription')
+              ? isDark ? 'rgba(255,255,255,0.08)' : `${colors.primary}08`
+              : 'transparent',
+            color: pathname.startsWith('/dashboard/subscription') ? colors.text.primary : colors.text.secondary,
+          }}
+          onMouseEnter={(e) => {
+            if (!pathname.startsWith('/dashboard/subscription')) {
+              e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : colors.lightBg
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!pathname.startsWith('/dashboard/subscription')) {
+              e.currentTarget.style.background = 'transparent'
+            }
           }}
         >
-          <CreditCard className="w-4 h-4" style={{ color: colors.text.muted }} />
-          <span className="text-[0.8rem] font-medium">Subscription</span>
-          <span className="text-[0.6rem] ml-auto" style={{ color: colors.text.muted }}>Coming Soon</span>
-        </div>
+          {pathname.startsWith('/dashboard/subscription') && (
+            <div
+              className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
+              style={{ background: `linear-gradient(180deg, ${colors.primary}, ${colors.secondary})` }}
+            />
+          )}
+          <CreditCard className="w-4 h-4" style={{ color: pathname.startsWith('/dashboard/subscription') ? colors.primary : colors.text.muted }} />
+          <span className={`text-[0.8rem] ${pathname.startsWith('/dashboard/subscription') ? 'font-semibold' : 'font-medium'}`}>Subscription</span>
+        </button>
 
         {/* Theme toggle */}
         <button

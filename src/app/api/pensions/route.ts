@@ -92,7 +92,7 @@ export async function PUT(request: NextRequest) {
       .single()
 
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to update pension details' }, { status: 400 })
     }
 
     // Audit log: pension fields updated
