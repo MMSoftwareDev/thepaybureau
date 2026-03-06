@@ -14,7 +14,7 @@ import {
   type PayFrequency,
 } from '@/lib/hmrc-deadlines'
 
-const PAY_FREQUENCIES = ['weekly', 'two_weekly', 'four_weekly', 'monthly', 'quarterly', 'biannually', 'annually'] as const
+const PAY_FREQUENCIES = ['weekly', 'two_weekly', 'four_weekly', 'monthly', 'annually'] as const
 
 const csvClientSchema = z.object({
   name: z.string().min(1, 'Company name is required').max(255),

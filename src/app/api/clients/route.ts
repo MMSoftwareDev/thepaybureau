@@ -152,7 +152,8 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (clientError) {
-      return NextResponse.json({ error: clientError.message }, { status: 400 })
+      console.error('Client creation error:', clientError)
+      return NextResponse.json({ error: 'Failed to create client' }, { status: 400 })
     }
 
     // 2. Insert checklist templates
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
       console.error('Checklist templates creation error:', templatesError)
       // Cleanup: remove the client we just created
       await supabase.from('clients').delete().eq('id', client.id)
-      return NextResponse.json({ error: templatesError.message }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to create checklist templates' }, { status: 400 })
     }
 
     // 3. Calculate dates for the first payroll run
@@ -209,7 +210,7 @@ export async function POST(request: NextRequest) {
       // Cleanup: remove templates and client
       await supabase.from('checklist_templates').delete().eq('client_id', client.id)
       await supabase.from('clients').delete().eq('id', client.id)
-      return NextResponse.json({ error: runError.message }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to create payroll run' }, { status: 400 })
     }
 
     // 5. Copy checklist templates into checklist_items for this run

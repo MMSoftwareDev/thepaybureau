@@ -52,6 +52,10 @@ export interface Database {
           subdomain: string | null
           plan: string | null
           settings: Json | null
+          mode: string | null
+          allowed_domains: string[] | null
+          demo_data_active: boolean | null
+          can_switch_modes: boolean | null
           created_at: string | null
           updated_at: string | null
         }
@@ -61,6 +65,10 @@ export interface Database {
           subdomain?: string | null
           plan?: string | null
           settings?: Json | null
+          mode?: string | null
+          allowed_domains?: string[] | null
+          demo_data_active?: boolean | null
+          can_switch_modes?: boolean | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -70,6 +78,10 @@ export interface Database {
           subdomain?: string | null
           plan?: string | null
           settings?: Json | null
+          mode?: string | null
+          allowed_domains?: string[] | null
+          demo_data_active?: boolean | null
+          can_switch_modes?: boolean | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -362,7 +374,6 @@ export interface Database {
           updated_at?: string
         }
       }
-    }
       feature_requests: {
         Row: {
           id: string
@@ -441,6 +452,7 @@ export interface Database {
           sent_at?: string
         }
       }
+    }
     Views: {
       [_ in never]: never
     }

@@ -1,9 +1,16 @@
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { getStripe } from '@/lib/stripe'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request)
+    const limiter = await rateLimit(`stripe-portal:${ip}`, { limit: 10, windowSeconds: 900 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+    }
+
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

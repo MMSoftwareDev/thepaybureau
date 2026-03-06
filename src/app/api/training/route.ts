@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Database error in POST /api/training:', error)
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to save training record' }, { status: 400 })
     }
 
     writeAuditLog({
@@ -161,7 +161,7 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error('Database error in PUT /api/training:', error)
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to save training record' }, { status: 400 })
     }
 
     writeAuditLog({

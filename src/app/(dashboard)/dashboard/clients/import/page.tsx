@@ -70,14 +70,12 @@ const PAY_FREQUENCY_MAP: Record<string, string> = {
   '4 weekly': 'four_weekly',
   '4-weekly': 'four_weekly',
   'monthly': 'monthly',
-  'quarterly': 'quarterly',
-  'biannually': 'biannually',
   'annually': 'annually',
   'annual': 'annually',
   'yearly': 'annually',
 }
 
-const VALID_FREQUENCIES = ['weekly', 'two_weekly', 'four_weekly', 'monthly', 'quarterly', 'biannually', 'annually']
+const VALID_FREQUENCIES = ['weekly', 'two_weekly', 'four_weekly', 'monthly', 'annually']
 
 interface ParsedClient {
   name: string

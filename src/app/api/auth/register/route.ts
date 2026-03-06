@@ -107,15 +107,6 @@ export async function POST(request: NextRequest) {
           industry: 'payroll_bureau',
           company_domain: companyDomain,
           setup_completed: false,
-          default_checklist: [
-            { name: 'Receive payroll changes', sort_order: 0 },
-            { name: 'Process payroll', sort_order: 1 },
-            { name: 'Review & approve', sort_order: 2 },
-            { name: 'Send payslips', sort_order: 3 },
-            { name: 'Submit RTI to HMRC', sort_order: 4 },
-            { name: 'BACS payment', sort_order: 5 },
-            { name: 'Pension submission', sort_order: 6 }
-          ],
           checklist_templates: [{
             id: crypto.randomUUID(),
             name: 'Standard Payroll',

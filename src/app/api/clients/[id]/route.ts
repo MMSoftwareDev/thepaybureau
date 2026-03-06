@@ -27,7 +27,7 @@ const clientUpdateSchema = z.object({
   notes: z.string().optional(),
   paye_reference: z.string().optional(),
   accounts_office_ref: z.string().max(13).optional(),
-  pay_frequency: z.enum(['weekly', 'two_weekly', 'four_weekly', 'monthly', 'quarterly', 'biannually', 'annually']).optional(),
+  pay_frequency: z.enum(['weekly', 'two_weekly', 'four_weekly', 'monthly', 'annually']).optional(),
   pay_day: z.string().optional(),
   period_start: z.string().optional(),
   period_end: z.string().optional(),
@@ -159,7 +159,7 @@ export async function PUT(
 
     if (error) {
       console.error('Database error updating client:', error)
-      return NextResponse.json({ error: error.message || 'Failed to update client' }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to update client' }, { status: 400 })
     }
 
     // Audit log: client updated
@@ -191,7 +191,7 @@ export async function PUT(
 
       if (deleteError) {
         console.error('Database error deleting checklist templates:', deleteError)
-        return NextResponse.json({ error: deleteError.message }, { status: 400 })
+        return NextResponse.json({ error: 'Failed to update checklist templates' }, { status: 400 })
       }
 
       // Insert new templates
@@ -209,7 +209,7 @@ export async function PUT(
 
         if (insertError) {
           console.error('Database error inserting checklist templates:', insertError)
-          return NextResponse.json({ error: insertError.message }, { status: 400 })
+          return NextResponse.json({ error: 'Failed to save checklist templates' }, { status: 400 })
         }
       }
     }
