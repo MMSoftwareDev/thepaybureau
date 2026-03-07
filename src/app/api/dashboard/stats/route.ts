@@ -68,6 +68,7 @@ export async function GET() {
       .from('clients')
       .select('id, name, status, employee_count, pay_frequency, created_at, pension_provider, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
       .eq('tenant_id', user.tenant_id)
+      .limit(5000)
 
     const allClients = clients || []
     const totalClients = allClients.length
@@ -80,6 +81,7 @@ export async function GET() {
       .from('payroll_runs')
       .select('*, clients(name, id), checklist_items(id, is_completed)')
       .eq('tenant_id', user.tenant_id)
+      .limit(5000)
 
     const today = startOfDay(new Date())
     const monthStart = startOfMonth(today)

@@ -42,6 +42,7 @@ export async function GET() {
       .select('*')
       .eq('tenant_id', user.tenant_id)
       .order('created_at', { ascending: false })
+      .limit(500)
 
     if (error) {
       console.error('Database error in GET /api/training:', error)

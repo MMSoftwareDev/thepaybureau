@@ -1,6 +1,7 @@
 import { getAuthUser, createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { writeAuditLog } from '@/lib/audit'
 
 const PLATFORM_ADMIN_EMAILS = (process.env.PLATFORM_ADMIN_EMAILS || '')
   .split(',')
@@ -47,6 +48,16 @@ export async function PUT(
       return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
     }
 
+    writeAuditLog({
+      tenantId: 'platform',
+      userId: authUser.id,
+      userEmail: authUser.email || 'unknown',
+      action: 'UPDATE',
+      resourceType: 'feature_request',
+      resourceId: id,
+      resourceName: updated.title,
+    })
+
     return NextResponse.json({ request: updated })
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -73,6 +84,16 @@ export async function DELETE(
     if (error) {
       return NextResponse.json({ error: 'Failed to delete' }, { status: 500 })
     }
+
+    writeAuditLog({
+      tenantId: 'platform',
+      userId: authUser.id,
+      userEmail: authUser.email || 'unknown',
+      action: 'DELETE',
+      resourceType: 'feature_request',
+      resourceId: id,
+      resourceName: id,
+    })
 
     return NextResponse.json({ success: true })
   } catch {

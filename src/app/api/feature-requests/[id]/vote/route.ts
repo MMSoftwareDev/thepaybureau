@@ -31,10 +31,15 @@ export async function POST(
 
     if (existing) {
       // Remove vote
-      await supabase
+      const { error: deleteError } = await supabase
         .from('feature_request_votes')
         .delete()
         .eq('id', existing.id)
+
+      if (deleteError) {
+        console.error('Failed to remove vote:', deleteError)
+        return NextResponse.json({ error: 'Failed to remove vote' }, { status: 500 })
+      }
     } else {
       // Add vote
       const { error } = await supabase
