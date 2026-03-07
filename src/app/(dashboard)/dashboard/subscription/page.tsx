@@ -13,6 +13,8 @@ import {
   Loader2,
   ExternalLink,
   Sparkles,
+  Users,
+  Lock,
 } from 'lucide-react'
 
 interface SubscriptionInfo {
@@ -31,34 +33,52 @@ const PLAN_TIERS = [
   {
     key: 'free',
     name: 'Free',
+    tagline: 'Free forever',
     price: 0,
     annualPrice: 0,
-    period: 'Free forever',
-    clients: '100 clients',
+    annualTotal: 0,
+    clients: 'Up to 100 clients',
+    icon: Users,
     features: [
-      'Up to 100 clients',
-      'Payroll checklists',
-      'HMRC deadline tracking',
-      'Dashboard & reporting',
-      'CSV import & export',
-      'Audit log',
-      'Pension tracking',
+      'Payroll runs',
+      'Pension declarations',
+      'Automated emails',
+      'Email support',
     ],
   },
   {
     key: 'unlimited',
     name: 'Unlimited',
+    tagline: 'For growing bureaus',
     price: 9,
     annualPrice: 7,
-    period: '/month',
+    annualTotal: 84,
     clients: 'Unlimited clients',
+    icon: Crown,
     popular: true,
     features: [
-      'Unlimited clients',
       'Everything in Free',
+      'Unlimited clients',
       'Training & CPD tracking',
-      'Custom checklist templates',
+      'Audit logs',
       'Priority support',
+    ],
+  },
+  {
+    key: 'team',
+    name: 'Team',
+    tagline: 'Coming soon',
+    price: null,
+    annualPrice: null,
+    annualTotal: null,
+    clients: 'Unlimited clients',
+    icon: Sparkles,
+    comingSoon: true,
+    features: [
+      'Dedicated support',
+      'Bureau dashboard',
+      'White labelling',
+      'Reporting',
     ],
   },
 ]
@@ -157,10 +177,10 @@ function SubscriptionPage() {
 
   if (!mounted) {
     return (
-      <div className="space-y-6 animate-pulse max-w-4xl mx-auto">
+      <div className="space-y-6 animate-pulse max-w-5xl mx-auto">
         <div className="h-10 w-64 rounded-xl" style={{ background: colors.border }} />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {[1, 2].map((i) => (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {[1, 2, 3].map((i) => (
             <div key={i} className="h-96 rounded-lg" style={{ background: colors.border }} />
           ))}
         </div>
@@ -171,19 +191,17 @@ function SubscriptionPage() {
   const currentPlan = subscription?.plan || 'free'
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
+    <div className="space-y-8 max-w-5xl mx-auto">
       {/* Header */}
-      <div>
+      <div className="text-center">
         <h1
           className="text-xl md:text-2xl font-bold"
           style={{ color: colors.text.primary }}
         >
-          Subscription
+          Choose your plan
         </h1>
-        <p className="text-[0.82rem] mt-0.5" style={{ color: colors.text.muted }}>
-          {subscription?.subscription
-            ? 'Manage your subscription and billing'
-            : 'Choose the plan that fits your bureau'}
+        <p className="text-[0.82rem] mt-1" style={{ color: colors.text.muted }}>
+          Simple pricing that grows with your bureau
         </p>
       </div>
 
@@ -237,50 +255,58 @@ function SubscriptionPage() {
       )}
 
       {/* Billing Cycle Toggle */}
-      <div className="flex items-center justify-center gap-3">
-        <button
-          onClick={() => setBillingCycle('monthly')}
-          className="text-sm font-semibold px-4 py-2 rounded-lg transition-all"
-          style={{
-            backgroundColor: billingCycle === 'monthly' ? colors.primary : 'transparent',
-            color: billingCycle === 'monthly' ? '#fff' : colors.text.muted,
-          }}
+      <div className="flex items-center justify-center">
+        <div
+          className="flex items-center gap-1 p-1 rounded-xl"
+          style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}
         >
-          Monthly
-        </button>
-        <button
-          onClick={() => setBillingCycle('annual')}
-          className="text-sm font-semibold px-4 py-2 rounded-lg transition-all flex items-center gap-2"
-          style={{
-            backgroundColor: billingCycle === 'annual' ? colors.primary : 'transparent',
-            color: billingCycle === 'annual' ? '#fff' : colors.text.muted,
-          }}
-        >
-          Annual
-          <span
-            className="text-[0.68rem] font-bold px-1.5 py-0.5 rounded-md"
+          <button
+            onClick={() => setBillingCycle('monthly')}
+            className="text-sm font-semibold px-5 py-2 rounded-lg transition-all"
             style={{
-              backgroundColor: billingCycle === 'annual' ? 'rgba(255,255,255,0.2)' : `${colors.success}20`,
-              color: billingCycle === 'annual' ? '#fff' : colors.success,
+              backgroundColor: billingCycle === 'monthly' ? colors.surface : 'transparent',
+              color: billingCycle === 'monthly' ? colors.text.primary : colors.text.muted,
+              boxShadow: billingCycle === 'monthly' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
             }}
           >
-            Save 22%
-          </span>
-        </button>
+            Monthly
+          </button>
+          <button
+            onClick={() => setBillingCycle('annual')}
+            className="text-sm font-semibold px-5 py-2 rounded-lg transition-all flex items-center gap-2"
+            style={{
+              backgroundColor: billingCycle === 'annual' ? colors.surface : 'transparent',
+              color: billingCycle === 'annual' ? colors.text.primary : colors.text.muted,
+              boxShadow: billingCycle === 'annual' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            }}
+          >
+            Annual
+            <span
+              className="text-[0.68rem] font-bold px-1.5 py-0.5 rounded-md"
+              style={{
+                backgroundColor: `${colors.success}15`,
+                color: colors.success,
+              }}
+            >
+              Save 22%
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Plan Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {PLAN_TIERS.map((tier) => {
           const isCurrent = currentPlan === tier.key
-          const isUpgrade = PLAN_TIERS.findIndex(t => t.key === currentPlan) < PLAN_TIERS.findIndex(t => t.key === tier.key)
-          const isDowngrade = PLAN_TIERS.findIndex(t => t.key === currentPlan) > PLAN_TIERS.findIndex(t => t.key === tier.key)
+          const isUpgrade = !tier.comingSoon && PLAN_TIERS.filter(t => !t.comingSoon).findIndex(t => t.key === currentPlan) < PLAN_TIERS.filter(t => !t.comingSoon).findIndex(t => t.key === tier.key)
+          const isDowngrade = !tier.comingSoon && PLAN_TIERS.filter(t => !t.comingSoon).findIndex(t => t.key === currentPlan) > PLAN_TIERS.filter(t => !t.comingSoon).findIndex(t => t.key === tier.key)
           const displayPrice = billingCycle === 'annual' ? tier.annualPrice : tier.price
+          const IconComponent = tier.icon
 
           return (
             <Card
               key={tier.key}
-              className="border-0 relative overflow-hidden"
+              className="border-0 relative overflow-hidden flex flex-col"
               style={{
                 ...cardStyle,
                 border: isCurrent
@@ -290,7 +316,10 @@ function SubscriptionPage() {
                     : `1px solid ${colors.border}`,
                 boxShadow: isCurrent
                   ? `0 8px 30px ${colors.primary}20`
-                  : 'none',
+                  : tier.popular
+                    ? `0 4px 20px ${colors.secondary}10`
+                    : 'none',
+                opacity: tier.comingSoon ? 0.75 : 1,
               }}
             >
               {/* Popular badge */}
@@ -316,45 +345,119 @@ function SubscriptionPage() {
                 </div>
               )}
 
-              <CardContent className="p-6">
-                {/* Plan name & price */}
-                <div className="mb-6">
+              {/* Coming Soon badge */}
+              {tier.comingSoon && (
+                <div
+                  className="absolute top-0 right-0 px-3 py-1 text-[0.68rem] font-bold rounded-bl-xl"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                    color: colors.text.muted,
+                  }}
+                >
+                  <Lock className="w-3 h-3 inline mr-1" />
+                  Coming Soon
+                </div>
+              )}
+
+              <CardContent className="p-6 flex flex-col flex-1">
+                {/* Icon & Plan name */}
+                <div className="mb-5">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+                    style={{
+                      background: tier.comingSoon
+                        ? isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'
+                        : tier.popular
+                          ? `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`
+                          : isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                    }}
+                  >
+                    <IconComponent
+                      className="w-5 h-5"
+                      style={{
+                        color: tier.popular && !tier.comingSoon ? '#fff' : colors.text.muted,
+                      }}
+                    />
+                  </div>
                   <h3
-                    className="text-lg font-bold mb-1"
+                    className="text-lg font-bold"
                     style={{ color: colors.text.primary }}
                   >
                     {tier.name}
                   </h3>
-                  <p className="text-xs font-medium mb-4" style={{ color: colors.text.muted }}>
-                    {tier.clients}
+                  <p className="text-xs mt-0.5" style={{ color: colors.text.muted }}>
+                    {tier.tagline}
                   </p>
-                  <div className="flex items-baseline gap-1">
-                    <span
-                      className="text-3xl font-bold"
-                      style={{ color: colors.text.primary }}
-                    >
-                      {displayPrice === 0 ? 'Free' : `£${displayPrice}`}
-                    </span>
-                    {displayPrice > 0 && (
+                </div>
+
+                {/* Price */}
+                <div className="mb-5">
+                  {tier.comingSoon ? (
+                    <div className="flex items-baseline gap-1">
+                      <span
+                        className="text-2xl font-bold"
+                        style={{ color: colors.text.muted }}
+                      >
+                        TBC
+                      </span>
+                    </div>
+                  ) : displayPrice === 0 ? (
+                    <div className="flex items-baseline gap-1">
+                      <span
+                        className="text-3xl font-bold"
+                        style={{ color: colors.text.primary }}
+                      >
+                        £0
+                      </span>
                       <span className="text-sm" style={{ color: colors.text.muted }}>
                         /month
                       </span>
-                    )}
-                  </div>
-                  {billingCycle === 'annual' && tier.price > 0 && (
-                    <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
-                      £{tier.annualPrice * 12}/year (billed annually)
-                    </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-baseline gap-1">
+                        <span
+                          className="text-3xl font-bold"
+                          style={{ color: colors.text.primary }}
+                        >
+                          £{displayPrice}
+                        </span>
+                        <span className="text-sm" style={{ color: colors.text.muted }}>
+                          /month
+                        </span>
+                      </div>
+                      {billingCycle === 'annual' && (
+                        <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
+                          £{tier.annualTotal}/year billed annually
+                        </p>
+                      )}
+                      {billingCycle === 'monthly' && (
+                        <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
+                          or £{tier.annualTotal}/year with annual billing
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
 
+                {/* Clients */}
+                <p
+                  className="text-xs font-semibold mb-4 pb-4"
+                  style={{
+                    color: colors.text.secondary,
+                    borderBottom: `1px solid ${colors.border}`,
+                  }}
+                >
+                  {tier.clients}
+                </p>
+
                 {/* Features */}
-                <ul className="space-y-2.5 mb-8">
+                <ul className="space-y-2.5 mb-8 flex-1">
                   {tier.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2.5">
                       <Check
                         className="w-4 h-4 mt-0.5 flex-shrink-0"
-                        style={{ color: colors.success }}
+                        style={{ color: tier.comingSoon ? colors.text.muted : colors.success }}
                       />
                       <span className="text-[0.82rem]" style={{ color: colors.text.secondary }}>
                         {feature}
@@ -364,7 +467,19 @@ function SubscriptionPage() {
                 </ul>
 
                 {/* Action button */}
-                {isCurrent ? (
+                {tier.comingSoon ? (
+                  <Button
+                    disabled
+                    className="w-full rounded-lg font-semibold py-5"
+                    style={{
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                      color: colors.text.muted,
+                      border: `1px solid ${colors.border}`,
+                    }}
+                  >
+                    Coming Soon
+                  </Button>
+                ) : isCurrent ? (
                   <Button
                     disabled
                     className="w-full rounded-lg font-semibold py-5"
@@ -416,7 +531,7 @@ function SubscriptionPage() {
         })}
       </div>
 
-      {/* FAQ / info */}
+      {/* FAQ */}
       <Card className="border-0" style={cardStyle}>
         <CardContent className="p-6">
           <h3 className="text-base font-bold mb-4" style={{ color: colors.text.primary }}>
