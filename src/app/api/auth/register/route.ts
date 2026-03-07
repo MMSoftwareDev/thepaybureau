@@ -109,6 +109,10 @@ export async function POST(request: NextRequest) {
           industry: 'payroll_bureau',
           company_domain: companyDomain,
           setup_completed: false,
+          marketing_consent: {
+            value: validatedData.marketingConsent ?? false,
+            recorded_at: new Date().toISOString(),
+          },
           checklist_templates: [{
             id: crypto.randomUUID(),
             name: 'Standard Payroll',

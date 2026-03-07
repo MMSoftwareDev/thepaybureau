@@ -30,7 +30,8 @@ export const adminRegistrationSchema = z.object({
   adminName: z.string()
     .min(1, 'Your full name is required')
     .max(255, 'Name too long'),
-  phone: z.string().optional()
+  phone: z.string().optional(),
+  marketingConsent: z.boolean().optional().default(false),
 })
 
 // ═══════════════════════════════════════════════════
