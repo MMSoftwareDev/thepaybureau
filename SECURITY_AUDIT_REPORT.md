@@ -298,13 +298,18 @@
 | Pagination | ⚠️ WARNING | Only `audit_logs` uses pagination (`src/app/api/audit-logs/route.ts:62` — `.range(offset, offset + limit - 1)`). Other list endpoints (clients, training records, payroll runs) return all records. This is acceptable at launch scale but should be addressed as data grows. |
 | Large data fetches | ⚠️ WARNING | `src/app/api/clients/route.ts:77` — `SELECT *` on all clients. Includes fetching all payroll runs for those clients (line 91-98). For a tenant with hundreds of clients, this could be slow. |
 
-**Missing index suggestion:**
+**Missing indexes (critical for RLS performance):**
 ```sql
--- If querying payroll_runs by client_id frequently:
+-- Core tables used in RLS filtering lack tenant_id indexes:
+CREATE INDEX IF NOT EXISTS idx_clients_tenant_id ON clients(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_payroll_runs_tenant_id ON payroll_runs(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_payroll_runs_client_id ON payroll_runs(client_id);
--- Already exists via FK but explicit index for sort:
 CREATE INDEX IF NOT EXISTS idx_payroll_runs_pay_date ON payroll_runs(tenant_id, pay_date DESC);
+CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_checklist_templates_client_id ON checklist_templates(client_id);
+CREATE INDEX IF NOT EXISTS idx_checklist_items_payroll_run_id ON checklist_items(payroll_run_id);
 ```
+These indexes are critical because `get_user_tenant_id()` is called in every RLS policy. Without indexes on `tenant_id`, Supabase performs full table scans for every authenticated query.
 
 ---
 
@@ -356,29 +361,31 @@ CREATE INDEX IF NOT EXISTS idx_payroll_runs_pay_date ON payroll_runs(tenant_id, 
 
 9. **Admin analytics loads all data into memory** — `src/app/api/admin/analytics/route.ts:31-52`. Will break at scale. Move to SQL aggregation.
 
-10. **No pagination on clients/training/payroll list endpoints** — Acceptable at launch volume but should be added as user base grows.
+10. **Missing database indexes on core tables** — `clients`, `payroll_runs`, `users`, `checklist_templates`, and `checklist_items` lack indexes on `tenant_id`/`client_id`/`payroll_run_id`. These are used in every RLS policy check and will cause full table scans as data grows. See Section 7 for exact SQL.
 
-11. **N+1 query in cron email-reminders** — `src/app/api/cron/email-reminders/route.ts:113-116`. Batch-fetch checklist items for all runs at once.
+11. **No pagination on clients/training/payroll list endpoints** — Acceptable at launch volume but should be added as user base grows.
 
-12. **`/api/status` endpoint exposes UptimeRobot monitor URLs** — Could reveal infrastructure details. Consider restricting to authenticated users.
+12. **N+1 query in cron email-reminders** — `src/app/api/cron/email-reminders/route.ts:113-116`. Batch-fetch checklist items for all runs at once.
 
-13. **SPF/DKIM/DMARC documentation** — Verify DNS records are configured for `mail.thepaybureau.com`. Document the setup.
+13. **`/api/status` endpoint exposes UptimeRobot monitor URLs** — Could reveal infrastructure details. Consider restricting to authenticated users.
 
-14. **No bounce handling for emails** — Set up Resend webhooks to track hard bounces and suppress future sends.
+14. **SPF/DKIM/DMARC documentation** — Verify DNS records are configured for `mail.thepaybureau.com`. Document the setup.
+
+15. **No bounce handling for emails** — Set up Resend webhooks to track hard bounces and suppress future sends.
 
 ### NICE TO HAVE
 
-15. **Slack notifications** — For new signups, new feedback, failed payments. Keeps the team in the loop without checking dashboards.
+16. **Slack notifications** — For new signups, new feedback, failed payments. Keeps the team in the loop without checking dashboards.
 
-16. **Database-backed rate limiting in production** — Redis is configured but falls back to in-memory if not set. Verify `UPSTASH_REDIS_REST_URL` is set in production Vercel env vars.
+17. **Database-backed rate limiting in production** — Redis is configured but falls back to in-memory if not set. Verify `UPSTASH_REDIS_REST_URL` is set in production Vercel env vars.
 
-17. **Audit log for failed login attempts** — Currently only Supabase Auth tracks these internally. Consider surfacing in the admin dashboard.
+18. **Audit log for failed login attempts** — Currently only Supabase Auth tracks these internally. Consider surfacing in the admin dashboard.
 
-18. **ValiDora bulk email validator** — For validating client contact emails during CSV import.
+19. **ValiDora bulk email validator** — For validating client contact emails during CSV import.
 
-19. **VibeCodersNest community share** — For showcasing the product and getting early feedback.
+20. **VibeCodersNest community share** — For showcasing the product and getting early feedback.
 
-20. **Stripe `customer.subscription.created` explicit handler** — Currently handled indirectly via `checkout.session.completed`.
+21. **Stripe `customer.subscription.created` explicit handler** — Currently handled indirectly via `checkout.session.completed`.
 
 ---
 
