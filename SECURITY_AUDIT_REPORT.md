@@ -44,7 +44,7 @@
 |-------|--------|---------|
 | No raw SQL injection | ✅ PASS | All database operations use the Supabase client library's parameterized query builder. No `rpc()` with string interpolation found. |
 | Zod validation on inputs | ✅ PASS | All POST/PUT routes validate with Zod schemas before DB operations. Verified: register, clients, clients/[id], clients/import, payroll-runs/actions, payroll-runs/generate, settings, training, feature-requests. |
-| No string interpolation in queries | ✅ PASS | All queries use `.eq()`, `.in()`, etc. — no template literals used for query construction. |
+| No string interpolation in queries | ⚠️ WARNING | Most queries use `.eq()`, `.in()`, etc. However, `src/app/api/audit-logs/route.ts:52` uses string interpolation in a `.or()` PostgREST filter: `` query.or(`resource_name.ilike.%${sanitized}%,...`) ``. Input is sanitized (line 50 strips `,%().*`), so PostgREST filter injection risk is low but not zero. |
 
 ---
 
