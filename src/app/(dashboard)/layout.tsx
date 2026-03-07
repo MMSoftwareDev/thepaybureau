@@ -34,7 +34,7 @@ export default function DashboardLayout({
         fetch('/api/admin/check')
           .then(res => res.json())
           .then(data => setIsAdmin(data.isAdmin === true))
-          .catch(() => {})
+          .catch((err) => console.error('Admin check failed:', err))
       }
     })
 

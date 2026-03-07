@@ -43,22 +43,24 @@ export async function POST(req: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    const { data: user } = await supabase
+    const { data: user, error: userError } = await supabase
       .from('users')
       .select('tenant_id')
       .eq('id', authUser.id)
       .single()
 
+    if (userError) console.error('User lookup failed in stripe/checkout:', userError)
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const { data: tenant } = await supabase
+    const { data: tenant, error: tenantError } = await supabase
       .from('tenants')
       .select('id, name, settings')
       .eq('id', user.tenant_id)
       .single()
 
+    if (tenantError) console.error('Tenant lookup failed in stripe/checkout:', tenantError)
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
