@@ -20,6 +20,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    if (!authUser.email) {
+      return NextResponse.json({ error: 'Email required' }, { status: 400 })
+    }
+
     const { plan, billingCycle = 'monthly' } = (await req.json()) as { plan: PlanKey; billingCycle?: 'monthly' | 'annual' }
 
     if (!plan || !PLANS[plan]) {
@@ -65,7 +69,7 @@ export async function POST(req: NextRequest) {
     // Create Stripe customer if needed
     if (!customerId) {
       const customer = await getStripe().customers.create({
-        email: authUser.email!,
+        email: authUser.email,
         name: tenant.name,
         metadata: { tenant_id: tenant.id },
       })

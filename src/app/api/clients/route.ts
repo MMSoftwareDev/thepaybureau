@@ -39,7 +39,7 @@ async function getOrCreateUser(supabase: ReturnType<typeof createServerSupabaseC
       .insert({
         id: authUser.id,
         tenant_id: newTenant.id,
-        email: authUser.email!,
+        email: authUser.email || '',
         name:
           authUser.user_metadata?.name ||
           authUser.email?.split('@')[0] ||
@@ -124,6 +124,10 @@ export async function POST(request: NextRequest) {
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (!authUser.email) {
+      return NextResponse.json({ error: 'Email required' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
@@ -236,7 +240,7 @@ export async function POST(request: NextRequest) {
     writeAuditLog({
       tenantId: user.tenant_id,
       userId: authUser.id,
-      userEmail: authUser.email!,
+      userEmail: authUser.email,
       action: 'CREATE',
       resourceType: 'client',
       resourceId: client.id,

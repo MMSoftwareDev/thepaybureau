@@ -62,6 +62,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    if (!authUser.email) {
+      return NextResponse.json({ error: 'Email required' }, { status: 400 })
+    }
+
     const supabase = createServerSupabaseClient()
 
     const { data: user } = await supabase
@@ -203,7 +207,7 @@ export async function POST(request: NextRequest) {
     writeAuditLog({
       tenantId: user.tenant_id,
       userId: authUser.id,
-      userEmail: authUser.email!,
+      userEmail: authUser.email,
       action: 'CREATE',
       resourceType: 'client_import',
       resourceId: user.tenant_id,

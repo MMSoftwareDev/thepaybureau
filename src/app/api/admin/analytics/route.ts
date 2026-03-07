@@ -32,24 +32,28 @@ export async function GET() {
       .from('users')
       .select('id, email, name, role, is_active, created_at, tenant_id')
       .order('created_at', { ascending: false })
+      .limit(10000)
 
     // ── All tenants ──
     const { data: allTenants } = await supabase
       .from('tenants')
       .select('id, name, plan, mode, created_at')
       .order('created_at', { ascending: false })
+      .limit(10000)
 
     // ── All clients ──
     const { data: allClients } = await supabase
       .from('clients')
       .select('id, tenant_id, name, status, pay_frequency, employee_count, created_at')
       .order('created_at', { ascending: false })
+      .limit(10000)
 
     // ── All payroll runs ──
     const { data: allRuns } = await supabase
       .from('payroll_runs')
       .select('id, tenant_id, status, pay_date, created_at')
       .order('created_at', { ascending: false })
+      .limit(10000)
 
     // ── Auth users for last_sign_in_at (service role can read auth.users) ──
     const { data: authUsers } = await supabase.auth.admin.listUsers({ perPage: 1000 })

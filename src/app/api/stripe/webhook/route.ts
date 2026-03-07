@@ -1,3 +1,4 @@
+import { writeAuditLog } from '@/lib/audit'
 import { getStripe, PLANS } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
@@ -46,6 +47,17 @@ export async function POST(req: NextRequest) {
             .from('tenants')
             .update({ plan })
             .eq('id', tenantId)
+
+          await writeAuditLog({
+            tenantId,
+            userId: 'system',
+            userEmail: 'stripe-webhook',
+            action: 'UPDATE',
+            resourceType: 'tenant',
+            resourceId: tenantId,
+            resourceName: `Plan changed to ${plan}`,
+            changes: { plan },
+          })
         }
         break
       }
@@ -74,6 +86,17 @@ export async function POST(req: NextRequest) {
 
           if (subscription.status === 'active') {
             await supabase.from('tenants').update({ plan: newPlan }).eq('id', tenant.id)
+
+            await writeAuditLog({
+              tenantId: tenant.id,
+              userId: 'system',
+              userEmail: 'stripe-webhook',
+              action: 'UPDATE',
+              resourceType: 'tenant',
+              resourceId: tenant.id,
+              resourceName: `Plan changed to ${newPlan}`,
+              changes: { plan: newPlan, priceId },
+            })
           }
         }
         break
@@ -91,6 +114,17 @@ export async function POST(req: NextRequest) {
 
         if (tenant) {
           await supabase.from('tenants').update({ plan: 'free' }).eq('id', tenant.id)
+
+          await writeAuditLog({
+            tenantId: tenant.id,
+            userId: 'system',
+            userEmail: 'stripe-webhook',
+            action: 'UPDATE',
+            resourceType: 'tenant',
+            resourceId: tenant.id,
+            resourceName: 'Downgraded to free (subscription deleted)',
+            changes: { plan: 'free' },
+          })
         }
         break
       }
@@ -117,6 +151,17 @@ export async function POST(req: NextRequest) {
               },
             })
             .eq('id', tenant.id)
+
+          await writeAuditLog({
+            tenantId: tenant.id,
+            userId: 'system',
+            userEmail: 'stripe-webhook',
+            action: 'UPDATE',
+            resourceType: 'tenant',
+            resourceId: tenant.id,
+            resourceName: 'Payment failed',
+            changes: { payment_failed_invoice_id: invoice.id },
+          })
         }
         break
       }

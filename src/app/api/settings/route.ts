@@ -61,6 +61,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    if (!authUser.email) {
+      return NextResponse.json({ error: 'Email required' }, { status: 400 })
+    }
+
     const supabase = createServerSupabaseClient()
 
     const { data: user } = await supabase
@@ -93,7 +97,7 @@ export async function POST(request: NextRequest) {
           writeAuditLog({
             tenantId: user.tenant_id,
             userId: authUser.id,
-            userEmail: authUser.email!,
+            userEmail: authUser.email,
             action: 'UPDATE',
             resourceType: 'user_profile',
             resourceId: authUser.id,
@@ -119,7 +123,7 @@ export async function POST(request: NextRequest) {
         writeAuditLog({
           tenantId: user.tenant_id,
           userId: authUser.id,
-          userEmail: authUser.email!,
+          userEmail: authUser.email,
           action: 'UPDATE',
           resourceType: 'user_password',
           resourceId: authUser.id,
@@ -143,7 +147,7 @@ export async function POST(request: NextRequest) {
         writeAuditLog({
           tenantId: user.tenant_id,
           userId: authUser.id,
-          userEmail: authUser.email!,
+          userEmail: authUser.email,
           action: 'UPDATE',
           resourceType: 'user_avatar',
           resourceId: authUser.id,
@@ -187,7 +191,7 @@ export async function POST(request: NextRequest) {
         writeAuditLog({
           tenantId: user.tenant_id,
           userId: authUser.id,
-          userEmail: authUser.email!,
+          userEmail: authUser.email,
           action: 'UPDATE',
           resourceType: 'checklist_defaults',
           resourceId: user.tenant_id,
@@ -238,7 +242,7 @@ export async function POST(request: NextRequest) {
         writeAuditLog({
           tenantId: user.tenant_id,
           userId: authUser.id,
-          userEmail: authUser.email!,
+          userEmail: authUser.email,
           action: 'UPDATE',
           resourceType: 'checklist_templates',
           resourceId: user.tenant_id,

@@ -11,6 +11,10 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    if (!authUser.email) {
+      return NextResponse.json({ error: 'Email required' }, { status: 400 })
+    }
+
     const supabase = createServerSupabaseClient()
 
     // Get or create user
@@ -39,7 +43,7 @@ export async function GET() {
         .insert({
           id: authUser.id,
           tenant_id: newTenant.id,
-          email: authUser.email!,
+          email: authUser.email,
           name:
             authUser.user_metadata?.name ||
             authUser.email?.split('@')[0] ||
