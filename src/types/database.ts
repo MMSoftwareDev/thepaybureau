@@ -528,6 +528,44 @@ export interface Database {
           updated_at?: string
         }
       }
+      feedback: {
+        Row: {
+          id: string
+          user_id: string
+          tenant_id: string | null
+          user_email: string
+          user_name: string | null
+          category: 'bug' | 'improvement' | 'other'
+          message: string
+          page_url: string | null
+          user_agent: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          tenant_id?: string | null
+          user_email: string
+          user_name?: string | null
+          category: 'bug' | 'improvement' | 'other'
+          message: string
+          page_url?: string | null
+          user_agent?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          tenant_id?: string | null
+          user_email?: string
+          user_name?: string | null
+          category?: 'bug' | 'improvement' | 'other'
+          message?: string
+          page_url?: string | null
+          user_agent?: string | null
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

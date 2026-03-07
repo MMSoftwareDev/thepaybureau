@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import Sidebar from '@/components/layout/Sidebar'
 import Navbar from '@/components/layout/Navbar'
-import TrafficLight from '@/components/ui/traffic-light'
 import BadgeToast from '@/components/gamification/BadgeToast'
 
 interface DashboardWrapperProps {
@@ -82,7 +81,6 @@ export default function DashboardWrapper({ children, user, avatarUrl, isAdmin }:
         </main>
       </div>
 
-      <TrafficLight />
       <BadgeToast />
     </div>
   )
