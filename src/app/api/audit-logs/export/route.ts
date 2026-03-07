@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     if (resourceType) query = query.eq('resource_type', resourceType)
     if (action) query = query.eq('action', action)
     if (search) {
-      const sanitized = search.replace(/[,%().*]/g, '')
+      const sanitized = search.replace(/[^a-zA-Z0-9 @.\-_]/g, '').slice(0, 100)
       if (sanitized) {
         query = query.or(`resource_name.ilike.%${sanitized}%,user_email.ilike.%${sanitized}%`)
       }

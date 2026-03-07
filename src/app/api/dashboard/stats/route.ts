@@ -1,11 +1,18 @@
 // src/app/api/dashboard/stats/route.ts
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { isBefore, addDays, startOfDay, startOfMonth, subMonths, format, differenceInDays } from 'date-fns'
 import { parseDateString } from '@/lib/hmrc-deadlines'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const ip = getClientIp(request)
+    const limiter = await rateLimit(`dashboard-stats:${ip}`, { limit: 20, windowSeconds: 60 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

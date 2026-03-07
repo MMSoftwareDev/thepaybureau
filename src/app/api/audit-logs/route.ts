@@ -1,9 +1,16 @@
 // src/app/api/audit-logs/route.ts
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
   try {
+    const ip = getClientIp(request)
+    const limiter = await rateLimit(`audit-logs:${ip}`, { limit: 30, windowSeconds: 60 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

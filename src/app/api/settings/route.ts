@@ -20,7 +20,7 @@ const changePasswordSchema = z.object({
 
 const updateAvatarSchema = z.object({
   action: z.literal('update_avatar'),
-  avatar_url: z.string().nullable(),
+  avatar_url: z.string().url().nullable(),
 })
 
 const saveChecklistDefaultsSchema = z.object({

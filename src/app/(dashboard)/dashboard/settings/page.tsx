@@ -112,7 +112,7 @@ export default function SettingsPage() {
         if (settings.checklist_templates?.length) {
           setTemplates(settings.checklist_templates)
           const defaultTpl = settings.checklist_templates.find((t) => t.is_default)
-          setActiveTemplateId(defaultTpl?.id || settings.checklist_templates[0].id)
+          setActiveTemplateId(defaultTpl?.id ?? settings.checklist_templates[0]?.id ?? '')
         } else {
           const steps = settings.default_checklist || DEFAULT_CHECKLIST
           const migrated: ChecklistTemplate = {
@@ -361,7 +361,8 @@ export default function SettingsPage() {
     if (templates.length <= 1) return
     const wasDefault = activeTemplate?.is_default
     const remaining = templates.filter((t) => t.id !== activeTemplateId)
-    if (wasDefault && remaining.length > 0) {
+    if (remaining.length === 0) return
+    if (wasDefault) {
       remaining[0].is_default = true
     }
     setTemplates(remaining)

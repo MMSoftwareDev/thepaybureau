@@ -12,10 +12,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
   }
 
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+  if (!webhookSecret) {
+    console.error('STRIPE_WEBHOOK_SECRET environment variable is not configured')
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
+  }
+
   let event: Stripe.Event
 
   try {
-    event = getStripe().webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!)
+    event = getStripe().webhooks.constructEvent(body, sig, webhookSecret)
   } catch (err) {
     console.error('Webhook signature verification failed:', err)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })

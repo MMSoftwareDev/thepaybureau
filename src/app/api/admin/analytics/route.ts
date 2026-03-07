@@ -1,8 +1,9 @@
 // src/app/api/admin/analytics/route.ts
 // Cross-tenant analytics for platform owner — bypasses RLS via service role key
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { subDays, format, startOfDay } from 'date-fns'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 // Platform admin emails — loaded from env variable (comma-separated)
 const PLATFORM_ADMIN_EMAILS = (process.env.PLATFORM_ADMIN_EMAILS || '')
@@ -10,8 +11,14 @@ const PLATFORM_ADMIN_EMAILS = (process.env.PLATFORM_ADMIN_EMAILS || '')
   .map(e => e.trim().toLowerCase())
   .filter(Boolean)
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const ip = getClientIp(request)
+    const limiter = await rateLimit(`admin-analytics:${ip}`, { limit: 10, windowSeconds: 60 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const authUser = await getAuthUser()
     if (!authUser?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

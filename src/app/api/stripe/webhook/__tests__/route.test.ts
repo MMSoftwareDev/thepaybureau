@@ -1,5 +1,8 @@
 import { NextRequest } from 'next/server'
 
+// Set env var before imports
+process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_secret'
+
 // ── Mocks ────────────────────────────────────────────
 const mockConstructEvent = jest.fn()
 const mockGetStripe = jest.fn(() => ({
