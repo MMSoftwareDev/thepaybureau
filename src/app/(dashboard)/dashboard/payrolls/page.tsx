@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { emitBadgeEarned } from '@/components/gamification/BadgeToast'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -474,6 +475,12 @@ function PayrollsPage() {
       })
       if (!res.ok) throw new Error('Failed to toggle item')
 
+      // Check for new badges
+      const resData = await res.json().catch(() => ({}))
+      if (resData.newBadges?.length > 0) {
+        emitBadgeEarned(resData.newBadges)
+      }
+
       // Optimistic update
       const updatedChecklist = (runItems: ChecklistItem[]) =>
         runItems.map((ci) =>
@@ -548,6 +555,12 @@ function PayrollsPage() {
         body: JSON.stringify({ action: 'mark_all_complete', payroll_run_id: run.id }),
       })
       if (!res.ok) throw new Error('Failed to mark all complete')
+
+      // Check for new badges
+      const resData = await res.json().catch(() => ({}))
+      if (resData.newBadges?.length > 0) {
+        emitBadgeEarned(resData.newBadges)
+      }
 
       setCelebration(run.clients?.name ?? 'Payroll')
 

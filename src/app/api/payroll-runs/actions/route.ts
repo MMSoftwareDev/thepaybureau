@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { writeAuditLog } from '@/lib/audit'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { updateUserStats, checkAndAwardBadges } from '@/lib/badges'
 
 const toggleItemSchema = z.object({
   action: z.literal('toggle_item'),
@@ -117,7 +118,45 @@ export async function POST(request: NextRequest) {
           request,
         })
 
-        return NextResponse.json({ success: true })
+        // Track badges — only when completing (not unchecking)
+        let newBadges: { badge_key: string; badge_tier: string; badge_name: string; badge_icon: string }[] = []
+        if (data.is_completed) {
+          try {
+            const isEarlyMorning = new Date().getHours() < 9
+
+            // Check if this was the last item — payroll is now complete
+            const { data: allItems } = await supabase
+              .from('checklist_items')
+              .select('id, is_completed')
+              .eq('payroll_run_id', item.payroll_run_id)
+
+            const allComplete = allItems && allItems.every(
+              (ci) => ci.id === data.item_id ? true : ci.is_completed
+            )
+
+            await updateUserStats(supabase, authUser.id, user.tenant_id!, { type: 'step_completed', isEarlyMorning })
+
+            if (allComplete) {
+              const { data: payrollRun } = await supabase
+                .from('payroll_runs')
+                .select('pay_date')
+                .eq('id', item.payroll_run_id)
+                .single()
+
+              const daysEarly = payrollRun
+                ? Math.floor((new Date(payrollRun.pay_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                : 0
+
+              await updateUserStats(supabase, authUser.id, user.tenant_id!, { type: 'payroll_completed', daysEarly })
+            }
+
+            newBadges = await checkAndAwardBadges(supabase, authUser.id, user.tenant_id!)
+          } catch (err) {
+            console.error('Badge tracking error (non-fatal):', err)
+          }
+        }
+
+        return NextResponse.json({ success: true, newBadges })
       }
 
       case 'mark_all_complete': {
@@ -169,7 +208,34 @@ export async function POST(request: NextRequest) {
           request,
         })
 
-        return NextResponse.json({ success: true, completed: ids.length })
+        // Track badges — count each step + the payroll completion
+        let newBadges: { badge_key: string; badge_tier: string; badge_name: string; badge_icon: string }[] = []
+        try {
+          const isEarlyMorning = new Date().getHours() < 9
+
+          // Track each individual step
+          for (let i = 0; i < ids.length; i++) {
+            await updateUserStats(supabase, authUser.id, user.tenant_id!, { type: 'step_completed', isEarlyMorning })
+          }
+
+          // Track payroll completion
+          const { data: payrollRun } = await supabase
+            .from('payroll_runs')
+            .select('pay_date')
+            .eq('id', data.payroll_run_id)
+            .single()
+
+          const daysEarly = payrollRun
+            ? Math.floor((new Date(payrollRun.pay_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+            : 0
+
+          await updateUserStats(supabase, authUser.id, user.tenant_id!, { type: 'payroll_completed', daysEarly })
+          newBadges = await checkAndAwardBadges(supabase, authUser.id, user.tenant_id!)
+        } catch (err) {
+          console.error('Badge tracking error (non-fatal):', err)
+        }
+
+        return NextResponse.json({ success: true, completed: ids.length, newBadges })
       }
 
       case 'save_notes': {

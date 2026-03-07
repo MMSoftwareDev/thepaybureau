@@ -8,6 +8,7 @@ import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { clearSWRCache } from '@/lib/swr'
 import { Menu, ChevronRight, LogOut, ChevronDown } from 'lucide-react'
+import BadgeDropdown from '@/components/gamification/BadgeDropdown'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 
@@ -242,6 +243,9 @@ export default function Navbar({ onMenuToggle, user, avatarUrl }: NavbarProps) {
                 {user?.email || ''}
               </div>
             </div>
+
+            {/* Badges */}
+            <BadgeDropdown colors={colors} isDark={isDark} />
 
             {/* Logout */}
             <button
