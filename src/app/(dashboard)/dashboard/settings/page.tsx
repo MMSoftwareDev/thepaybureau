@@ -25,6 +25,8 @@ import {
   Star,
   Trash2,
   Copy,
+  Download,
+  AlertTriangle,
 } from 'lucide-react'
 
 interface ChecklistDefault {
@@ -65,6 +67,12 @@ export default function SettingsPage() {
   const [confirmError, setConfirmError] = useState('')
   const [savingPassword, setSavingPassword] = useState(false)
   const [passwordMessage, setPasswordMessage] = useState('')
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [exportingData, setExportingData] = useState(false)
 
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([])
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null)
@@ -303,6 +311,50 @@ export default function SettingsPage() {
       setPasswordError(message)
     } finally {
       setSavingPassword(false)
+    }
+  }
+
+  const handleExportData = async () => {
+    setExportingData(true)
+    try {
+      const res = await fetch('/api/account/export')
+      if (!res.ok) throw new Error('Failed to export data')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `thepaybureau-export-${new Date().toISOString().split('T')[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Error exporting data:', err)
+      alert('Failed to export data. Please try again.')
+    } finally {
+      setExportingData(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE MY ACCOUNT') return
+    setDeletingAccount(true)
+    setDeleteError('')
+    try {
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation: 'DELETE MY ACCOUNT' }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to delete account')
+      }
+      window.location.href = '/login'
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete account'
+      setDeleteError(message)
+      setDeletingAccount(false)
     }
   }
 
@@ -862,6 +914,127 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Delete Account */}
+      <Card className="border-0" style={{ ...cardStyle, borderColor: colors.error + '40' }}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-3 text-base font-bold" style={{ color: colors.error }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.error}12` }}>
+              <Trash2 className="w-[18px] h-[18px]" style={{ color: colors.error }} />
+            </div>
+            Delete Account
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <div className="rounded-lg p-4 mb-4" style={{ background: `${colors.error}08`, border: `1px solid ${colors.error}20` }}>
+            <div className="flex gap-3">
+              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: colors.error }} />
+              <div>
+                <p className="text-[0.85rem] font-semibold mb-1" style={{ color: colors.error }}>
+                  This action is permanent and cannot be undone
+                </p>
+                <p className="text-[0.82rem]" style={{ color: colors.text.secondary }}>
+                  Deleting your account will permanently remove all of your data including:
+                </p>
+                <ul className="text-[0.82rem] mt-2 space-y-1 list-disc list-inside" style={{ color: colors.text.secondary }}>
+                  <li>Your profile and account settings</li>
+                  <li>All clients and their details</li>
+                  <li>All payroll runs and checklists</li>
+                  <li>Training records</li>
+                  <li>Audit logs</li>
+                  <li>Badges and achievements</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-[0.85rem] font-semibold mb-3" style={{ color: colors.text.primary }}>
+            Please export your data before deleting your account.
+          </p>
+
+          <Button
+            onClick={handleExportData}
+            disabled={exportingData}
+            variant="outline"
+            className="rounded-lg font-semibold text-[0.85rem] mb-5"
+            style={{ borderColor: colors.border, color: colors.text.primary }}
+          >
+            {exportingData ? (
+              <><Loader2 className="w-4 h-4 animate-spin mr-2" />Exporting...</>
+            ) : (
+              <><Download className="w-4 h-4 mr-2" />Export All Data</>
+            )}
+          </Button>
+
+          {!showDeleteConfirm ? (
+            <div>
+              <Button
+                onClick={() => setShowDeleteConfirm(true)}
+                variant="outline"
+                className="rounded-lg font-semibold text-[0.85rem]"
+                style={{ borderColor: colors.error + '60', color: colors.error }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete My Account
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-lg p-4" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : colors.lightBg, border: `1px solid ${colors.border}` }}>
+              <p className="text-[0.85rem] font-semibold mb-3" style={{ color: colors.text.primary }}>
+                Type <span className="font-mono" style={{ color: colors.error }}>DELETE MY ACCOUNT</span> to confirm:
+              </p>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => {
+                  setDeleteConfirmText(e.target.value)
+                  if (deleteError) setDeleteError('')
+                }}
+                placeholder="DELETE MY ACCOUNT"
+                className="mb-3 h-10 rounded-lg border-0 text-[0.88rem] font-medium font-mono"
+                style={{
+                  ...inputStyle,
+                  ...(deleteError ? { borderColor: colors.error } : {}),
+                }}
+                disabled={deletingAccount}
+              />
+              {deleteError && (
+                <p className="text-[0.78rem] font-medium mb-3" style={{ color: colors.error }}>
+                  {deleteError}
+                </p>
+              )}
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handleDeleteAccount}
+                  disabled={deletingAccount || deleteConfirmText !== 'DELETE MY ACCOUNT'}
+                  className="rounded-lg font-semibold text-[0.85rem] text-white"
+                  style={{
+                    background: deleteConfirmText === 'DELETE MY ACCOUNT' ? colors.error : colors.border,
+                  }}
+                >
+                  {deletingAccount ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-2" />Deleting...</>
+                  ) : (
+                    <><Trash2 className="w-4 h-4 mr-2" />Permanently Delete Account</>
+                  )}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowDeleteConfirm(false)
+                    setDeleteConfirmText('')
+                    setDeleteError('')
+                  }}
+                  variant="outline"
+                  className="rounded-lg font-semibold text-[0.85rem]"
+                  style={{ borderColor: colors.border, color: colors.text.secondary }}
+                  disabled={deletingAccount}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
