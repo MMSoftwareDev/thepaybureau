@@ -42,6 +42,7 @@ export async function GET() {
       .select('*')
       .eq('tenant_id', user.tenant_id)
       .order('created_at', { ascending: false })
+      .limit(500)
 
     if (error) {
       console.error('Database error in GET /api/training:', error)
@@ -60,6 +61,10 @@ export async function POST(request: NextRequest) {
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (!authUser.email) {
+      return NextResponse.json({ error: 'Email required' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
@@ -96,7 +101,7 @@ export async function POST(request: NextRequest) {
     writeAuditLog({
       tenantId: user.tenant_id,
       userId: authUser.id,
-      userEmail: authUser.email!,
+      userEmail: authUser.email,
       action: 'CREATE',
       resourceType: 'training_record',
       resourceId: record.id,
@@ -119,6 +124,10 @@ export async function PUT(request: NextRequest) {
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (!authUser.email) {
+      return NextResponse.json({ error: 'Email required' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
@@ -167,7 +176,7 @@ export async function PUT(request: NextRequest) {
     writeAuditLog({
       tenantId: user.tenant_id,
       userId: authUser.id,
-      userEmail: authUser.email!,
+      userEmail: authUser.email,
       action: 'UPDATE',
       resourceType: 'training_record',
       resourceId: id,
@@ -190,6 +199,10 @@ export async function DELETE(request: NextRequest) {
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (!authUser.email) {
+      return NextResponse.json({ error: 'Email required' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
@@ -235,7 +248,7 @@ export async function DELETE(request: NextRequest) {
     writeAuditLog({
       tenantId: user.tenant_id,
       userId: authUser.id,
-      userEmail: authUser.email!,
+      userEmail: authUser.email,
       action: 'DELETE',
       resourceType: 'training_record',
       resourceId: id,

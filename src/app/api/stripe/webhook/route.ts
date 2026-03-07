@@ -1,3 +1,4 @@
+import { writeAuditLog } from '@/lib/audit'
 import { getStripe, PLANS } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
@@ -11,10 +12,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
   }
 
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+  if (!webhookSecret) {
+    console.error('STRIPE_WEBHOOK_SECRET environment variable is not configured')
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
+  }
+
   let event: Stripe.Event
 
   try {
-    event = getStripe().webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!)
+    event = getStripe().webhooks.constructEvent(body, sig, webhookSecret)
   } catch (err) {
     console.error('Webhook signature verification failed:', err)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
@@ -46,13 +53,26 @@ export async function POST(req: NextRequest) {
             .from('tenants')
             .update({ plan })
             .eq('id', tenantId)
+
+          await writeAuditLog({
+            tenantId,
+            userId: 'system',
+            userEmail: 'stripe-webhook',
+            action: 'UPDATE',
+            resourceType: 'tenant',
+            resourceId: tenantId,
+            resourceName: `Plan changed to ${plan}`,
+            changes: { plan },
+          })
         }
         break
       }
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription
-        const customerId = subscription.customer as string
+        const customerId = typeof subscription.customer === 'string'
+          ? subscription.customer
+          : subscription.customer?.id
 
         // Find tenant by stripe customer ID using indexed JSONB query
         const { data: tenant } = await supabase
@@ -74,6 +94,17 @@ export async function POST(req: NextRequest) {
 
           if (subscription.status === 'active') {
             await supabase.from('tenants').update({ plan: newPlan }).eq('id', tenant.id)
+
+            await writeAuditLog({
+              tenantId: tenant.id,
+              userId: 'system',
+              userEmail: 'stripe-webhook',
+              action: 'UPDATE',
+              resourceType: 'tenant',
+              resourceId: tenant.id,
+              resourceName: `Plan changed to ${newPlan}`,
+              changes: { plan: newPlan, priceId },
+            })
           }
         }
         break
@@ -81,7 +112,9 @@ export async function POST(req: NextRequest) {
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
-        const customerId = subscription.customer as string
+        const customerId = typeof subscription.customer === 'string'
+          ? subscription.customer
+          : subscription.customer?.id
 
         const { data: tenant } = await supabase
           .from('tenants')
@@ -91,13 +124,26 @@ export async function POST(req: NextRequest) {
 
         if (tenant) {
           await supabase.from('tenants').update({ plan: 'free' }).eq('id', tenant.id)
+
+          await writeAuditLog({
+            tenantId: tenant.id,
+            userId: 'system',
+            userEmail: 'stripe-webhook',
+            action: 'UPDATE',
+            resourceType: 'tenant',
+            resourceId: tenant.id,
+            resourceName: 'Downgraded to free (subscription deleted)',
+            changes: { plan: 'free' },
+          })
         }
         break
       }
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice
-        const customerId = invoice.customer as string
+        const customerId = typeof invoice.customer === 'string'
+          ? invoice.customer
+          : invoice.customer?.id
 
         const { data: tenant } = await supabase
           .from('tenants')
@@ -117,6 +163,17 @@ export async function POST(req: NextRequest) {
               },
             })
             .eq('id', tenant.id)
+
+          await writeAuditLog({
+            tenantId: tenant.id,
+            userId: 'system',
+            userEmail: 'stripe-webhook',
+            action: 'UPDATE',
+            resourceType: 'tenant',
+            resourceId: tenant.id,
+            resourceName: 'Payment failed',
+            changes: { payment_failed_invoice_id: invoice.id },
+          })
         }
         break
       }

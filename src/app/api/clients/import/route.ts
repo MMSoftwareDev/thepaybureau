@@ -62,6 +62,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    if (!authUser.email) {
+      return NextResponse.json({ error: 'Email required' }, { status: 400 })
+    }
+
     const supabase = createServerSupabaseClient()
 
     const { data: user } = await supabase
@@ -139,10 +143,14 @@ export async function POST(request: NextRequest) {
           is_active: true,
         }))
 
-        const { data: templates } = await supabase
+        const { data: templates, error: templateError } = await supabase
           .from('checklist_templates')
           .insert(templateRows)
           .select()
+
+        if (templateError) {
+          console.error(`Template creation failed for client ${clientData.name}:`, templateError)
+        }
 
         // 3. Calculate dates for first payroll run
         const payDay = clientData.pay_day || 'last_day_of_month'
@@ -159,7 +167,7 @@ export async function POST(request: NextRequest) {
         const epsDueDate = calculateEpsDueDate(nextPayDate)
 
         // 4. Insert payroll run
-        const { data: payrollRun } = await supabase
+        const { data: payrollRun, error: runError } = await supabase
           .from('payroll_runs')
           .insert({
             client_id: client.id,
@@ -173,6 +181,10 @@ export async function POST(request: NextRequest) {
           })
           .select()
           .single()
+
+        if (runError) {
+          console.error(`Payroll run creation failed for client ${clientData.name}:`, runError)
+        }
 
         // 5. Copy checklist templates into checklist_items
         if (templates && templates.length > 0 && payrollRun) {
@@ -203,7 +215,7 @@ export async function POST(request: NextRequest) {
     writeAuditLog({
       tenantId: user.tenant_id,
       userId: authUser.id,
-      userEmail: authUser.email!,
+      userEmail: authUser.email,
       action: 'CREATE',
       resourceType: 'client_import',
       resourceId: user.tenant_id,

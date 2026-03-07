@@ -8,6 +8,3 @@ export const createClientSupabaseClient = () => {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 }
-
-// Re-export for backward compatibility
-export const supabase = createClientSupabaseClient()

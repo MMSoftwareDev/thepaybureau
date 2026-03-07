@@ -4,6 +4,7 @@ import { adminRegistrationSchema } from '@/lib/validations'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { sendEmail } from '@/lib/resend'
 import { welcomeEmail } from '@/lib/email-templates'
+import { writeAuditLog } from '@/lib/audit'
 import { z } from 'zod'
 import dns from 'dns/promises'
 
@@ -109,6 +110,10 @@ export async function POST(request: NextRequest) {
           industry: 'payroll_bureau',
           company_domain: companyDomain,
           setup_completed: false,
+          marketing_consent: {
+            value: validatedData.marketingConsent ?? false,
+            recorded_at: new Date().toISOString(),
+          },
           checklist_templates: [{
             id: crypto.randomUUID(),
             name: 'Standard Payroll',
@@ -161,6 +166,18 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
     
+    // Audit log the registration
+    writeAuditLog({
+      tenantId: tenant.id,
+      userId: authData.user.id,
+      userEmail: validatedData.email,
+      action: 'CREATE',
+      resourceType: 'user',
+      resourceId: authData.user.id,
+      resourceName: `New account: ${validatedData.adminName} (${validatedData.companyName})`,
+      request,
+    })
+
     // Send welcome email (fire-and-forget — don't block registration)
     const welcome = welcomeEmail({ userName: validatedData.adminName })
     sendEmail({ to: validatedData.email, ...welcome }).catch((err) =>

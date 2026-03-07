@@ -2,6 +2,11 @@ import { getAuthUser } from '@/lib/supabase-server'
 import { sendEmail } from '@/lib/resend'
 import { complianceDeadlineEmail, payrollIncompleteEmail } from '@/lib/email-templates'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+
+const sendTestSchema = z.object({
+  emailType: z.enum(['compliance_deadline', 'payroll_incomplete']),
+})
 
 const PLATFORM_ADMIN_EMAILS = (process.env.PLATFORM_ADMIN_EMAILS || '')
   .split(',')
@@ -52,7 +57,12 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const emailType = body.emailType as string
+  const parsed = sendTestSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid email type' }, { status: 400 })
+  }
+
+  const { emailType } = parsed.data
 
   let subject: string
   let html: string
@@ -61,12 +71,10 @@ export async function POST(request: NextRequest) {
     const result = complianceDeadlineEmail(SAMPLE_DATA.compliance_deadline)
     subject = `[TEST] ${result.subject}`
     html = result.html
-  } else if (emailType === 'payroll_incomplete') {
+  } else {
     const result = payrollIncompleteEmail(SAMPLE_DATA.payroll_incomplete)
     subject = `[TEST] ${result.subject}`
     html = result.html
-  } else {
-    return NextResponse.json({ error: 'Invalid email type' }, { status: 400 })
   }
 
   const sendResult = await sendEmail({ to: authUser.email, subject, html })

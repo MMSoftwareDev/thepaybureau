@@ -2,6 +2,7 @@
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { writeAuditLog } from '@/lib/audit'
 
 function escapeCsv(value: string): string {
   if (value.includes(',') || value.includes('"') || value.includes('\n')) {
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
     if (resourceType) query = query.eq('resource_type', resourceType)
     if (action) query = query.eq('action', action)
     if (search) {
-      const sanitized = search.replace(/[,%().*]/g, '')
+      const sanitized = search.replace(/[^a-zA-Z0-9 @.\-_]/g, '').slice(0, 100)
       if (sanitized) {
         query = query.or(`resource_name.ilike.%${sanitized}%,user_email.ilike.%${sanitized}%`)
       }
@@ -90,6 +91,18 @@ export async function GET(request: NextRequest) {
     })
 
     const csv = [headers.join(','), ...rows].join('\n')
+
+    // Log the export event itself
+    writeAuditLog({
+      tenantId: user.tenant_id,
+      userId: authUser.id,
+      userEmail: authUser.email ?? 'unknown',
+      action: 'CREATE',
+      resourceType: 'audit_export',
+      resourceId: user.tenant_id,
+      resourceName: `Audit log export (${rows.length} rows)`,
+      request,
+    })
 
     return new NextResponse(csv, {
       headers: {

@@ -1,8 +1,9 @@
 // src/app/api/admin/analytics/route.ts
 // Cross-tenant analytics for platform owner — bypasses RLS via service role key
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { subDays, format, startOfDay } from 'date-fns'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 // Platform admin emails — loaded from env variable (comma-separated)
 const PLATFORM_ADMIN_EMAILS = (process.env.PLATFORM_ADMIN_EMAILS || '')
@@ -10,8 +11,14 @@ const PLATFORM_ADMIN_EMAILS = (process.env.PLATFORM_ADMIN_EMAILS || '')
   .map(e => e.trim().toLowerCase())
   .filter(Boolean)
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const ip = getClientIp(request)
+    const limiter = await rateLimit(`admin-analytics:${ip}`, { limit: 10, windowSeconds: 60 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const authUser = await getAuthUser()
     if (!authUser?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -32,24 +39,28 @@ export async function GET() {
       .from('users')
       .select('id, email, name, role, is_active, created_at, tenant_id')
       .order('created_at', { ascending: false })
+      .limit(10000)
 
     // ── All tenants ──
     const { data: allTenants } = await supabase
       .from('tenants')
       .select('id, name, plan, mode, created_at')
       .order('created_at', { ascending: false })
+      .limit(10000)
 
     // ── All clients ──
     const { data: allClients } = await supabase
       .from('clients')
       .select('id, tenant_id, name, status, pay_frequency, employee_count, created_at')
       .order('created_at', { ascending: false })
+      .limit(10000)
 
     // ── All payroll runs ──
     const { data: allRuns } = await supabase
       .from('payroll_runs')
       .select('id, tenant_id, status, pay_date, created_at')
       .order('created_at', { ascending: false })
+      .limit(10000)
 
     // ── Auth users for last_sign_in_at (service role can read auth.users) ──
     const { data: authUsers } = await supabase.auth.admin.listUsers({ perPage: 1000 })

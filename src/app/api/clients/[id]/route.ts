@@ -113,6 +113,10 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    if (!authUser.email) {
+      return NextResponse.json({ error: 'Email required' }, { status: 400 })
+    }
+
     const supabase = createServerSupabaseClient()
 
     // Parse and validate request body
@@ -171,7 +175,7 @@ export async function PUT(
       writeAuditLog({
         tenantId: user.tenant_id,
         userId: authUser.id,
-        userEmail: authUser.email!,
+        userEmail: authUser.email,
         action: 'UPDATE',
         resourceType: 'client',
         resourceId: id,
@@ -243,6 +247,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    if (!authUser.email) {
+      return NextResponse.json({ error: 'Email required' }, { status: 400 })
+    }
+
     const supabase = createServerSupabaseClient()
 
     // Get user to verify tenant ownership
@@ -284,7 +292,7 @@ export async function DELETE(
     writeAuditLog({
       tenantId: user.tenant_id,
       userId: authUser.id,
-      userEmail: authUser.email!,
+      userEmail: authUser.email,
       action: 'DELETE',
       resourceType: 'client',
       resourceId: id,

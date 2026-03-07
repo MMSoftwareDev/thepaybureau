@@ -1,14 +1,25 @@
 // src/app/api/dashboard/stats/route.ts
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { isBefore, addDays, startOfDay, startOfMonth, subMonths, format, differenceInDays } from 'date-fns'
 import { parseDateString } from '@/lib/hmrc-deadlines'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const ip = getClientIp(request)
+    const limiter = await rateLimit(`dashboard-stats:${ip}`, { limit: 20, windowSeconds: 60 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (!authUser.email) {
+      return NextResponse.json({ error: 'Email required' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
@@ -39,7 +50,7 @@ export async function GET() {
         .insert({
           id: authUser.id,
           tenant_id: newTenant.id,
-          email: authUser.email!,
+          email: authUser.email,
           name:
             authUser.user_metadata?.name ||
             authUser.email?.split('@')[0] ||
@@ -64,6 +75,7 @@ export async function GET() {
       .from('clients')
       .select('id, name, status, employee_count, pay_frequency, created_at, pension_provider, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
       .eq('tenant_id', user.tenant_id)
+      .limit(5000)
 
     const allClients = clients || []
     const totalClients = allClients.length
@@ -76,6 +88,7 @@ export async function GET() {
       .from('payroll_runs')
       .select('*, clients(name, id), checklist_items(id, is_completed)')
       .eq('tenant_id', user.tenant_id)
+      .limit(5000)
 
     const today = startOfDay(new Date())
     const monthStart = startOfMonth(today)

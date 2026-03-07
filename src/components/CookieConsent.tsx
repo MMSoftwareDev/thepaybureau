@@ -18,11 +18,23 @@ export default function CookieConsent() {
   function accept() {
     localStorage.setItem(COOKIE_CONSENT_KEY, 'accepted')
     setVisible(false)
+    // Persist consent to server for audit trail
+    fetch('/api/user/consent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'cookies', value: 'accepted' }),
+    }).catch(() => {}) // fire-and-forget
   }
 
   function decline() {
     localStorage.setItem(COOKIE_CONSENT_KEY, 'declined')
     setVisible(false)
+    // Persist consent to server for audit trail
+    fetch('/api/user/consent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'cookies', value: 'declined' }),
+    }).catch(() => {}) // fire-and-forget
   }
 
   if (!visible) return null

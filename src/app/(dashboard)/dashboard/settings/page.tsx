@@ -25,6 +25,7 @@ import {
   Star,
   Trash2,
   Copy,
+  AlertTriangle,
 } from 'lucide-react'
 
 interface ChecklistDefault {
@@ -57,6 +58,11 @@ export default function SettingsPage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileMessage, setProfileMessage] = useState('')
+
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleteError, setDeleteError] = useState('')
 
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -112,7 +118,7 @@ export default function SettingsPage() {
         if (settings.checklist_templates?.length) {
           setTemplates(settings.checklist_templates)
           const defaultTpl = settings.checklist_templates.find((t) => t.is_default)
-          setActiveTemplateId(defaultTpl?.id || settings.checklist_templates[0].id)
+          setActiveTemplateId(defaultTpl?.id ?? settings.checklist_templates[0]?.id ?? '')
         } else {
           const steps = settings.default_checklist || DEFAULT_CHECKLIST
           const migrated: ChecklistTemplate = {
@@ -361,7 +367,8 @@ export default function SettingsPage() {
     if (templates.length <= 1) return
     const wasDefault = activeTemplate?.is_default
     const remaining = templates.filter((t) => t.id !== activeTemplateId)
-    if (wasDefault && remaining.length > 0) {
+    if (remaining.length === 0) return
+    if (wasDefault) {
       remaining[0].is_default = true
     }
     setTemplates(remaining)
@@ -373,6 +380,27 @@ export default function SettingsPage() {
       ...t,
       is_default: t.id === activeTemplateId,
     })))
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') return
+    setDeletingAccount(true)
+    setDeleteError('')
+    try {
+      const res = await fetch('/api/user/delete-account', { method: 'POST' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to delete account')
+      }
+      // Sign out and redirect
+      await supabase.auth.signOut()
+      window.location.href = '/login'
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error deleting account. Please try again.'
+      setDeleteError(message)
+    } finally {
+      setDeletingAccount(false)
+    }
+  }
 
   const handleSaveChecklist = async () => {
     if (!tenantId) return
@@ -843,6 +871,85 @@ export default function SettingsPage() {
               </div>
             </button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Danger Zone */}
+      <Card className="border-0" style={{ ...cardStyle, borderColor: colors.error }}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-3 text-base font-bold" style={{ color: colors.error }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.error}12` }}>
+              <AlertTriangle className="w-[18px] h-[18px]" style={{ color: colors.error }} />
+            </div>
+            Danger Zone
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[0.88rem] font-semibold" style={{ color: colors.text.primary }}>
+                Delete Account
+              </p>
+              <p className="text-[0.78rem] mt-0.5" style={{ color: colors.text.muted }}>
+                Permanently delete your account and all associated data. This action cannot be undone.
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowDeleteConfirm(true)}
+              variant="outline"
+              className="font-semibold text-[0.82rem] rounded-lg border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-500/10 flex-shrink-0 ml-4"
+              style={{ color: colors.error }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Account
+            </Button>
+          </div>
+
+          {showDeleteConfirm && (
+            <div className="mt-5 p-4 rounded-lg" style={{ background: `${colors.error}08`, border: `1px solid ${colors.error}30` }}>
+              <p className="text-[0.85rem] font-semibold mb-2" style={{ color: colors.error }}>
+                Are you sure? This will permanently delete:
+              </p>
+              <ul className="text-[0.82rem] mb-4 space-y-1 list-disc list-inside" style={{ color: colors.text.secondary }}>
+                <li>Your user profile and settings</li>
+                <li>All clients, payroll runs, and associated data</li>
+                <li>Your authentication account</li>
+              </ul>
+              <p className="text-[0.82rem] mb-3" style={{ color: colors.text.secondary }}>
+                Type <strong>DELETE</strong> to confirm:
+              </p>
+              <div className="flex items-center gap-3">
+                <Input
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Type DELETE to confirm"
+                  className="max-w-[220px] h-9 rounded-lg border-0 text-[0.85rem] font-medium"
+                  style={inputStyle}
+                />
+                <Button
+                  onClick={handleDeleteAccount}
+                  disabled={deletingAccount || deleteConfirmText !== 'DELETE'}
+                  className="font-semibold text-[0.82rem] rounded-lg text-white border-0"
+                  style={{ background: deleteConfirmText === 'DELETE' ? colors.error : colors.border }}
+                >
+                  {deletingAccount ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Deleting...</> : 'Confirm Delete'}
+                </Button>
+                <Button
+                  onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); setDeleteError('') }}
+                  variant="outline"
+                  className="font-semibold text-[0.82rem] rounded-lg"
+                  style={{ borderColor: colors.border, color: colors.text.secondary }}
+                >
+                  Cancel
+                </Button>
+              </div>
+              {deleteError && (
+                <p className="text-[0.78rem] font-medium mt-2" style={{ color: colors.error }}>
+                  {deleteError}
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

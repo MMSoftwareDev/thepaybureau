@@ -34,7 +34,8 @@ export default function SignupPage() {
     email: '',
     password: '',
     companyName: '',
-    adminName: ''
+    adminName: '',
+    marketingConsent: false,
   })
 
   const [loading, setLoading] = useState(false)
@@ -457,6 +458,23 @@ export default function SignupPage() {
                   <span>{errors.password}</span>
                 </div>
               )}
+            </div>
+
+            {/* Marketing consent */}
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="marketingConsent"
+                checked={formData.marketingConsent}
+                onChange={(e) => setFormData(prev => ({ ...prev, marketingConsent: e.target.checked }))}
+                className="mt-1 h-4 w-4 shrink-0 rounded border-[var(--login-border)] accent-[var(--login-purple)]"
+              />
+              <Label
+                htmlFor="marketingConsent"
+                className="font-[family-name:var(--font-body)] text-[0.8rem] leading-relaxed text-[var(--login-text-3)] cursor-pointer"
+              >
+                I&apos;d like to receive product updates, tips, and occasional emails from ThePayBureau
+              </Label>
             </div>
 
             {/* Submit */}

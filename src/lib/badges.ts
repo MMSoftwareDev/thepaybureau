@@ -167,7 +167,8 @@ export async function updateUserStats(
       .select()
       .single()
 
-    return data!
+    if (!data) throw new Error('Failed to create user stats')
+    return data
   }
 
   // Build incremental updates
@@ -220,7 +221,8 @@ export async function updateUserStats(
     .select()
     .single()
 
-  return data!
+  if (!data) throw new Error('Failed to update user stats')
+  return data
 }
 
 function getWeekNumber(date: Date): number {
