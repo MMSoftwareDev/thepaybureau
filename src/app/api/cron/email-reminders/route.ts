@@ -40,21 +40,25 @@ export async function GET(request: NextRequest) {
         .select('email, name, tenant_id')
         .in('tenant_id', tenantIds)
 
+      // Batch-fetch today's email logs for compliance dedup
+      const clientIds = clients.map(c => c.id)
+      const { data: complianceLogs } = await supabase
+        .from('email_logs')
+        .select('email_type, reference_id, recipient_email')
+        .eq('email_type', 'compliance_deadline')
+        .in('reference_id', clientIds)
+        .gte('sent_at', `${today}T00:00:00Z`)
+
+      const complianceLogKeys = new Set(
+        (complianceLogs || []).map(l => `${l.reference_id}:${l.recipient_email}`)
+      )
+
       for (const client of clients) {
         const tenantUsers = users?.filter(u => u.tenant_id === client.tenant_id) || []
 
         for (const user of tenantUsers) {
           // Dedup check
-          const { data: existing } = await supabase
-            .from('email_logs')
-            .select('id')
-            .eq('email_type', 'compliance_deadline')
-            .eq('reference_id', client.id)
-            .eq('recipient_email', user.email)
-            .gte('sent_at', `${today}T00:00:00Z`)
-            .limit(1)
-
-          if (existing && existing.length > 0) continue
+          if (complianceLogKeys.has(`${client.id}:${user.email}`)) continue
 
           const { subject, html } = complianceDeadlineEmail({
             userName: user.name || user.email.split('@')[0],
@@ -108,12 +112,35 @@ export async function GET(request: NextRequest) {
         .select('email, name, tenant_id')
         .in('tenant_id', tenantIds)
 
+      // Batch-fetch all checklist items for today's runs to avoid N+1
+      const runIds = payrollRuns.map(r => r.id)
+      const { data: allItems } = await supabase
+        .from('checklist_items')
+        .select('payroll_run_id, is_completed')
+        .in('payroll_run_id', runIds)
+
+      const itemsByRun = new Map<string, { is_completed: boolean }[]>()
+      for (const item of allItems || []) {
+        const list = itemsByRun.get(item.payroll_run_id) || []
+        list.push(item)
+        itemsByRun.set(item.payroll_run_id, list)
+      }
+
+      // Batch-fetch today's email logs for dedup
+      const { data: todayLogs } = await supabase
+        .from('email_logs')
+        .select('email_type, reference_id, recipient_email')
+        .eq('email_type', 'payroll_incomplete')
+        .in('reference_id', runIds)
+        .gte('sent_at', `${today}T00:00:00Z`)
+
+      const logKeys = new Set(
+        (todayLogs || []).map(l => `${l.reference_id}:${l.recipient_email}`)
+      )
+
       for (const run of payrollRuns) {
         // Check checklist completion
-        const { data: items } = await supabase
-          .from('checklist_items')
-          .select('is_completed')
-          .eq('payroll_run_id', run.id)
+        const items = itemsByRun.get(run.id) || []
 
         const totalItems = items?.length || 0
         const completedItems = items?.filter(i => i.is_completed).length || 0
@@ -125,16 +152,7 @@ export async function GET(request: NextRequest) {
 
         for (const user of tenantUsers) {
           // Dedup check
-          const { data: existing } = await supabase
-            .from('email_logs')
-            .select('id')
-            .eq('email_type', 'payroll_incomplete')
-            .eq('reference_id', run.id)
-            .eq('recipient_email', user.email)
-            .gte('sent_at', `${today}T00:00:00Z`)
-            .limit(1)
-
-          if (existing && existing.length > 0) continue
+          if (logKeys.has(`${run.id}:${user.email}`)) continue
 
           const { subject, html } = payrollIncompleteEmail({
             userName: user.name || user.email.split('@')[0],

@@ -8,6 +8,11 @@ import { writeAuditLog } from '@/lib/audit'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { updateUserStats, checkAndAwardBadges } from '@/lib/badges'
 
+function getClientName(run: Record<string, unknown>): string {
+  const clients = run.clients as { name: string } | null
+  return clients?.name || 'Unknown'
+}
+
 const toggleItemSchema = z.object({
   action: z.literal('toggle_item'),
   item_id: z.string().uuid(),
@@ -109,7 +114,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Failed to update' }, { status: 400 })
         }
 
-        const clientName = (run as unknown as { clients: { name: string } }).clients?.name || 'Unknown'
+        const clientName = getClientName(run as Record<string, unknown>)
         writeAuditLog({
           tenantId: user.tenant_id,
           userId: authUser.id,
@@ -199,7 +204,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Failed to update' }, { status: 400 })
         }
 
-        const clientName = (run as unknown as { clients: { name: string } }).clients?.name || 'Unknown'
+        const clientName = getClientName(run as Record<string, unknown>)
         writeAuditLog({
           tenantId: user.tenant_id,
           userId: authUser.id,
@@ -264,7 +269,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (run.notes !== data.notes) {
-          const clientName = (run as unknown as { clients: { name: string } }).clients?.name || 'Unknown'
+          const clientName = getClientName(run as Record<string, unknown>)
           writeAuditLog({
             tenantId: user.tenant_id,
             userId: authUser.id,
@@ -308,7 +313,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Failed to add step' }, { status: 400 })
         }
 
-        const clientName = (run as unknown as { clients: { name: string } }).clients?.name || 'Unknown'
+        const clientName = getClientName(run as Record<string, unknown>)
         writeAuditLog({
           tenantId: user.tenant_id,
           userId: authUser.id,
