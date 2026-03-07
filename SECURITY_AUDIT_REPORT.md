@@ -67,7 +67,7 @@
 | Check | Status | Details |
 |-------|--------|---------|
 | X-Frame-Options | ✅ PASS | `next.config.ts:20` — `DENY` |
-| Content-Security-Policy | ✅ PASS | `next.config.ts:27-38` — comprehensive CSP with strict defaults. `script-src` includes `'unsafe-inline'` (needed for Next.js) but only allows `js.stripe.com`. |
+| Content-Security-Policy | ⚠️ WARNING | `next.config.ts:27-38` — comprehensive CSP with strict defaults, but uses `'unsafe-inline'` for both `script-src` and `style-src`. While needed for Next.js/inline styles, consider migrating to nonce-based CSP for stronger protection against XSS. |
 | HSTS | ✅ PASS | `next.config.ts:23` — `max-age=31536000; includeSubDomains` |
 | X-Content-Type-Options | ✅ PASS | `next.config.ts:19` — `nosniff` |
 | Referrer-Policy | ✅ PASS | `next.config.ts:22` — `strict-origin-when-cross-origin` |
