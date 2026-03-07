@@ -22,6 +22,8 @@ import {
   GraduationCap,
   Lightbulb,
 } from 'lucide-react'
+import FeedbackWidget from '@/components/ui/FeedbackWidget'
+import SidebarStatusIndicator from '@/components/ui/SidebarStatusIndicator'
 
 interface NavSection {
   label: string
@@ -276,6 +278,11 @@ export default function Sidebar({ isAdmin = false, mobileOpen = false, onMobileC
             })}
           </div>
         ))}
+
+        {/* Send Feedback — opens modal */}
+        <div className="px-2.5 mb-3">
+          <FeedbackWidget />
+        </div>
       </nav>
 
       {/* Bottom section */}
@@ -374,6 +381,9 @@ export default function Sidebar({ isAdmin = false, mobileOpen = false, onMobileC
           <CreditCard className="w-4 h-4" style={{ color: pathname.startsWith('/dashboard/subscription') ? colors.primary : colors.text.muted }} />
           <span className={`text-[0.8rem] ${pathname.startsWith('/dashboard/subscription') ? 'font-semibold' : 'font-medium'}`}>Subscription</span>
         </button>
+
+        {/* Status indicator */}
+        <SidebarStatusIndicator />
 
         {/* Theme toggle */}
         <button
