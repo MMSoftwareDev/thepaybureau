@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo, Suspense } from 'react'
+import { useEffect, useState, useCallback, useMemo, Suspense, useRef } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
@@ -243,6 +243,101 @@ function ProgressDots({ items, isDark }: { items: ChecklistItem[]; isDark: boole
   )
 }
 
+// ── Celebration Overlay ──────────────────────────────────────────────────────
+
+function CelebrationOverlay({ clientName, onDone }: { clientName: string; onDone: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const timer = setTimeout(onDone, 4000)
+    return () => clearTimeout(timer)
+  }, [onDone])
+
+  // Generate confetti particles
+  const particles = useMemo(() => {
+    const colors = ['#22C55E', '#3B82F6', '#F59E0B', '#EC4899', '#8B5CF6', '#EF4444', '#14B8A6', '#F97316']
+    return Array.from({ length: 60 }, (_, i) => ({
+      id: i,
+      color: colors[i % colors.length],
+      left: Math.random() * 100,
+      delay: Math.random() * 0.8,
+      duration: 1.5 + Math.random() * 2,
+      size: 6 + Math.random() * 8,
+      rotation: Math.random() * 360,
+      shape: i % 3, // 0 = circle, 1 = square, 2 = rectangle
+    }))
+  }, [])
+
+  return (
+    <div
+      ref={containerRef}
+      className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center"
+      onClick={onDone}
+      style={{ pointerEvents: 'auto' }}
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'rgba(0, 0, 0, 0.3)',
+          animation: 'celebFadeIn 0.3s ease-out',
+        }}
+      />
+
+      {/* Confetti particles */}
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          className="absolute"
+          style={{
+            left: `${p.left}%`,
+            top: '-5%',
+            width: p.shape === 2 ? p.size * 1.5 : p.size,
+            height: p.shape === 0 ? p.size : p.size * 0.6,
+            backgroundColor: p.color,
+            borderRadius: p.shape === 0 ? '50%' : '2px',
+            transform: `rotate(${p.rotation}deg)`,
+            animation: `celebFall ${p.duration}s ease-in ${p.delay}s both`,
+            opacity: 0,
+          }}
+        />
+      ))}
+
+      {/* Success message */}
+      <div
+        className="relative z-10 text-center px-8 py-6 rounded-2xl"
+        style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
+          animation: 'celebBounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+        }}
+      >
+        <div className="text-4xl mb-2">🎉</div>
+        <h2 className="text-xl font-bold text-gray-900 mb-1">Payroll Complete!</h2>
+        <p className="text-sm text-gray-600">{clientName}</p>
+        <p className="text-xs text-gray-400 mt-2">Click anywhere to dismiss</p>
+      </div>
+
+      <style jsx>{`
+        @keyframes celebFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes celebBounceIn {
+          0% { transform: scale(0.3); opacity: 0; }
+          50% { transform: scale(1.05); }
+          70% { transform: scale(0.95); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes celebFall {
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function PayrollsPageWrapper() {
@@ -275,6 +370,7 @@ function PayrollsPage() {
   const [savingNotes, setSavingNotes] = useState<string | null>(null)
   const [addingStep, setAddingStep] = useState(false)
   const [newStepName, setNewStepName] = useState('')
+  const [celebration, setCelebration] = useState<string | null>(null) // client name when celebrating
 
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
@@ -406,6 +502,7 @@ function PayrollsPage() {
           const allItems = parentRun.checklist_items
           const otherIncomplete = allItems.filter((ci) => ci.id !== item.id && !ci.is_completed)
           if (otherIncomplete.length === 0) {
+            setCelebration(parentRun.clients?.name ?? 'Payroll')
             setPanelOpen(false)
             setSelectedRun(null)
             try {
@@ -451,6 +548,8 @@ function PayrollsPage() {
         body: JSON.stringify({ action: 'mark_all_complete', payroll_run_id: run.id }),
       })
       if (!res.ok) throw new Error('Failed to mark all complete')
+
+      setCelebration(run.clients?.name ?? 'Payroll')
 
       if (selectedRun?.id === run.id) {
         setPanelOpen(false)
@@ -738,6 +837,14 @@ function PayrollsPage() {
       <p className="text-[0.72rem] font-medium text-center" style={{ color: colors.text.muted }}>
         Showing {filteredRuns.length} of {runs.length} payroll runs
       </p>
+
+      {/* Celebration overlay */}
+      {celebration && (
+        <CelebrationOverlay
+          clientName={celebration}
+          onDone={() => setCelebration(null)}
+        />
+      )}
 
       {/* Checklist Side Panel */}
       <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
