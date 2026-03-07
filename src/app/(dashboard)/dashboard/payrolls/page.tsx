@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo, Suspense } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
-import { getPayrollStatus, type PayrollStatus } from '@/lib/hmrc-deadlines'
+import { getPayrollStatus, getTaxMonth, type PayrollStatus } from '@/lib/hmrc-deadlines'
 import { format, differenceInDays, parseISO, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns'
 import {
   Sheet,
@@ -22,11 +22,13 @@ import {
   LayoutGrid,
   List,
   Loader2,
-  MoreHorizontal,
   Plus,
   AlertTriangle,
   Search,
   X,
+  Clock,
+  CircleAlert,
+  CircleCheck,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -139,10 +141,29 @@ function formatPayFrequency(freq: string | null): string {
   return map[freq] ?? freq
 }
 
+function getFreqBadge(freq: string | null): { letter: string; color: string } {
+  switch (freq) {
+    case 'monthly': return { letter: 'M', color: '#22C55E' }
+    case 'weekly': return { letter: 'W', color: '#3B82F6' }
+    case 'fortnightly': return { letter: 'F', color: '#8B5CF6' }
+    case 'four_weekly': return { letter: '4W', color: '#F59E0B' }
+    case 'annually': return { letter: 'A', color: '#EC4899' }
+    default: return { letter: '?', color: '#9CA3AF' }
+  }
+}
+
 function computeStatus(run: PayrollRun): PayrollStatus {
   const items = run.checklist_items ?? []
   const completedCount = items.filter((i) => i.is_completed).length
   return getPayrollStatus(parseISO(run.pay_date), items.length, completedCount)
+}
+
+function getCurrentStep(run: PayrollRun): string {
+  const items = [...(run.checklist_items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
+  const status = computeStatus(run)
+  if (status === 'complete') return 'Complete'
+  const nextIncomplete = items.find((i) => !i.is_completed)
+  return nextIncomplete?.name ?? 'No steps'
 }
 
 function formatDate(dateStr: string | null): string {
@@ -178,6 +199,50 @@ function sortByUrgency(a: PayrollRun, b: PayrollRun): number {
   return new Date(a.pay_date).getTime() - new Date(b.pay_date).getTime()
 }
 
+// ── Progress Dots Component ─────────────────────────────────────────────────
+
+function ProgressDots({ items, isDark }: { items: ChecklistItem[]; isDark: boolean }) {
+  const sorted = [...items].sort((a, b) => a.sort_order - b.sort_order)
+
+  if (sorted.length === 0) {
+    return <span style={{ color: isDark ? '#6B7280' : '#9CA3AF', fontSize: '0.72rem' }}>No steps</span>
+  }
+
+  // If too many items, show condensed
+  const maxDots = 8
+  const displayItems = sorted.length > maxDots
+    ? [...sorted.slice(0, maxDots - 1), sorted[sorted.length - 1]]
+    : sorted
+  const hasOverflow = sorted.length > maxDots
+
+  return (
+    <div className="flex items-center gap-1">
+      {displayItems.map((item, idx) => {
+        if (hasOverflow && idx === maxDots - 1) {
+          // Show "..." indicator before last dot
+          return (
+            <div key="overflow" className="flex items-center gap-1">
+              <span style={{ color: isDark ? '#6B7280' : '#9CA3AF', fontSize: '0.6rem', lineHeight: 1 }}>...</span>
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0 transition-all"
+                style={{ backgroundColor: item.is_completed ? '#22C55E' : isDark ? '#4B5563' : '#D1D5DB' }}
+              />
+            </div>
+          )
+        }
+        return (
+          <div
+            key={item.id}
+            className="w-3 h-3 rounded-full flex-shrink-0 transition-all"
+            title={`${item.name}${item.is_completed ? ' ✓' : ''}`}
+            style={{ backgroundColor: item.is_completed ? '#22C55E' : isDark ? '#4B5563' : '#D1D5DB' }}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function PayrollsPageWrapper() {
@@ -195,7 +260,7 @@ function PayrollsPage() {
   const [mounted, setMounted] = useState(false)
 
   // View & filters
-  const [viewMode, setViewMode] = useState<ViewMode>('board')
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [currentPeriod, setCurrentPeriod] = useState(startOfMonth(new Date()))
   const [searchQuery, setSearchQuery] = useState('')
@@ -341,7 +406,6 @@ function PayrollsPage() {
           const allItems = parentRun.checklist_items
           const otherIncomplete = allItems.filter((ci) => ci.id !== item.id && !ci.is_completed)
           if (otherIncomplete.length === 0) {
-            // All items now complete — close panel and auto-generate
             setPanelOpen(false)
             setSelectedRun(null)
             try {
@@ -388,7 +452,6 @@ function PayrollsPage() {
       })
       if (!res.ok) throw new Error('Failed to mark all complete')
 
-      // Close side panel if open for this run
       if (selectedRun?.id === run.id) {
         setPanelOpen(false)
         setSelectedRun(null)
@@ -403,13 +466,12 @@ function PayrollsPage() {
         })
         if (res.ok) {
           const newRun = await res.json()
-          // If the new run falls in a different month, navigate to it
           if (newRun.pay_date) {
             const newPayDate = parseISO(newRun.pay_date)
             const newMonth = startOfMonth(newPayDate)
             if (newMonth.getTime() !== currentPeriod.getTime()) {
               setCurrentPeriod(newMonth)
-              return // fetchRuns will be triggered by currentPeriod change
+              return
             }
           }
         } else {
@@ -456,7 +518,6 @@ function PayrollsPage() {
       if (!res.ok) throw new Error('Failed to add step')
       setNewStepName('')
       await fetchRuns()
-      // Refresh selectedRun
       const updated = runs.find((r) => r.id === runId)
       if (updated) setSelectedRun(updated)
     } catch (err) {
@@ -491,38 +552,31 @@ function PayrollsPage() {
     return (
       <div className="space-y-5 animate-pulse">
         <div className="h-14 rounded-xl" style={{ background: colors.border }} />
-        <div className="h-14 rounded-xl" style={{ background: colors.border }} />
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-56 rounded-lg" style={{ background: colors.border }} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-20 rounded-lg" style={{ background: colors.border }} />
           ))}
         </div>
+        <div className="h-96 rounded-lg" style={{ background: colors.border }} />
       </div>
     )
   }
 
-  // ── Loading: Skeleton cards ─────────────────────────────────────────────────
+  // ── Loading: Skeleton ─────────────────────────────────────────────────────
 
   if (loading) {
     return (
       <div className="space-y-4">
-        {/* Skeleton header */}
         <div className="flex items-center justify-between">
           <div className="h-8 w-40 rounded-lg animate-pulse" style={{ background: colors.border }} />
           <div className="h-9 w-44 rounded-lg animate-pulse" style={{ background: colors.border }} />
         </div>
-        {/* Skeleton summary bar */}
-        <div className="flex gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex-1 h-16 rounded-lg animate-pulse" style={{ background: colors.border }} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-20 rounded-lg animate-pulse" style={{ background: colors.border }} />
           ))}
         </div>
-        {/* Skeleton cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-52 rounded-lg animate-pulse" style={{ background: colors.border }} />
-          ))}
-        </div>
+        <div className="h-96 rounded-lg animate-pulse" style={{ background: colors.border }} />
       </div>
     )
   }
@@ -555,7 +609,6 @@ function PayrollsPage() {
   if (runs.length === 0 && !loading) {
     return (
       <div className="space-y-4">
-        {/* Header still shows */}
         <PageHeader
           periodLabel={periodLabel}
           viewMode={viewMode}
@@ -576,7 +629,7 @@ function PayrollsPage() {
               No payroll runs for {periodLabel}
             </h3>
             <p className="text-sm mb-5" style={{ color: colors.text.muted }}>
-              Add your first run to start tracking this period.
+              Add your first client to start tracking payroll runs.
             </p>
             <Link href="/dashboard/clients/add">
               <Button
@@ -584,7 +637,7 @@ function PayrollsPage() {
                 style={{ backgroundColor: colors.primary }}
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Add Payroll Run
+                Add Client
               </Button>
             </Link>
           </div>
@@ -597,7 +650,7 @@ function PayrollsPage() {
 
   return (
     <div className="space-y-4">
-      {/* Zone A — Header */}
+      {/* Header */}
       <PageHeader
         periodLabel={periodLabel}
         viewMode={viewMode}
@@ -632,7 +685,7 @@ function PayrollsPage() {
         </div>
       )}
 
-      {/* Zone B — Summary Bar */}
+      {/* Summary Cards */}
       <SummaryBar
         counts={counts}
         statusFilter={statusFilter}
@@ -641,7 +694,7 @@ function PayrollsPage() {
         isDark={isDark}
       />
 
-      {/* Zone C — Board or List */}
+      {/* Board or List */}
       {viewMode === 'board' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredRuns.map((run) => (
@@ -681,7 +734,7 @@ function PayrollsPage() {
         </div>
       )}
 
-      {/* Summary footer */}
+      {/* Footer count */}
       <p className="text-[0.72rem] font-medium text-center" style={{ color: colors.text.muted }}>
         Showing {filteredRuns.length} of {runs.length} payroll runs
       </p>
@@ -765,16 +818,6 @@ function PageHeader({
           {/* View toggle */}
           <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${colors.border}` }}>
             <button
-              onClick={() => onViewChange('board')}
-              className="p-1.5 transition-all"
-              style={{
-                backgroundColor: viewMode === 'board' ? colors.primary : 'transparent',
-                color: viewMode === 'board' ? '#FFFFFF' : colors.text.muted,
-              }}
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
               onClick={() => onViewChange('list')}
               className="p-1.5 transition-all"
               style={{
@@ -783,6 +826,16 @@ function PageHeader({
               }}
             >
               <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onViewChange('board')}
+              className="p-1.5 transition-all"
+              style={{
+                backgroundColor: viewMode === 'board' ? colors.primary : 'transparent',
+                color: viewMode === 'board' ? '#FFFFFF' : colors.text.muted,
+              }}
+            >
+              <LayoutGrid className="w-4 h-4" />
             </button>
           </div>
 
@@ -818,7 +871,7 @@ function PageHeader({
             type="text"
             value={searchQuery ?? ''}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search by client name..."
+            placeholder="Search payrolls..."
             autoFocus
             className="w-full pl-9 pr-4 py-2 rounded-lg text-sm font-medium focus:outline-none transition-all"
             style={{
@@ -846,33 +899,33 @@ interface SummaryBarProps {
 }
 
 function SummaryBar({ counts, statusFilter, onFilterChange, colors, isDark }: SummaryBarProps) {
-  const pills: { key: StatusFilter; label: string; count: number; color: string }[] = [
-    { key: 'all', label: 'Active', count: counts.total - counts.complete, color: colors.primary },
-    { key: 'in_progress', label: 'In Progress', count: counts.in_progress, color: '#F59E0B' },
-    { key: 'overdue', label: 'Overdue', count: counts.overdue, color: '#EF4444' },
-    { key: 'complete', label: 'Complete', count: counts.complete, color: colors.success },
+  const cards: { key: StatusFilter; label: string; count: number; color: string; icon: React.ReactNode }[] = [
+    { key: 'all', label: 'Active', count: counts.total - counts.complete, color: colors.primary, icon: <Clock className="w-4 h-4" /> },
+    { key: 'in_progress', label: 'In Progress', count: counts.in_progress, color: '#F59E0B', icon: <Loader2 className="w-4 h-4" /> },
+    { key: 'overdue', label: 'Overdue', count: counts.overdue, color: '#EF4444', icon: <CircleAlert className="w-4 h-4" /> },
+    { key: 'complete', label: 'Complete', count: counts.complete, color: colors.success, icon: <CircleCheck className="w-4 h-4" /> },
   ]
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {pills.map((pill) => {
-        const isActive = statusFilter === pill.key
+      {cards.map((card) => {
+        const isActive = statusFilter === card.key
         return (
           <button
-            key={pill.key}
-            onClick={() => onFilterChange(pill.key)}
-            className="flex flex-col items-center py-3 px-5 rounded-lg transition-all duration-150"
+            key={card.key}
+            onClick={() => onFilterChange(card.key)}
+            className="relative flex flex-col items-center py-4 px-3 rounded-xl transition-all duration-150"
             style={{
               backgroundColor: colors.surface,
-              border: `2px solid ${isActive ? pill.color : colors.border}`,
-              ...(isActive ? { backgroundColor: isDark ? `${pill.color}10` : `${pill.color}08` } : {}),
+              border: `2px solid ${isActive ? card.color : colors.border}`,
+              ...(isActive ? { backgroundColor: isDark ? `${card.color}10` : `${card.color}08` } : {}),
             }}
           >
-            <span className="text-2xl font-bold" style={{ color: pill.color }}>
-              {pill.count}
+            <span className="text-3xl font-bold leading-none" style={{ color: card.color }}>
+              {card.count}
             </span>
-            <span className="text-[0.78rem] font-medium mt-0.5" style={{ color: colors.text.muted }}>
-              {pill.label}
+            <span className="text-[0.75rem] font-medium mt-1.5" style={{ color: colors.text.muted }}>
+              {card.label}
             </span>
           </button>
         )
@@ -897,89 +950,74 @@ function RunCard({ run, colors, isDark, onOpenChecklist, onMarkComplete }: RunCa
   const items = run.checklist_items ?? []
   const completedCount = items.filter((i) => i.is_completed).length
   const totalCount = items.length
-  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
   const isOverdue = status === 'overdue'
   const isComplete = status === 'complete'
+  const currentStep = getCurrentStep(run)
+  const freqBadge = getFreqBadge(run.clients?.pay_frequency ?? null)
 
   const daysUntil = differenceInDays(parseISO(run.pay_date), new Date())
   const isDueToday = daysUntil === 0
 
-  // Pay period display
-  const payPeriod = `${formatDateShort(run.period_start)} – ${formatDateShort(run.period_end)}`
-
-  // Pay date display
-  let payDateLabel = `Pay Date: ${formatDateShort(run.pay_date)}`
+  let payDateLabel = formatDateShort(run.pay_date)
   let payDateColor = colors.text.muted
   if (isOverdue) {
     payDateLabel = `OVERDUE · ${formatDateShort(run.pay_date)}`
     payDateColor = '#EF4444'
   } else if (isDueToday && !isComplete) {
-    payDateLabel = `Pay Date: Today`
+    payDateLabel = 'Today'
     payDateColor = '#F59E0B'
   }
 
   return (
     <div
-      className="relative group"
+      className="relative group cursor-pointer"
+      onClick={onOpenChecklist}
       style={{
         backgroundColor: colors.surface,
-        borderRadius: '8px',
+        borderRadius: '10px',
         border: `1px solid ${isOverdue ? '#EF444440' : colors.border}`,
-        borderLeft: isOverdue ? '4px solid #EF4444' : `1px solid ${isOverdue ? '#EF444440' : colors.border}`,
-        opacity: isComplete ? 0.75 : 1,
+        borderLeft: isOverdue ? '4px solid #EF4444' : undefined,
+        opacity: isComplete ? 0.7 : 1,
         boxShadow: isOverdue
-          ? `0 4px 12px rgba(239, 68, 68, 0.15)`
+          ? '0 4px 12px rgba(239, 68, 68, 0.12)'
           : `0 1px 3px ${colors.shadow.light}`,
-        transition: 'transform 150ms ease-in-out, box-shadow 150ms ease-in-out',
-        ...(isOverdue ? { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.05)' : '#FFF5F5' } : {}),
+        transition: 'transform 150ms, box-shadow 150ms',
+        ...(isOverdue ? { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.04)' : '#FFF5F5' } : {}),
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-2px)'
         e.currentTarget.style.boxShadow = isOverdue
-          ? '0 8px 20px rgba(239, 68, 68, 0.2)'
+          ? '0 8px 20px rgba(239, 68, 68, 0.18)'
           : `0 4px 12px ${colors.shadow.medium}`
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0)'
         e.currentTarget.style.boxShadow = isOverdue
-          ? '0 4px 12px rgba(239, 68, 68, 0.15)'
+          ? '0 4px 12px rgba(239, 68, 68, 0.12)'
           : `0 1px 3px ${colors.shadow.light}`
       }}
     >
-      {/* Status bar at top */}
-      <div
-        className="rounded-t-lg"
-        style={{ height: '4px', backgroundColor: config.dot }}
-      />
+      {/* Status strip */}
+      <div className="rounded-t-[10px]" style={{ height: '3px', backgroundColor: config.dot }} />
 
       <div className="p-4 space-y-3">
-        {/* Client name + Status badge */}
+        {/* Client name + freq badge */}
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <Link
-                href={`/dashboard/clients/${run.client_id}`}
-                className="text-[0.95rem] font-semibold truncate hover:underline"
-                style={{ color: colors.text.primary }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {run.clients?.name ?? 'Unknown Client'}
-              </Link>
-              {run.clients?.pay_frequency && (
-                <span
-                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide flex-shrink-0"
-                  style={{
-                    backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
-                    color: isDark ? '#A78BFA' : '#7C3AED',
-                  }}
-                >
-                  {formatPayFrequency(run.clients.pay_frequency)}
-                </span>
-              )}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[0.6rem] font-bold text-white"
+              style={{ backgroundColor: freqBadge.color }}
+            >
+              {freqBadge.letter}
             </div>
-            <p className="text-[0.78rem] mt-0.5" style={{ color: colors.text.muted }}>
-              {payPeriod} · {formatPayFrequency(run.clients?.pay_frequency ?? null)}
-            </p>
+            <div className="min-w-0">
+              <p className="text-[0.9rem] font-semibold truncate" style={{ color: colors.text.primary }}>
+                {run.clients?.name ?? 'Unknown Client'}
+              </p>
+              <p className="text-[0.72rem]" style={{ color: colors.text.muted }}>
+                {formatDateShort(run.period_start)} – {formatDateShort(run.period_end)}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {isOverdue && (
@@ -989,60 +1027,33 @@ function RunCard({ run, colors, isDark, onOpenChecklist, onMarkComplete }: RunCa
               </span>
             )}
             <span
-              className="inline-flex items-center px-2.5 py-1 rounded-full text-[0.72rem] font-bold"
-              style={{
-                backgroundColor: config.bg,
-                color: config.text,
-                border: `1px solid ${config.border}`,
-              }}
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.68rem] font-bold"
+              style={{ backgroundColor: config.bg, color: config.text, border: `1px solid ${config.border}` }}
             >
               {config.label}
             </span>
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div>
-          <div
-            className="w-full h-1.5 rounded-full overflow-hidden"
-            style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}
-          >
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${progressPercent}%`, backgroundColor: config.dot }}
-            />
-          </div>
-          <p className="text-[0.72rem] font-medium mt-1" style={{ color: colors.text.muted }}>
-            {completedCount} of {totalCount} steps
-          </p>
+        {/* Progress dots */}
+        <div className="flex items-center justify-between">
+          <ProgressDots items={items} isDark={isDark} />
+          <span className="text-[0.72rem] font-medium ml-2 flex-shrink-0" style={{ color: colors.text.muted }}>
+            {completedCount}/{totalCount}
+          </span>
         </div>
 
-        {/* Pay date */}
-        <p
-          className="text-[0.78rem]"
-          style={{ color: payDateColor, fontWeight: isOverdue || isDueToday ? 700 : 400 }}
-        >
-          {payDateLabel}
-        </p>
-
-        {/* Card footer */}
-        <div className="flex items-center justify-between pt-1" style={{ borderTop: `1px solid ${colors.border}` }}>
-          <button
-            onClick={onOpenChecklist}
-            className="text-[0.78rem] font-semibold px-3 py-1.5 rounded-md transition-opacity hover:opacity-80"
-            style={{ color: colors.primary }}
+        {/* Current step */}
+        <div className="flex items-center justify-between" style={{ borderTop: `1px solid ${colors.border}`, paddingTop: '10px' }}>
+          <p className="text-[0.78rem] truncate" style={{ color: isComplete ? colors.success : colors.text.secondary }}>
+            {currentStep}
+          </p>
+          <span
+            className="text-[0.72rem] font-semibold flex-shrink-0 ml-2"
+            style={{ color: payDateColor }}
           >
-            {isComplete ? 'View Details' : 'Open Checklist'}
-          </button>
-          {!isComplete && (
-            <button
-              onClick={onMarkComplete}
-              className="text-[0.78rem] font-semibold px-3 py-1.5 rounded-md text-white transition-opacity hover:opacity-90"
-              style={{ backgroundColor: colors.success }}
-            >
-              Mark Complete
-            </button>
-          )}
+            {payDateLabel}
+          </span>
         </div>
       </div>
     </div>
@@ -1099,6 +1110,7 @@ function RunListView({ runs, colors, isDark, onOpenChecklist }: RunListViewProps
     cursor: 'pointer',
     userSelect: 'none',
     padding: '10px 12px',
+    whiteSpace: 'nowrap',
   }
 
   const SortArrow = ({ field }: { field: typeof sortField }) => {
@@ -1107,24 +1119,25 @@ function RunListView({ runs, colors, isDark, onOpenChecklist }: RunListViewProps
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
+    <div className="overflow-x-auto rounded-xl" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
       <table className="w-full">
         <thead>
           <tr style={{ borderBottom: `1px solid ${colors.border}`, backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)' }}>
             <th style={thStyle} className="text-left" onClick={() => handleSort('client')}>
-              Client<SortArrow field="client" />
+              Payroll<SortArrow field="client" />
             </th>
-            <th style={thStyle} className="text-left hidden md:table-cell">Pay Period</th>
-            <th style={thStyle} className="text-left" onClick={() => handleSort('status')}>
-              Status<SortArrow field="status" />
-            </th>
+            <th style={thStyle} className="text-center hidden lg:table-cell">Freq</th>
+            <th style={thStyle} className="text-left hidden xl:table-cell">Tax Year</th>
+            <th style={thStyle} className="text-left hidden md:table-cell">Period</th>
             <th style={thStyle} className="text-left hidden sm:table-cell" onClick={() => handleSort('progress')}>
               Progress<SortArrow field="progress" />
+            </th>
+            <th style={thStyle} className="text-left" onClick={() => handleSort('status')}>
+              Current Status<SortArrow field="status" />
             </th>
             <th style={thStyle} className="text-left" onClick={() => handleSort('pay_date')}>
               Pay Date<SortArrow field="pay_date" />
             </th>
-            <th style={{ ...thStyle, width: '48px' }} />
           </tr>
         </thead>
         <tbody>
@@ -1132,54 +1145,88 @@ function RunListView({ runs, colors, isDark, onOpenChecklist }: RunListViewProps
             const status = computeStatus(run)
             const config = getStatusConfig(status, isDark)
             const items = run.checklist_items ?? []
-            const completedCount = items.filter((i) => i.is_completed).length
-            const totalCount = items.length
             const isOverdue = status === 'overdue'
+            const isComplete = status === 'complete'
             const daysUntil = differenceInDays(parseISO(run.pay_date), new Date())
+            const currentStep = getCurrentStep(run)
+            const freqBadge = getFreqBadge(run.clients?.pay_frequency ?? null)
+
+            // Tax year calculation
+            const payDate = parseISO(run.pay_date)
+            const taxYear = payDate.getMonth() >= 3 && payDate.getDate() >= 6 || payDate.getMonth() > 3
+              ? `${payDate.getFullYear()}/${(payDate.getFullYear() + 1).toString().slice(-2)}`
+              : `${payDate.getFullYear() - 1}/${payDate.getFullYear().toString().slice(-2)}`
+            const taxMonth = getTaxMonth(payDate)
 
             return (
               <tr
                 key={run.id}
                 className="group transition-colors cursor-pointer"
-                style={{ borderBottom: `1px solid ${colors.border}` }}
+                style={{
+                  borderBottom: `1px solid ${colors.border}`,
+                  opacity: isComplete ? 0.65 : 1,
+                }}
                 onClick={() => onOpenChecklist(run)}
                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.02)' : '#F9FAFB' }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
               >
+                {/* Payroll (Client name) */}
                 <td className="px-3 py-3">
-                  <Link
-                    href={`/dashboard/clients/${run.client_id}`}
-                    className="text-[0.85rem] font-semibold hover:underline"
-                    style={{ color: colors.primary }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {run.clients?.name ?? 'Unknown'} ↗
-                  </Link>
+                  <div className="flex items-center gap-2.5">
+                    <Link
+                      href={`/dashboard/clients/${run.client_id}`}
+                      className="text-[0.85rem] font-semibold hover:underline truncate"
+                      style={{ color: colors.text.primary }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {run.clients?.name ?? 'Unknown'}
+                    </Link>
+                  </div>
                 </td>
+
+                {/* Freq badge */}
+                <td className="px-3 py-3 hidden lg:table-cell">
+                  <div className="flex justify-center">
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-[0.6rem] font-bold text-white"
+                      title={formatPayFrequency(run.clients?.pay_frequency ?? null)}
+                      style={{ backgroundColor: freqBadge.color }}
+                    >
+                      {freqBadge.letter}
+                    </div>
+                  </div>
+                </td>
+
+                {/* Tax Year */}
+                <td className="px-3 py-3 hidden xl:table-cell">
+                  <span className="text-[0.82rem]" style={{ color: colors.text.secondary }}>
+                    {taxYear}
+                  </span>
+                </td>
+
+                {/* Period */}
                 <td className="px-3 py-3 hidden md:table-cell">
                   <span className="text-[0.82rem]" style={{ color: colors.text.secondary }}>
-                    {formatDateShort(run.period_start)} – {formatDateShort(run.period_end)}
+                    {taxMonth}
                   </span>
                 </td>
+
+                {/* Progress dots */}
+                <td className="px-3 py-3 hidden sm:table-cell">
+                  <ProgressDots items={items} isDark={isDark} />
+                </td>
+
+                {/* Current Status */}
                 <td className="px-3 py-3">
                   <span
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.72rem] font-bold"
-                    style={{ backgroundColor: config.bg, color: config.text, border: `1px solid ${config.border}` }}
+                    className="text-[0.82rem] font-medium"
+                    style={{ color: isComplete ? colors.success : isOverdue ? '#EF4444' : colors.text.secondary }}
                   >
-                    {isOverdue && (
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
-                      </span>
-                    )}
-                    {config.label}
+                    {currentStep}
                   </span>
                 </td>
-                <td className="px-3 py-3 hidden sm:table-cell">
-                  <span className="text-[0.82rem] font-medium" style={{ color: colors.text.secondary }}>
-                    {completedCount} / {totalCount}
-                  </span>
-                </td>
+
+                {/* Pay Date */}
                 <td className="px-3 py-3">
                   <span
                     className="text-[0.82rem]"
@@ -1190,15 +1237,6 @@ function RunListView({ runs, colors, isDark, onOpenChecklist }: RunListViewProps
                   >
                     {isOverdue && '⚠ '}{formatDateShort(run.pay_date)}
                   </span>
-                </td>
-                <td className="px-3 py-3">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onOpenChecklist(run) }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded"
-                    style={{ color: colors.text.muted }}
-                  >
-                    <MoreHorizontal className="w-4 h-4" />
-                  </button>
                 </td>
               </tr>
             )
@@ -1248,8 +1286,8 @@ function ChecklistPanel({
   const allComplete = totalCount > 0 && completedCount === totalCount
   const status = computeStatus(run)
   const config = getStatusConfig(status, isDark)
+  const freqBadge = getFreqBadge(run.clients?.pay_frequency ?? null)
 
-  // Sync localNotes when run changes
   useEffect(() => {
     setLocalNotes(run.notes ?? '')
   }, [run.notes])
@@ -1259,19 +1297,14 @@ function ChecklistPanel({
       {/* Panel header */}
       <div className="p-6 pb-4" style={{ borderBottom: `1px solid ${colors.border}` }}>
         <SheetHeader className="p-0">
-          <SheetTitle className="text-lg font-bold flex items-center gap-2" style={{ color: colors.text.primary }}>
+          <SheetTitle className="text-lg font-bold flex items-center gap-2.5" style={{ color: colors.text.primary }}>
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[0.6rem] font-bold text-white"
+              style={{ backgroundColor: freqBadge.color }}
+            >
+              {freqBadge.letter}
+            </div>
             {run.clients?.name ?? 'Unknown Client'}
-            {run.clients?.pay_frequency && (
-              <span
-                className="inline-flex items-center px-1.5 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide"
-                style={{
-                  backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
-                  color: isDark ? '#A78BFA' : '#7C3AED',
-                }}
-              >
-                {formatPayFrequency(run.clients.pay_frequency)}
-              </span>
-            )}
           </SheetTitle>
           <SheetDescription className="text-[0.82rem] font-medium" style={{ color: colors.text.muted }}>
             {formatDateShort(run.period_start)} – {formatDateShort(run.period_end)} · {formatPayFrequency(run.clients?.pay_frequency ?? null)}
@@ -1288,22 +1321,14 @@ function ChecklistPanel({
             {config.label}
           </span>
           <span className="text-[0.82rem] font-medium" style={{ color: colors.text.muted }}>
-            {completedCount} of {totalCount} steps complete
+            {completedCount} of {totalCount} steps
           </span>
         </div>
 
-        {/* Progress bar */}
+        {/* Progress dots */}
         <div className="mt-3">
-          <div
-            className="w-full h-2 rounded-full overflow-hidden"
-            style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}
-          >
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${progressPercent}%`, backgroundColor: config.dot }}
-            />
-          </div>
-          <p className="text-[0.72rem] font-bold text-right mt-1" style={{ color: config.text }}>
+          <ProgressDots items={items} isDark={isDark} />
+          <p className="text-[0.72rem] font-bold text-right mt-1.5" style={{ color: config.text }}>
             {progressPercent}%
           </p>
         </div>
