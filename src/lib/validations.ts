@@ -3,7 +3,9 @@ import { isDisposableEmail } from '@/lib/disposable-domains'
 
 const BLOCKED_DOMAINS = [
   'gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com',
-  'aol.com', 'icloud.com', 'live.com', 'msn.com', 'protonmail.com'
+  'aol.com', 'icloud.com', 'live.com', 'msn.com', 'protonmail.com',
+  'pm.me', 'tutanota.com', 'mail.com', 'yandex.com', 'yandex.ru',
+  'gmx.com', 'gmx.net', 'zoho.com',
 ]
 
 export const adminRegistrationSchema = z.object({

@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
       query = query.eq('action', action)
     }
     if (search) {
-      // Sanitize search to prevent PostgREST filter injection
-      const sanitized = search.replace(/[,%().*]/g, '')
+      // Allow only safe characters — whitelist approach prevents PostgREST filter injection
+      const sanitized = search.replace(/[^a-zA-Z0-9 @.\-_]/g, '').slice(0, 100)
       if (sanitized) {
         query = query.or(`resource_name.ilike.%${sanitized}%,user_email.ilike.%${sanitized}%`)
       }
