@@ -323,7 +323,7 @@ export default function SettingsPage() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `thepaybureau-export-${new Date().toISOString().split('T')[0]}.json`
+      a.download = `thepaybureau-export-${new Date().toISOString().split('T')[0]}.zip`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -964,7 +964,7 @@ export default function SettingsPage() {
             {exportingData ? (
               <><Loader2 className="w-4 h-4 animate-spin mr-2" />Exporting...</>
             ) : (
-              <><Download className="w-4 h-4 mr-2" />Export All Data</>
+              <><Download className="w-4 h-4 mr-2" />Export All Data (CSV)</>
             )}
           </Button>
 
