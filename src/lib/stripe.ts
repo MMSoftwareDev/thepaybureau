@@ -15,43 +15,34 @@ export function getStripe(): Stripe {
 }
 
 export const PLANS = {
-  starter: {
-    name: 'Starter',
+  free: {
+    name: 'Free',
     priceId: null,
     price: 0,
-    clients: 5,
+    annualPrice: 0,
+    annualPriceId: null,
+    clients: 100,
     features: [
-      'Up to 5 clients',
-      'Payroll checklists',
-      'HMRC deadline tracking',
-      'Basic dashboard',
+      'Up to 100 clients',
+      'Payroll runs',
+      'Pension declarations',
+      'Automated emails',
+      'Email support',
     ],
   },
-  professional: {
-    name: 'Professional',
-    priceId: process.env.STRIPE_PRICE_PROFESSIONAL || null,
-    price: 29,
-    clients: 50,
-    features: [
-      'Up to 50 clients',
-      'Everything in Starter',
-      'CSV import & export',
-      'Audit log',
-      'Pension tracking',
-      'Priority support',
-    ],
-  },
-  enterprise: {
-    name: 'Enterprise',
-    priceId: process.env.STRIPE_PRICE_ENTERPRISE || null,
-    price: 79,
+  unlimited: {
+    name: 'Unlimited',
+    priceId: process.env.STRIPE_PRICE_UNLIMITED_MONTHLY || null,
+    price: 9,
+    annualPrice: 7,
+    annualPriceId: process.env.STRIPE_PRICE_UNLIMITED_ANNUAL || null,
     clients: Infinity,
     features: [
+      'Everything in Free',
       'Unlimited clients',
-      'Everything in Professional',
       'Training & CPD tracking',
-      'Custom checklist templates',
-      'Dedicated support',
+      'Audit logs',
+      'Priority support',
     ],
   },
 } as const

@@ -82,11 +82,11 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (tenant) {
-        // Determine plan from price ID
+        // Determine plan from price ID (check both monthly and annual)
         const priceId = subscription.items.data[0]?.price?.id
-        let newPlan = 'starter'
+        let newPlan = 'free'
         for (const [key, planDef] of Object.entries(PLANS)) {
-          if (planDef.priceId === priceId) {
+          if (planDef.priceId === priceId || planDef.annualPriceId === priceId) {
             newPlan = key
             break
           }
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (tenant) {
-        await supabase.from('tenants').update({ plan: 'starter' }).eq('id', tenant.id)
+        await supabase.from('tenants').update({ plan: 'free' }).eq('id', tenant.id)
       }
       break
     }

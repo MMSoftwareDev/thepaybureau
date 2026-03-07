@@ -33,8 +33,8 @@ export async function GET() {
 
     const settings = (tenant.settings || {}) as Record<string, unknown>
     const customerId = settings.stripe_customer_id as string | undefined
-    const currentPlan = (tenant.plan || 'starter') as keyof typeof PLANS
-    const planInfo = PLANS[currentPlan] || PLANS.starter
+    const currentPlan = (tenant.plan || 'free') as keyof typeof PLANS
+    const planInfo = PLANS[currentPlan] || PLANS.free
 
     let subscription = null
 

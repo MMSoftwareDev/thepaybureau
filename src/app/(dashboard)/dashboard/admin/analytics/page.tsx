@@ -454,8 +454,8 @@ export default function AdminAnalyticsPage() {
                       <Badge
                         className="text-[0.7rem] font-bold border-0 px-2 py-0.5"
                         style={{
-                          backgroundColor: t.plan === 'starter' ? `${colors.primary}15` : `${colors.success}15`,
-                          color: t.plan === 'starter' ? colors.primary : colors.success,
+                          backgroundColor: t.plan === 'free' ? `${colors.primary}15` : `${colors.success}15`,
+                          color: t.plan === 'free' ? colors.primary : colors.success,
                         }}
                       >
                         {t.plan}

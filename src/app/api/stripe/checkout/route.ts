@@ -20,9 +20,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { plan } = (await req.json()) as { plan: PlanKey }
+    const { plan, billingCycle = 'monthly' } = (await req.json()) as { plan: PlanKey; billingCycle?: 'monthly' | 'annual' }
 
-    if (!plan || !PLANS[plan] || !PLANS[plan].priceId) {
+    if (!plan || !PLANS[plan]) {
+      return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+    }
+
+    const priceId = billingCycle === 'annual' ? PLANS[plan].annualPriceId : PLANS[plan].priceId
+    if (!priceId) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
     }
 
@@ -73,7 +78,7 @@ export async function POST(req: NextRequest) {
     const session = await getStripe().checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
-      line_items: [{ price: PLANS[plan].priceId!, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${appUrl}/dashboard/subscription?success=true`,
       cancel_url: `${appUrl}/dashboard/subscription?cancelled=true`,
       metadata: { tenant_id: tenant.id, plan },
