@@ -26,9 +26,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
     }
 
-    const priceId = billingCycle === 'annual' ? PLANS[plan].annualPriceId : PLANS[plan].priceId
+    const selectedPlan = PLANS[plan]
+    if (selectedPlan.price === 0) {
+      return NextResponse.json({ error: 'Free plan does not require checkout' }, { status: 400 })
+    }
+
+    const priceId = billingCycle === 'annual' ? selectedPlan.annualPriceId : selectedPlan.priceId
     if (!priceId) {
-      return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+      console.error(`Stripe price ID not configured for plan "${plan}" (${billingCycle})`)
+      return NextResponse.json({ error: 'Plan not available. Please contact support.' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()

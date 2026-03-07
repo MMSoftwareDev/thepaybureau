@@ -49,7 +49,7 @@ const PLAN_TIERS = [
   {
     key: 'unlimited',
     name: 'Unlimited',
-    tagline: 'For growing bureaus',
+    tagline: 'For serious payrollers',
     price: 9,
     annualPrice: 7,
     annualTotal: 84,
@@ -478,6 +478,21 @@ function SubscriptionPage() {
                     }}
                   >
                     Coming Soon
+                  </Button>
+                ) : tier.key === 'free' ? (
+                  <Button
+                    disabled
+                    className="w-full rounded-lg font-semibold py-5"
+                    style={{
+                      backgroundColor: `${colors.primary}15`,
+                      color: colors.primary,
+                    }}
+                  >
+                    {isCurrent ? (
+                      <><Check className="w-4 h-4 mr-2" />Current Plan</>
+                    ) : (
+                      'Free Forever'
+                    )}
                   </Button>
                 ) : isCurrent ? (
                   <Button
