@@ -452,6 +452,82 @@ export interface Database {
           sent_at?: string
         }
       }
+      user_badges: {
+        Row: {
+          id: string
+          user_id: string
+          tenant_id: string
+          badge_key: string
+          badge_tier: string
+          earned_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          tenant_id: string
+          badge_key: string
+          badge_tier?: string
+          earned_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          tenant_id?: string
+          badge_key?: string
+          badge_tier?: string
+          earned_at?: string
+        }
+      }
+      user_stats: {
+        Row: {
+          id: string
+          user_id: string
+          tenant_id: string
+          payrolls_completed: number
+          early_completions: number
+          steps_completed: number
+          early_steps: number
+          current_streak_weeks: number
+          longest_streak_weeks: number
+          perfect_months: number
+          consecutive_perfect_months: number
+          zero_overdue_months: number
+          last_activity_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          tenant_id: string
+          payrolls_completed?: number
+          early_completions?: number
+          steps_completed?: number
+          early_steps?: number
+          current_streak_weeks?: number
+          longest_streak_weeks?: number
+          perfect_months?: number
+          consecutive_perfect_months?: number
+          zero_overdue_months?: number
+          last_activity_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          tenant_id?: string
+          payrolls_completed?: number
+          early_completions?: number
+          steps_completed?: number
+          early_steps?: number
+          current_streak_weeks?: number
+          longest_streak_weeks?: number
+          perfect_months?: number
+          consecutive_perfect_months?: number
+          zero_overdue_months?: number
+          last_activity_date?: string | null
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

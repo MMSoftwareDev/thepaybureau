@@ -7,6 +7,7 @@ import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import Sidebar from '@/components/layout/Sidebar'
 import Navbar from '@/components/layout/Navbar'
 import TrafficLight from '@/components/ui/traffic-light'
+import BadgeToast from '@/components/gamification/BadgeToast'
 
 interface DashboardWrapperProps {
   children: React.ReactNode
@@ -82,6 +83,7 @@ export default function DashboardWrapper({ children, user, avatarUrl, isAdmin }:
       </div>
 
       <TrafficLight />
+      <BadgeToast />
     </div>
   )
 }
