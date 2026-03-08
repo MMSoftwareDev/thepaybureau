@@ -22,6 +22,7 @@ import {
   GraduationCap,
   Lightbulb,
   Bot,
+  BookOpen,
 } from 'lucide-react'
 import FeedbackWidget from '@/components/ui/FeedbackWidget'
 import SidebarStatusIndicator from '@/components/ui/SidebarStatusIndicator'
@@ -74,6 +75,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'AI',
     items: [
       { name: 'AI Assistant', href: '/dashboard/ai-assistant', icon: Bot },
+      { name: 'Knowledge Base', href: '/dashboard/ai-assistant/documents', icon: BookOpen },
     ],
   },
   {
