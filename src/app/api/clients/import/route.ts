@@ -1,5 +1,5 @@
 // src/app/api/clients/import/route.ts
-// Bulk import clients from parsed CSV data
+// Bulk import clients from parsed CSV data — batched inserts for performance
 
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
@@ -44,6 +44,8 @@ interface ImportResult {
   error?: string
   clientId?: string
 }
+
+const BATCH_SIZE = 50
 
 export async function POST(request: NextRequest) {
   try {
@@ -98,104 +100,126 @@ export async function POST(request: NextRequest) {
     const results: ImportResult[] = []
     let successCount = 0
 
-    for (let i = 0; i < clients.length; i++) {
-      const clientData = clients[i]
-      try {
-        // 1. Insert client
-        const { data: client, error: clientError } = await supabase
-          .from('clients')
-          .insert({
-            name: clientData.name,
-            paye_reference: clientData.paye_reference || null,
-            accounts_office_ref: clientData.accounts_office_ref || null,
-            pay_frequency: clientData.pay_frequency,
-            pay_day: clientData.pay_day || 'last_day_of_month',
-            employee_count: clientData.employee_count || null,
-            contact_name: clientData.contact_name || null,
-            contact_email: clientData.contact_email || null,
-            contact_phone: clientData.contact_phone || null,
-            email: clientData.email || null,
-            phone: clientData.phone || null,
-            payroll_software: clientData.payroll_software || null,
-            pension_provider: clientData.pension_provider || null,
-            notes: clientData.notes || null,
-            tenant_id: user.tenant_id,
-            created_by: authUser.id,
-            status: 'active',
+    // Process in batches to reduce DB round-trips
+    for (let batchStart = 0; batchStart < clients.length; batchStart += BATCH_SIZE) {
+      const batch = clients.slice(batchStart, batchStart + BATCH_SIZE)
+
+      // 1. Batch insert all clients in this chunk
+      const clientRows = batch.map((c) => ({
+        name: c.name,
+        paye_reference: c.paye_reference || null,
+        accounts_office_ref: c.accounts_office_ref || null,
+        pay_frequency: c.pay_frequency,
+        pay_day: c.pay_day || 'last_day_of_month',
+        employee_count: c.employee_count || null,
+        contact_name: c.contact_name || null,
+        contact_email: c.contact_email || null,
+        contact_phone: c.contact_phone || null,
+        email: c.email || null,
+        phone: c.phone || null,
+        payroll_software: c.payroll_software || null,
+        pension_provider: c.pension_provider || null,
+        notes: c.notes || null,
+        tenant_id: user.tenant_id,
+        created_by: authUser.id,
+        status: 'active' as const,
+      }))
+
+      const { data: insertedClients, error: clientsError } = await supabase
+        .from('clients')
+        .insert(clientRows)
+        .select('id, name')
+
+      if (clientsError || !insertedClients) {
+        // If batch insert fails, mark all in this batch as failed
+        for (let i = 0; i < batch.length; i++) {
+          results.push({
+            row: batchStart + i + 1,
+            name: batch[i].name,
+            success: false,
+            error: clientsError?.message || 'Failed to insert clients',
           })
-          .select()
-          .single()
-
-        if (clientError) {
-          results.push({ row: i + 1, name: clientData.name, success: false, error: clientError.message })
-          continue
         }
+        continue
+      }
 
-        // 2. Insert checklist templates
-        const templateRows = defaultChecklist.map((item) => ({
+      // 2. Batch insert checklist templates for all new clients
+      const templateRows = insertedClients.flatMap((client) =>
+        defaultChecklist.map((item) => ({
           client_id: client.id,
           name: item.name,
           sort_order: item.sort_order,
           is_active: true,
         }))
+      )
 
-        const { data: templates } = await supabase
-          .from('checklist_templates')
-          .insert(templateRows)
-          .select()
+      const { data: templates } = await supabase
+        .from('checklist_templates')
+        .insert(templateRows)
+        .select('id, client_id, name, sort_order')
 
-        // 3. Calculate dates for first payroll run
-        const payDay = clientData.pay_day || 'last_day_of_month'
-        const nextPayDate = calculateNextPayDate(
-          clientData.pay_frequency as PayFrequency,
-          payDay,
-          new Date()
-        )
-        const { periodStart, periodEnd } = calculatePeriodDates(
-          clientData.pay_frequency as PayFrequency,
-          nextPayDate
-        )
+      // Build a lookup: client_id -> template[]
+      const templatesByClient: Record<string, NonNullable<typeof templates>> = {}
+      if (templates) {
+        for (const t of templates) {
+          if (!templatesByClient[t.client_id]) templatesByClient[t.client_id] = []
+          templatesByClient[t.client_id]!.push(t)
+        }
+      }
+
+      // 3. Batch insert payroll runs for all new clients
+      const payrollRows = insertedClients.map((client, idx) => {
+        const c = batch[idx]
+        const payDay = c.pay_day || 'last_day_of_month'
+        const nextPayDate = calculateNextPayDate(c.pay_frequency as PayFrequency, payDay, new Date())
+        const { periodStart, periodEnd } = calculatePeriodDates(c.pay_frequency as PayFrequency, nextPayDate)
         const rtiDueDate = calculateRtiDueDate(nextPayDate)
         const epsDueDate = calculateEpsDueDate(nextPayDate)
 
-        // 4. Insert payroll run
-        const { data: payrollRun } = await supabase
-          .from('payroll_runs')
-          .insert({
-            client_id: client.id,
-            tenant_id: user.tenant_id,
-            period_start: periodStart.toISOString().split('T')[0],
-            period_end: periodEnd.toISOString().split('T')[0],
-            pay_date: nextPayDate.toISOString().split('T')[0],
-            status: 'not_started',
-            rti_due_date: rtiDueDate.toISOString().split('T')[0],
-            eps_due_date: epsDueDate.toISOString().split('T')[0],
-          })
-          .select()
-          .single()
-
-        // 5. Copy checklist templates into checklist_items
-        if (templates && templates.length > 0 && payrollRun) {
-          await supabase.from('checklist_items').insert(
-            templates.map((t) => ({
-              payroll_run_id: payrollRun.id,
-              template_id: t.id,
-              name: t.name,
-              sort_order: t.sort_order,
-              is_completed: false,
-            }))
-          )
+        return {
+          client_id: client.id,
+          tenant_id: user.tenant_id,
+          period_start: periodStart.toISOString().split('T')[0],
+          period_end: periodEnd.toISOString().split('T')[0],
+          pay_date: nextPayDate.toISOString().split('T')[0],
+          status: 'not_started' as const,
+          rti_due_date: rtiDueDate.toISOString().split('T')[0],
+          eps_due_date: epsDueDate.toISOString().split('T')[0],
         }
+      })
 
-        results.push({ row: i + 1, name: clientData.name, success: true, clientId: client.id })
-        successCount++
-      } catch (err) {
-        results.push({
-          row: i + 1,
-          name: clientData.name,
-          success: false,
-          error: err instanceof Error ? err.message : 'Unknown error',
+      const { data: payrollRuns } = await supabase
+        .from('payroll_runs')
+        .insert(payrollRows)
+        .select('id, client_id')
+
+      // 4. Batch insert checklist items for all new payroll runs
+      if (payrollRuns && payrollRuns.length > 0) {
+        const checklistItemRows = payrollRuns.flatMap((run) => {
+          const clientTemplates = templatesByClient[run.client_id] || []
+          return clientTemplates.map((t) => ({
+            payroll_run_id: run.id,
+            template_id: t.id,
+            name: t.name,
+            sort_order: t.sort_order,
+            is_completed: false,
+          }))
         })
+
+        if (checklistItemRows.length > 0) {
+          await supabase.from('checklist_items').insert(checklistItemRows)
+        }
+      }
+
+      // Record results for this batch
+      for (let i = 0; i < insertedClients.length; i++) {
+        results.push({
+          row: batchStart + i + 1,
+          name: insertedClients[i].name,
+          success: true,
+          clientId: insertedClients[i].id,
+        })
+        successCount++
       }
     }
 
