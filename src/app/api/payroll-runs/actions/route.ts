@@ -118,45 +118,51 @@ export async function POST(request: NextRequest) {
           request,
         })
 
-        // Track badges — only when completing (not unchecking)
-        let newBadges: { badge_key: string; badge_tier: string; badge_name: string; badge_icon: string }[] = []
+        // Fire-and-forget badge tracking — don't block the response
         if (data.is_completed) {
-          try {
-            const isEarlyMorning = new Date().getHours() < 9
+          const badgeUserId = authUser.id
+          const badgeTenantId = user.tenant_id!
+          const badgePayrollRunId = item.payroll_run_id
+          const badgeItemId = data.item_id
 
-            // Check if this was the last item — payroll is now complete
-            const { data: allItems } = await supabase
-              .from('checklist_items')
-              .select('id, is_completed')
-              .eq('payroll_run_id', item.payroll_run_id)
+          Promise.resolve().then(async () => {
+            try {
+              const isEarlyMorning = new Date().getHours() < 9
 
-            const allComplete = allItems && allItems.every(
-              (ci) => ci.id === data.item_id ? true : ci.is_completed
-            )
+              const { data: allItems } = await supabase
+                .from('checklist_items')
+                .select('id, is_completed')
+                .eq('payroll_run_id', badgePayrollRunId)
 
-            await updateUserStats(supabase, authUser.id, user.tenant_id!, { type: 'step_completed', isEarlyMorning })
+              const allComplete = allItems && allItems.every(
+                (ci) => ci.id === badgeItemId ? true : ci.is_completed
+              )
 
-            if (allComplete) {
-              const { data: payrollRun } = await supabase
-                .from('payroll_runs')
-                .select('pay_date')
-                .eq('id', item.payroll_run_id)
-                .single()
+              await updateUserStats(supabase, badgeUserId, badgeTenantId, { type: 'step_completed', isEarlyMorning })
 
-              const daysEarly = payrollRun
-                ? Math.floor((new Date(payrollRun.pay_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-                : 0
+              if (allComplete) {
+                const { data: payrollRun } = await supabase
+                  .from('payroll_runs')
+                  .select('pay_date')
+                  .eq('id', badgePayrollRunId)
+                  .single()
 
-              await updateUserStats(supabase, authUser.id, user.tenant_id!, { type: 'payroll_completed', daysEarly })
+                const daysEarly = payrollRun
+                  ? Math.floor((new Date(payrollRun.pay_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  : 0
+
+                await updateUserStats(supabase, badgeUserId, badgeTenantId, { type: 'payroll_completed', daysEarly })
+              }
+
+              await checkAndAwardBadges(supabase, badgeUserId, badgeTenantId)
+            } catch (err) {
+              console.error('Badge tracking error (non-fatal):', err)
             }
-
-            newBadges = await checkAndAwardBadges(supabase, authUser.id, user.tenant_id!)
-          } catch (err) {
-            console.error('Badge tracking error (non-fatal):', err)
-          }
+          })
         }
 
-        return NextResponse.json({ success: true, newBadges })
+        // newBadges returned empty — badge processing happens async
+        return NextResponse.json({ success: true, newBadges: [] })
       }
 
       case 'mark_all_complete': {
@@ -208,34 +214,38 @@ export async function POST(request: NextRequest) {
           request,
         })
 
-        // Track badges — count each step + the payroll completion
-        let newBadges: { badge_key: string; badge_tier: string; badge_name: string; badge_icon: string }[] = []
-        try {
-          const isEarlyMorning = new Date().getHours() < 9
+        // Fire-and-forget badge tracking — don't block the response
+        const badgeUserId = authUser.id
+        const badgeTenantId = user.tenant_id!
+        const badgePayrollRunId = data.payroll_run_id
+        const stepCount = ids.length
 
-          // Track each individual step
-          for (let i = 0; i < ids.length; i++) {
-            await updateUserStats(supabase, authUser.id, user.tenant_id!, { type: 'step_completed', isEarlyMorning })
+        Promise.resolve().then(async () => {
+          try {
+            const isEarlyMorning = new Date().getHours() < 9
+
+            for (let i = 0; i < stepCount; i++) {
+              await updateUserStats(supabase, badgeUserId, badgeTenantId, { type: 'step_completed', isEarlyMorning })
+            }
+
+            const { data: payrollRun } = await supabase
+              .from('payroll_runs')
+              .select('pay_date')
+              .eq('id', badgePayrollRunId)
+              .single()
+
+            const daysEarly = payrollRun
+              ? Math.floor((new Date(payrollRun.pay_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+              : 0
+
+            await updateUserStats(supabase, badgeUserId, badgeTenantId, { type: 'payroll_completed', daysEarly })
+            await checkAndAwardBadges(supabase, badgeUserId, badgeTenantId)
+          } catch (err) {
+            console.error('Badge tracking error (non-fatal):', err)
           }
+        })
 
-          // Track payroll completion
-          const { data: payrollRun } = await supabase
-            .from('payroll_runs')
-            .select('pay_date')
-            .eq('id', data.payroll_run_id)
-            .single()
-
-          const daysEarly = payrollRun
-            ? Math.floor((new Date(payrollRun.pay_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-            : 0
-
-          await updateUserStats(supabase, authUser.id, user.tenant_id!, { type: 'payroll_completed', daysEarly })
-          newBadges = await checkAndAwardBadges(supabase, authUser.id, user.tenant_id!)
-        } catch (err) {
-          console.error('Badge tracking error (non-fatal):', err)
-        }
-
-        return NextResponse.json({ success: true, completed: ids.length, newBadges })
+        return NextResponse.json({ success: true, completed: ids.length, newBadges: [] })
       }
 
       case 'save_notes': {

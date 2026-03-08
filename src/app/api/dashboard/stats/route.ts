@@ -71,14 +71,19 @@ export async function GET() {
     // Total employees across all clients
     const totalEmployees = allClients.reduce((sum, c) => sum + (c.employee_count || 0), 0)
 
-    // All payroll runs with client names and checklist items
+    const today = startOfDay(new Date())
+    const monthStart = startOfMonth(today)
+
+    // Payroll runs: limit to last 6 months + 1 month ahead (covers trend chart + upcoming)
+    const runsDateFrom = format(subMonths(today, 6), 'yyyy-MM-dd')
+    const runsDateTo = format(addDays(today, 31), 'yyyy-MM-dd')
+
     const { data: runs } = await supabase
       .from('payroll_runs')
       .select('*, clients(name, id), checklist_items(id, is_completed)')
       .eq('tenant_id', user.tenant_id)
-
-    const today = startOfDay(new Date())
-    const monthStart = startOfMonth(today)
+      .gte('pay_date', runsDateFrom)
+      .lte('pay_date', runsDateTo)
 
     const allRuns = runs || []
 
