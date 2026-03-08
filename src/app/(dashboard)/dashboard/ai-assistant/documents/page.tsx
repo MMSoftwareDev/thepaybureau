@@ -7,8 +7,18 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   FileText, Plus, Trash2, RefreshCw, ArrowLeft, Upload, AlertCircle, CheckCircle2, Clock, Loader2, X,
+  Globe, Download,
 } from 'lucide-react'
 import Link from 'next/link'
+
+interface ScrapeStatus {
+  total_seed_urls: number
+  scraped_count: number
+  ready: number
+  processing: number
+  errors: number
+  last_scrape: string | null
+}
 
 interface AIDocument {
   id: string
@@ -70,6 +80,9 @@ export default function AIDocumentsPage() {
   const [error, setError] = useState<string | null>(null)
   const [showUpload, setShowUpload] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [scrapeStatus, setScrapeStatus] = useState<ScrapeStatus | null>(null)
+  const [scraping, setScraping] = useState(false)
+  const [scrapeMessage, setScrapeMessage] = useState<string | null>(null)
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -91,9 +104,46 @@ export default function AIDocumentsPage() {
     }
   }, [])
 
+  const fetchScrapeStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/ai-assistant/documents/scrape')
+      if (res.ok) {
+        const data = await res.json()
+        setScrapeStatus(data)
+      }
+    } catch {
+      // Non-critical — ignore
+    }
+  }, [])
+
   useEffect(() => {
     fetchDocuments()
-  }, [fetchDocuments])
+    fetchScrapeStatus()
+  }, [fetchDocuments, fetchScrapeStatus])
+
+  const handleScrapeHmrc = async () => {
+    if (!confirm('This will scrape ~50 HMRC guidance pages from gov.uk, process them into chunks, and generate embeddings. This may take a few minutes. Continue?')) return
+
+    setScraping(true)
+    setScrapeMessage(null)
+    try {
+      const res = await fetch('/api/ai-assistant/documents/scrape', { method: 'POST' })
+      const data = await res.json()
+
+      if (!res.ok) throw new Error(data.error || 'Scrape failed')
+
+      setScrapeMessage(
+        `Scrape complete: ${data.new} new, ${data.updated} updated, ${data.unchanged} unchanged` +
+        (data.errors?.length ? `, ${data.errors.length} errors` : '')
+      )
+      fetchDocuments()
+      fetchScrapeStatus()
+    } catch (err) {
+      setScrapeMessage(`Error: ${err instanceof Error ? err.message : 'Scrape failed'}`)
+    } finally {
+      setScraping(false)
+    }
+  }
 
   // Poll for processing documents
   useEffect(() => {
@@ -169,6 +219,107 @@ export default function AIDocumentsPage() {
           {error}
         </div>
       )}
+
+      {/* HMRC Scraper Card */}
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex items-start gap-4">
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: isDark ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.08)' }}
+            >
+              <Globe className="w-5 h-5 text-blue-500" />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <h3 className="text-[0.88rem] font-medium mb-0.5" style={{ color: colors.text.primary }}>
+                HMRC Guidance Scraper
+              </h3>
+              <p className="text-[0.78rem] mb-3" style={{ color: colors.text.muted }}>
+                Automatically scrape ~{scrapeStatus?.total_seed_urls || 50} official HMRC payroll guidance pages from gov.uk.
+                Runs weekly to detect changes.
+              </p>
+
+              {scrapeStatus && (
+                <div className="flex flex-wrap items-center gap-3 mb-3 text-[0.75rem]" style={{ color: colors.text.muted }}>
+                  <span>
+                    <strong style={{ color: colors.text.secondary }}>{scrapeStatus.scraped_count}</strong> documents scraped
+                  </span>
+                  {scrapeStatus.ready > 0 && (
+                    <Badge variant="default" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[0.7rem] h-5">
+                      {scrapeStatus.ready} ready
+                    </Badge>
+                  )}
+                  {scrapeStatus.processing > 0 && (
+                    <Badge variant="default" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[0.7rem] h-5">
+                      {scrapeStatus.processing} processing
+                    </Badge>
+                  )}
+                  {scrapeStatus.errors > 0 && (
+                    <Badge variant="destructive" className="text-[0.7rem] h-5">
+                      {scrapeStatus.errors} errors
+                    </Badge>
+                  )}
+                  {scrapeStatus.last_scrape && (
+                    <span>
+                      Last scraped: {new Date(scrapeStatus.last_scrape).toLocaleDateString('en-GB', {
+                        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                      })}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {scrapeMessage && (
+                <div
+                  className="flex items-center gap-2 p-2.5 rounded-md text-[0.78rem] mb-3"
+                  style={{
+                    background: scrapeMessage.startsWith('Error')
+                      ? isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.05)'
+                      : isDark ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.05)',
+                    border: `1px solid ${scrapeMessage.startsWith('Error') ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.2)'}`,
+                    color: scrapeMessage.startsWith('Error')
+                      ? isDark ? '#fca5a5' : '#dc2626'
+                      : isDark ? '#86efac' : '#16a34a',
+                  }}
+                >
+                  {scrapeMessage.startsWith('Error') ? (
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  ) : (
+                    <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                  )}
+                  {scrapeMessage}
+                </div>
+              )}
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleScrapeHmrc}
+                disabled={scraping}
+                className="gap-1.5"
+              >
+                {scraping ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Scraping HMRC...
+                  </>
+                ) : scrapeStatus && scrapeStatus.scraped_count > 0 ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Check for Updates
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5" />
+                    Scrape All HMRC Guidance
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Upload modal */}
       {showUpload && (
