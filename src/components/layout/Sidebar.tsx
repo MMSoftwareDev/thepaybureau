@@ -21,6 +21,7 @@ import {
   ScrollText,
   GraduationCap,
   Lightbulb,
+  Bot,
 } from 'lucide-react'
 import FeedbackWidget from '@/components/ui/FeedbackWidget'
 import SidebarStatusIndicator from '@/components/ui/SidebarStatusIndicator'
@@ -67,6 +68,12 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'DEVELOPMENT',
     items: [
       { name: 'Training & CPD', href: '/dashboard/training', icon: GraduationCap },
+    ],
+  },
+  {
+    label: 'AI',
+    items: [
+      { name: 'AI Assistant', href: '/dashboard/ai-assistant', icon: Bot },
     ],
   },
   {

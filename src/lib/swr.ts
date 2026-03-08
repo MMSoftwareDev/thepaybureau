@@ -31,4 +31,12 @@ export function clearSWRCache() {
   mutate(() => true, undefined, { revalidate: false })
 }
 
+export function useConversations() {
+  return useSWR('/api/ai-assistant/conversations', fetcher, defaultConfig)
+}
+
+export function useConversation(id: string | null) {
+  return useSWR(id ? `/api/ai-assistant/conversations/${id}` : null, fetcher, defaultConfig)
+}
+
 export { fetcher, defaultConfig }

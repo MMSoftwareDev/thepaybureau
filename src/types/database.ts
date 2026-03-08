@@ -528,6 +528,207 @@ export interface Database {
           updated_at?: string
         }
       }
+      ai_documents: {
+        Row: {
+          id: string
+          title: string
+          source_url: string | null
+          category: string | null
+          file_path: string | null
+          status: 'pending' | 'processing' | 'ready' | 'error'
+          metadata: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          title: string
+          source_url?: string | null
+          category?: string | null
+          file_path?: string | null
+          status?: 'pending' | 'processing' | 'ready' | 'error'
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          source_url?: string | null
+          category?: string | null
+          file_path?: string | null
+          status?: 'pending' | 'processing' | 'ready' | 'error'
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+      }
+      ai_document_chunks: {
+        Row: {
+          id: string
+          document_id: string
+          content: string
+          chunk_index: number
+          section_title: string | null
+          embedding: number[] | null
+          token_count: number | null
+          metadata: Json | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          document_id: string
+          content: string
+          chunk_index: number
+          section_title?: string | null
+          embedding?: number[] | null
+          token_count?: number | null
+          metadata?: Json | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          document_id?: string
+          content?: string
+          chunk_index?: number
+          section_title?: string | null
+          embedding?: number[] | null
+          token_count?: number | null
+          metadata?: Json | null
+          created_at?: string | null
+        }
+      }
+      ai_conversations: {
+        Row: {
+          id: string
+          tenant_id: string | null
+          user_id: string | null
+          title: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string | null
+          user_id?: string | null
+          title?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          tenant_id?: string | null
+          user_id?: string | null
+          title?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+      }
+      ai_messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          role: 'user' | 'assistant'
+          content: string
+          citations: Json | null
+          token_count: number | null
+          model: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          role: 'user' | 'assistant'
+          content: string
+          citations?: Json | null
+          token_count?: number | null
+          model?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          role?: 'user' | 'assistant'
+          content?: string
+          citations?: Json | null
+          token_count?: number | null
+          model?: string | null
+          created_at?: string | null
+        }
+      }
+      ai_api_keys: {
+        Row: {
+          id: string
+          tenant_id: string | null
+          name: string
+          key_hash: string
+          key_prefix: string
+          scopes: string[]
+          rate_limit: number
+          is_active: boolean
+          last_used_at: string | null
+          expires_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string | null
+          name: string
+          key_hash: string
+          key_prefix: string
+          scopes?: string[]
+          rate_limit?: number
+          is_active?: boolean
+          last_used_at?: string | null
+          expires_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          tenant_id?: string | null
+          name?: string
+          key_hash?: string
+          key_prefix?: string
+          scopes?: string[]
+          rate_limit?: number
+          is_active?: boolean
+          last_used_at?: string | null
+          expires_at?: string | null
+          created_at?: string | null
+        }
+      }
+      ai_api_usage: {
+        Row: {
+          id: string
+          api_key_id: string | null
+          tenant_id: string | null
+          endpoint: string
+          input_tokens: number
+          output_tokens: number
+          status: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          api_key_id?: string | null
+          tenant_id?: string | null
+          endpoint: string
+          input_tokens?: number
+          output_tokens?: number
+          status?: number | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          api_key_id?: string | null
+          tenant_id?: string | null
+          endpoint?: string
+          input_tokens?: number
+          output_tokens?: number
+          status?: number | null
+          created_at?: string | null
+        }
+      }
       feedback: {
         Row: {
           id: string
