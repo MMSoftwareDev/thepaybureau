@@ -97,3 +97,30 @@ export const checklistTemplateSchema = z.object({
 })
 
 export const checklistTemplatesSchema = z.array(checklistTemplateSchema).min(1, 'At least one template is required')
+
+// ═══════════════════════════════════════════════════
+// AI Assistant Schemas
+// ═══════════════════════════════════════════════════
+
+export const aiChatSchema = z.object({
+  message: z.string().min(1, 'Message is required').max(4000),
+  conversation_id: z.string().uuid().optional(),
+})
+
+export const aiDocumentUploadSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(500),
+  source_url: z.string().url().max(2000).optional().or(z.literal('')),
+  category: z.enum(['paye', 'nic', 'statutory_pay', 'pensions', 'rti', 'expenses', 'general']).optional(),
+  content: z.string().min(1, 'Document content is required'),
+})
+
+export const aiApiKeyCreateSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(255),
+  rate_limit: z.number().int().min(1).max(10000).optional(),
+  expires_at: z.string().optional(),
+})
+
+export const aiExternalChatSchema = z.object({
+  message: z.string().min(1, 'Message is required').max(4000),
+  conversation_id: z.string().uuid().optional(),
+})
