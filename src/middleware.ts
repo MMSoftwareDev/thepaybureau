@@ -27,9 +27,10 @@ export async function middleware(request: NextRequest) {
 
   // CSRF protection for mutating API requests — verify origin matches
   if (request.nextUrl.pathname.startsWith('/api/') && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
-    // Exempt webhook endpoints (called by external services without Origin)
-    const isWebhook = request.nextUrl.pathname.startsWith('/api/stripe/webhook')
-    if (!isWebhook) {
+    // Exempt endpoints called by external services without Origin
+    const isExempt = request.nextUrl.pathname.startsWith('/api/stripe/webhook')
+      || request.nextUrl.pathname.startsWith('/api/v1/')
+    if (!isExempt) {
       const origin = request.headers.get('origin')
       const host = request.headers.get('host')
       if (!origin || !host) {
