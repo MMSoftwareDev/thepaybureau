@@ -64,8 +64,27 @@ export default function AIAssistantPage() {
       return
     }
 
-    // Messages are stored locally during the session.
-    // A dedicated messages endpoint can be added later for persistence across page loads.
+    let cancelled = false
+    const fetchMessages = async () => {
+      try {
+        const res = await fetch(`/api/ai-assistant/conversations/messages?conversation_id=${activeConversationId}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (!cancelled) {
+          setMessages(data.map((m: { id: string; role: string; content: string; citations?: Citation[] }) => ({
+            id: m.id,
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+            citations: m.citations || undefined,
+          })))
+        }
+      } catch (err) {
+        console.error('Failed to fetch messages:', err)
+      }
+    }
+
+    fetchMessages()
+    return () => { cancelled = true }
   }, [activeConversationId])
 
   // Auto-scroll to bottom
@@ -96,6 +115,17 @@ export default function AIAssistantPage() {
       })
 
       if (!res.ok) {
+        if (res.status === 429) {
+          const data = await res.json().catch(() => ({}))
+          const limitMsg: Message = {
+            id: `limit-${Date.now()}`,
+            role: 'assistant',
+            content: data.message || 'This conversation has reached its message limit. Please start a new chat.',
+          }
+          setMessages(prev => [...prev, limitMsg])
+          setIsLoading(false)
+          return
+        }
         throw new Error('Failed to send message')
       }
 
