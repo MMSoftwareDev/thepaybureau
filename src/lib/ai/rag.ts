@@ -220,7 +220,8 @@ export async function streamRagResponse(
           citationsResolve.resolve(citations)
         } catch (error) {
           console.error('RAG streaming error:', error)
-          const errorMsg = `data: ${JSON.stringify({ type: 'error', message: 'Failed to generate response' })}\n\n`
+          const detail = error instanceof Error ? error.message : 'Unknown error'
+          const errorMsg = `data: ${JSON.stringify({ type: 'error', message: detail })}\n\n`
           controller.enqueue(encoder.encode(errorMsg))
           controller.close()
           citationsResolve.reject(error instanceof Error ? error : new Error('Unknown error'))
@@ -254,7 +255,7 @@ export async function generateRagResponse(
     : `Question: ${query}\n\nNote: No relevant HMRC guidance was found in the knowledge base for this query. Please let the user know and suggest what they should look for.`
 
   const messages = [
-    ...conversationHistory.slice(-6),
+    ...ensureAlternatingRoles(conversationHistory).slice(-6),
     { role: 'user' as const, content: userMessage },
   ]
 
