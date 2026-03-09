@@ -108,6 +108,36 @@ async function buildContext(chunks: RetrievedChunk[]): Promise<{
 }
 
 /**
+ * Ensure conversation history has strictly alternating user/assistant roles.
+ * The Anthropic API rejects messages with consecutive same-role entries.
+ * This can happen if the background assistant message storage hasn't completed
+ * before the user sends their next message (race condition).
+ */
+function ensureAlternatingRoles(
+  history: { role: 'user' | 'assistant'; content: string }[]
+): { role: 'user' | 'assistant'; content: string }[] {
+  const result: typeof history = []
+  for (const msg of history) {
+    if (result.length > 0 && result[result.length - 1].role === msg.role) {
+      if (msg.role === 'user') {
+        // Insert a placeholder assistant message between consecutive user messages
+        result.push({ role: 'assistant', content: '[No response recorded]' })
+      } else {
+        // Merge consecutive assistant messages
+        result[result.length - 1].content += '\n' + msg.content
+        continue
+      }
+    }
+    result.push(msg)
+  }
+  // Ensure history ends with assistant role (since we'll append a user message next)
+  if (result.length > 0 && result[result.length - 1].role === 'user') {
+    result.push({ role: 'assistant', content: '[No response recorded]' })
+  }
+  return result
+}
+
+/**
  * Run the full RAG pipeline and stream the response.
  * Returns a ReadableStream for SSE consumption.
  */
@@ -136,7 +166,7 @@ export async function streamRagResponse(
     : `Question: ${query}\n\nNote: No relevant HMRC guidance was found in the knowledge base for this query. Please let the user know and suggest what they should look for.`
 
   const messages = [
-    ...conversationHistory.slice(-6), // Keep last 3 exchanges for context
+    ...ensureAlternatingRoles(conversationHistory).slice(-6),
     { role: 'user' as const, content: userMessage },
   ]
 

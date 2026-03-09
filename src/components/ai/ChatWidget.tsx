@@ -55,7 +55,10 @@ export default function ChatWidget() {
         body: JSON.stringify({ message }),
       })
 
-      if (!res.ok) throw new Error('Failed to send')
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.message || data.error || `Server error (${res.status})`)
+      }
 
       const reader = res.body?.getReader()
       if (!reader) throw new Error('No body')
@@ -63,13 +66,17 @@ export default function ChatWidget() {
       const decoder = new TextDecoder()
       let fullText = ''
       let citations: Citation[] = []
+      let buffer = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value, { stream: true })
-        for (const line of chunk.split('\n')) {
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // Keep incomplete last line in buffer
+
+        for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
               const parsed = JSON.parse(line.slice(6))
@@ -79,19 +86,27 @@ export default function ChatWidget() {
               } else if (parsed.type === 'citations') {
                 citations = parsed.citations
                 setStreamingCitations(citations)
+              } else if (parsed.type === 'error') {
+                throw new Error(parsed.message || 'AI failed to respond')
               }
-            } catch {
-              // skip
+            } catch (e) {
+              if (e instanceof SyntaxError) {
+                continue // Skip malformed JSON
+              }
+              throw e
             }
           }
         }
       }
 
+      if (!fullText) throw new Error('No response received')
       setMessages(prev => [...prev, { id: `msg-${Date.now()}`, role: 'assistant', content: fullText, citations }])
       setStreamingContent('')
       setStreamingCitations([])
-    } catch {
-      setMessages(prev => [...prev, { id: `err-${Date.now()}`, role: 'assistant', content: 'Something went wrong. Please try again.' }])
+    } catch (err) {
+      console.error('ChatWidget error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      setMessages(prev => [...prev, { id: `err-${Date.now()}`, role: 'assistant', content: `Something went wrong: ${errorMessage}. Please try again.` }])
     } finally {
       setIsLoading(false)
     }
