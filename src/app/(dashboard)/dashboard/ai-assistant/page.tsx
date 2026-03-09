@@ -143,13 +143,15 @@ export default function AIAssistantPage() {
       const decoder = new TextDecoder()
       let fullText = ''
       let citations: Citation[] = []
+      let buffer = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // Keep incomplete last line in buffer
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
@@ -161,22 +163,31 @@ export default function AIAssistantPage() {
               } else if (parsed.type === 'citations') {
                 citations = parsed.citations
                 setStreamingCitations(citations)
+              } else if (parsed.type === 'error') {
+                throw new Error(parsed.message || 'AI failed to respond')
               }
-            } catch {
-              // Skip malformed JSON
+            } catch (e) {
+              if (e instanceof Error && e.message !== 'AI failed to respond') {
+                continue // Skip malformed JSON
+              }
+              throw e
             }
           }
         }
       }
 
       // Add complete assistant message
-      const assistantMsg: Message = {
-        id: `msg-${Date.now()}`,
-        role: 'assistant',
-        content: fullText,
-        citations,
+      if (fullText) {
+        const assistantMsg: Message = {
+          id: `msg-${Date.now()}`,
+          role: 'assistant',
+          content: fullText,
+          citations,
+        }
+        setMessages(prev => [...prev, assistantMsg])
+      } else {
+        throw new Error('No response received')
       }
-      setMessages(prev => [...prev, assistantMsg])
       setStreamingContent('')
       setStreamingCitations([])
     } catch (err) {
