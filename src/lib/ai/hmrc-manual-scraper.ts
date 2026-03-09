@@ -4,7 +4,6 @@ import {
   hashContent,
   sleep,
   USER_AGENT,
-  FETCH_DELAY_MS,
   type HmrcGuidancePage,
   type ScrapeResult,
 } from './hmrc-scraper'
@@ -16,11 +15,12 @@ import {
 // via the gov.uk Content API. These manuals are hierarchical:
 //   Manual → Section Groups → Sections → Sub-sections
 //
-// The smart crawl:
-// 1. Fetches each manual's index to discover sections
-// 2. Filters sections by payroll-relevant keywords
-// 3. Only scrapes sections that match
+// The smart crawl runs ONE manual per request to stay within
+// Vercel's function timeout. It uses a single-pass approach:
+// fetch each section once, keep content if relevant.
 // ═══════════════════════════════════════════════════════════════
+
+const MANUAL_DELAY_MS = 1000 // 1s between requests (Content API is lightweight)
 
 // ─── Manuals to scrape ──────────────────────────────────────
 
@@ -35,6 +35,10 @@ export const HMRC_MANUALS: HmrcManualConfig[] = [
   { slug: 'national-insurance-manual', title: 'National Insurance Manual', category: 'nic' },
   { slug: 'employment-income-manual', title: 'Employment Income Manual', category: 'paye' },
 ]
+
+export function getManualBySlug(slug: string): HmrcManualConfig | undefined {
+  return HMRC_MANUALS.find(m => m.slug === slug)
+}
 
 // ─── Keyword-based section filtering ────────────────────────
 
@@ -106,114 +110,53 @@ interface ManualSectionResponse {
 
 // ─── Safe JSON parsing ──────────────────────────────────────
 
-/**
- * Safely parse a Response as JSON, handling cases where the Content API
- * returns HTML error pages (e.g. "An error occurred") instead of JSON.
- */
 async function safeJsonParse<T>(res: Response, context: string): Promise<T> {
   const text = await res.text()
   try {
     return JSON.parse(text) as T
   } catch {
-    // Truncate for error message
     const preview = text.length > 120 ? text.slice(0, 120) + '...' : text
     throw new Error(`Non-JSON response from ${context}: ${preview}`)
   }
 }
 
-// ─── Manual scraping ────────────────────────────────────────
+// ─── Single-pass manual scraping ────────────────────────────
 
 /**
- * Fetch a manual's index and return all discoverable section references.
- * Recursively discovers sub-sections from relevant top-level sections.
+ * Fetch a single section from the Content API.
+ * Returns null if the section can't be fetched or has no content.
  */
-async function discoverSections(
-  manualSlug: string,
-  onProgress?: (msg: string) => void
-): Promise<{ sections: ManualSection[]; totalDiscovered: number }> {
-  const indexUrl = `https://www.gov.uk/api/content/hmrc-internal-manuals/${manualSlug}`
-  onProgress?.(`Fetching index: ${manualSlug}`)
-
-  const res = await fetchWithRetry(indexUrl, {
-    headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
-  })
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Failed to fetch manual index ${manualSlug}: status=${res.status} — ${body.slice(0, 200)}`)
+async function fetchSection(
+  basePath: string,
+): Promise<ManualSectionResponse | null> {
+  try {
+    const res = await fetchWithRetry(
+      `https://www.gov.uk/api/content${basePath}`,
+      { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' } }
+    )
+    if (!res.ok) return null
+    return await safeJsonParse<ManualSectionResponse>(res, `section ${basePath}`)
+  } catch (err) {
+    console.error(`[manual-scraper] Failed to fetch ${basePath}:`, err)
+    return null
   }
-
-  const index = await safeJsonParse<ManualIndexResponse>(res, `manual index ${manualSlug}`)
-  const topLevelSections: ManualSection[] = []
-
-  // Collect all top-level sections from groups
-  for (const group of index.details?.child_section_groups || []) {
-    for (const section of group.child_sections || []) {
-      topLevelSections.push(section)
-    }
-  }
-
-  // For relevant top-level sections, fetch them to discover sub-sections
-  const allSections: ManualSection[] = []
-  let totalDiscovered = topLevelSections.length
-
-  for (const section of topLevelSections) {
-    // Check if this top-level section (or its group) is relevant
-    if (!isRelevantSection(section.title)) continue
-
-    onProgress?.(`Discovering sub-sections: ${section.title}`)
-    await sleep(FETCH_DELAY_MS)
-
-    try {
-      const sectionRes = await fetchWithRetry(
-        `https://www.gov.uk/api/content${section.base_path}`,
-        { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' } }
-      )
-
-      if (!sectionRes.ok) continue
-
-      const sectionData = await safeJsonParse<ManualSectionResponse>(
-        sectionRes, `section ${section.base_path}`
-      )
-      const body = sectionData.details?.body || ''
-      const content = htmlToText(body)
-
-      // If this section has actual content (not just an index), include it
-      if (content.length >= 50) {
-        allSections.push(section)
-      }
-
-      // Collect child sections
-      const childSections: ManualSection[] = []
-      for (const group of sectionData.details?.child_section_groups || []) {
-        for (const child of group.child_sections || []) {
-          childSections.push(child)
-          totalDiscovered++
-        }
-      }
-
-      // Filter child sections by relevance and add them
-      for (const child of childSections) {
-        if (isRelevantSection(child.title)) {
-          allSections.push(child)
-        }
-      }
-    } catch (err) {
-      console.error(`[manual-scraper] Discovery failed for ${section.base_path}:`, err)
-      // Skip sections that fail to fetch during discovery
-    }
-  }
-
-  return { sections: allSections, totalDiscovered }
 }
 
 /**
- * Scrape all relevant sections from a single HMRC manual.
+ * Scrape a single HMRC manual in one pass.
+ *
+ * Strategy:
+ * 1. Fetch the manual index → get top-level sections
+ * 2. For each relevant top-level section, fetch it (single request gets
+ *    both content AND child section list)
+ * 3. Keep content from top-level sections if substantial
+ * 4. For relevant child sections, fetch and keep content
+ *
+ * Each section is fetched exactly once.
  */
 export async function scrapeManual(
   manual: HmrcManualConfig,
   existingDocs: Map<string, { id: string; contentHash: string }>,
-  onProgress?: (msg: string) => void
 ): Promise<{
   pages: HmrcGuidancePage[]
   result: ScrapeResult
@@ -222,121 +165,120 @@ export async function scrapeManual(
 }> {
   const result: ScrapeResult = { scraped: 0, new: 0, updated: 0, unchanged: 0, errors: [] }
   const pages: HmrcGuidancePage[] = []
+  let sectionsFound = 0
+  let sectionsRelevant = 0
 
-  // Discover relevant sections
-  const { sections, totalDiscovered } = await discoverSections(manual.slug, onProgress)
+  // 1. Fetch manual index
+  const indexUrl = `https://www.gov.uk/api/content/hmrc-internal-manuals/${manual.slug}`
+  const indexRes = await fetchWithRetry(indexUrl, {
+    headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
+  })
 
-  onProgress?.(`${manual.title}: ${sections.length} relevant sections of ${totalDiscovered} discovered`)
+  if (!indexRes.ok) {
+    const body = await indexRes.text().catch(() => '')
+    throw new Error(`Failed to fetch manual index: status=${indexRes.status} — ${body.slice(0, 200)}`)
+  }
 
-  // Fetch each relevant section
-  for (const section of sections) {
-    const url = `https://www.gov.uk${section.base_path}`
+  const index = await safeJsonParse<ManualIndexResponse>(indexRes, `manual index ${manual.slug}`)
 
-    try {
-      onProgress?.(`Scraping: ${section.title}`)
-      await sleep(FETCH_DELAY_MS)
+  // Collect top-level sections
+  const topLevelSections: ManualSection[] = []
+  for (const group of index.details?.child_section_groups || []) {
+    for (const section of group.child_sections || []) {
+      topLevelSections.push(section)
+    }
+  }
+  sectionsFound = topLevelSections.length
 
-      const sectionRes = await fetchWithRetry(
-        `https://www.gov.uk/api/content${section.base_path}`,
-        { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' } }
-      )
+  // Helper to process a fetched section's content
+  const processSection = (
+    sectionData: ManualSectionResponse,
+    url: string,
+  ) => {
+    const body = sectionData.details?.body || ''
+    const content = htmlToText(body)
 
-      if (!sectionRes.ok) {
-        result.errors.push({ url, error: `API status=${sectionRes.status}` })
-        continue
+    if (content.length < 50) return // Index-only, skip
+
+    const contentHash = hashContent(content)
+    result.scraped++
+
+    const existing = existingDocs.get(url)
+    if (existing) {
+      if (existing.contentHash === contentHash) {
+        result.unchanged++
+        return
       }
+      result.updated++
+    } else {
+      result.new++
+    }
 
-      const sectionData = await safeJsonParse<ManualSectionResponse>(
-        sectionRes, `section ${section.base_path}`
-      )
-      const body = sectionData.details?.body || ''
-      const content = htmlToText(body)
+    pages.push({
+      url,
+      title: sectionData.title,
+      content,
+      category: manual.category,
+      contentHash,
+      lastUpdated: sectionData.public_updated_at || null,
+    })
+  }
 
-      if (content.length < 30) {
-        // Skip index-only sections (no real content)
-        continue
-      }
+  // 2. Fetch relevant top-level sections (single pass — gets content + children)
+  for (const section of topLevelSections) {
+    if (!isRelevantSection(section.title)) continue
+    sectionsRelevant++
 
-      const contentHash = hashContent(content)
-      result.scraped++
-
-      const existing = existingDocs.get(url)
-      if (existing) {
-        if (existing.contentHash === contentHash) {
-          result.unchanged++
-          continue
-        }
-        result.updated++
-      } else {
-        result.new++
-      }
-
-      pages.push({
-        url,
-        title: sectionData.title,
-        content,
-        category: manual.category,
-        contentHash,
-        lastUpdated: sectionData.public_updated_at || null,
+    await sleep(MANUAL_DELAY_MS)
+    const sectionData = await fetchSection(section.base_path)
+    if (!sectionData) {
+      result.errors.push({
+        url: `https://www.gov.uk${section.base_path}`,
+        error: 'Failed to fetch',
       })
+      continue
+    }
+
+    // Keep content from this top-level section if it has any
+    const url = `https://www.gov.uk${section.base_path}`
+    try {
+      processSection(sectionData, url)
     } catch (err) {
       result.errors.push({ url, error: err instanceof Error ? err.message : String(err) })
+    }
+
+    // 3. Discover and fetch relevant child sections
+    for (const group of sectionData.details?.child_section_groups || []) {
+      for (const child of group.child_sections || []) {
+        sectionsFound++
+
+        if (!isRelevantSection(child.title)) continue
+        sectionsRelevant++
+
+        await sleep(MANUAL_DELAY_MS)
+        const childData = await fetchSection(child.base_path)
+        if (!childData) {
+          result.errors.push({
+            url: `https://www.gov.uk${child.base_path}`,
+            error: 'Failed to fetch',
+          })
+          continue
+        }
+
+        const childUrl = `https://www.gov.uk${child.base_path}`
+        try {
+          processSection(childData, childUrl)
+        } catch (err) {
+          result.errors.push({ url: childUrl, error: err instanceof Error ? err.message : String(err) })
+        }
+      }
     }
   }
 
   return {
     pages,
     result,
-    sectionsFound: totalDiscovered,
-    sectionsRelevant: sections.length,
+    sectionsFound,
+    sectionsRelevant,
   }
-}
-
-/**
- * Scrape all configured HMRC manuals.
- */
-export async function scrapeAllManuals(
-  existingDocs: Map<string, { id: string; contentHash: string }>,
-  onProgress?: (msg: string) => void
-): Promise<{
-  pages: HmrcGuidancePage[]
-  result: ScrapeResult
-  manualStats: { slug: string; title: string; sectionsFound: number; sectionsRelevant: number; scraped: number }[]
-}> {
-  const combinedResult: ScrapeResult = { scraped: 0, new: 0, updated: 0, unchanged: 0, errors: [] }
-  const allPages: HmrcGuidancePage[] = []
-  const manualStats: { slug: string; title: string; sectionsFound: number; sectionsRelevant: number; scraped: number }[] = []
-
-  for (const manual of HMRC_MANUALS) {
-    try {
-      onProgress?.(`Starting manual: ${manual.title}`)
-      const { pages, result, sectionsFound, sectionsRelevant } = await scrapeManual(
-        manual,
-        existingDocs,
-        onProgress
-      )
-
-      allPages.push(...pages)
-      combinedResult.scraped += result.scraped
-      combinedResult.new += result.new
-      combinedResult.updated += result.updated
-      combinedResult.unchanged += result.unchanged
-      combinedResult.errors.push(...result.errors)
-
-      manualStats.push({
-        slug: manual.slug,
-        title: manual.title,
-        sectionsFound,
-        sectionsRelevant,
-        scraped: result.scraped,
-      })
-    } catch (err) {
-      combinedResult.errors.push({
-        url: `https://www.gov.uk/hmrc-internal-manuals/${manual.slug}`,
-        error: `Manual failed: ${err instanceof Error ? err.message : String(err)}`,
-      })
-    }
-  }
-
-  return { pages: allPages, result: combinedResult, manualStats }
 }
