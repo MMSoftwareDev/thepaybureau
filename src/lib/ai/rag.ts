@@ -24,7 +24,7 @@ export interface Citation {
  */
 export async function searchDocuments(
   query: string,
-  matchCount: number = 8
+  matchCount: number = 5
 ): Promise<RetrievedChunk[]> {
   const queryEmbedding = await embedQuery(query)
   const supabase = createServerSupabaseClient()
@@ -82,15 +82,23 @@ async function buildContext(chunks: RetrievedChunk[]): Promise<{
 
   const citations: Citation[] = []
   const contextParts: string[] = []
+  // Cap context at ~80K characters (~20K tokens) to stay well under the 200K token API limit
+  const MAX_CONTEXT_CHARS = 80_000
+  let totalChars = 0
 
   for (const chunk of chunks) {
     const doc = docMap.get(chunk.documentId)
     const docTitle = doc?.title || 'Unknown Document'
     const sectionLabel = chunk.sectionTitle ? ` - ${chunk.sectionTitle}` : ''
 
-    contextParts.push(
-      `--- Source: ${docTitle}${sectionLabel} ---\n${chunk.content}`
-    )
+    const part = `--- Source: ${docTitle}${sectionLabel} ---\n${chunk.content}`
+
+    if (totalChars + part.length > MAX_CONTEXT_CHARS) {
+      break // Stop adding chunks once we hit the budget
+    }
+    totalChars += part.length
+
+    contextParts.push(part)
 
     citations.push({
       document_id: chunk.documentId,
