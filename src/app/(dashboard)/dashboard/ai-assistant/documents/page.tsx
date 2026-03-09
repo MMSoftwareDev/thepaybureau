@@ -83,6 +83,8 @@ export default function AIDocumentsPage() {
   const [scrapeStatus, setScrapeStatus] = useState<ScrapeStatus | null>(null)
   const [scraping, setScraping] = useState(false)
   const [scrapeMessage, setScrapeMessage] = useState<string | null>(null)
+  const [scrapeErrors, setScrapeErrors] = useState<{ url: string; error: string }[]>([])
+  const [showErrors, setShowErrors] = useState(false)
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -126,6 +128,8 @@ export default function AIDocumentsPage() {
 
     setScraping(true)
     setScrapeMessage(null)
+    setScrapeErrors([])
+    setShowErrors(false)
     try {
       const res = await fetch('/api/ai-assistant/documents/scrape', { method: 'POST' })
       const data = await res.json()
@@ -136,6 +140,9 @@ export default function AIDocumentsPage() {
         `Scrape complete: ${data.new} new, ${data.updated} updated, ${data.unchanged} unchanged` +
         (data.errors?.length ? `, ${data.errors.length} errors` : '')
       )
+      if (data.errors?.length) {
+        setScrapeErrors(data.errors)
+      }
       fetchDocuments()
       fetchScrapeStatus()
     } catch (err) {
@@ -288,7 +295,33 @@ export default function AIDocumentsPage() {
                   ) : (
                     <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
                   )}
-                  {scrapeMessage}
+                  <span className="flex-1">{scrapeMessage}</span>
+                  {scrapeErrors.length > 0 && (
+                    <button
+                      onClick={() => setShowErrors(!showErrors)}
+                      className="text-[0.7rem] underline opacity-70 hover:opacity-100 ml-2 flex-shrink-0"
+                    >
+                      {showErrors ? 'Hide details' : 'Show details'}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {showErrors && scrapeErrors.length > 0 && (
+                <div
+                  className="p-2.5 rounded-md text-[0.72rem] mb-3 max-h-60 overflow-y-auto space-y-1.5"
+                  style={{
+                    background: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.03)',
+                    border: '1px solid rgba(239,68,68,0.15)',
+                    color: isDark ? '#fca5a5' : '#dc2626',
+                  }}
+                >
+                  {scrapeErrors.map((err, i) => (
+                    <div key={i} className="flex gap-2">
+                      <span className="font-mono opacity-60 flex-shrink-0">{new URL(err.url).pathname}</span>
+                      <span className="opacity-80">{err.error}</span>
+                    </div>
+                  ))}
                 </div>
               )}
 
