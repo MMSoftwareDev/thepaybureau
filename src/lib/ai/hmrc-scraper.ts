@@ -103,6 +103,7 @@ interface GovUkContentResponse {
   title: string
   description?: string
   document_type?: string
+  base_path?: string
   details?: {
     body?: string          // HTML body for 'guide' / 'detailed_guide' etc.
     parts?: {              // Multi-part guides
@@ -112,12 +113,15 @@ interface GovUkContentResponse {
     }[]
     more_information?: string
     introductory_paragraph?: string  // 'answer' and 'transaction' pages
+    external_related_links?: { title: string; url: string }[]
     collection_groups?: {            // 'document_collection' pages
       title: string
       body?: string
       documents?: { title: string; base_path: string; description?: string }[]
     }[]
     change_history?: { note: string; public_timestamp: string }[]
+    // 'redirect' document_type
+    destination?: string
   }
   public_updated_at?: string
   links?: {
@@ -173,7 +177,6 @@ export async function fetchGovUkPage(url: string): Promise<{
 } | { failureReason: string } | null> {
   const path = new URL(url).pathname
   let contentApiStatus = ''
-  let contentApiChars = 0
 
   // Try Content API first
   try {
@@ -186,14 +189,63 @@ export async function fetchGovUkPage(url: string): Promise<{
 
     if (res.ok) {
       const data: GovUkContentResponse = await res.json()
+
+      // Handle redirect document type — follow to the destination
+      if (data.document_type === 'redirect' && data.details?.destination) {
+        const destUrl = data.details.destination.startsWith('/')
+          ? `https://www.gov.uk${data.details.destination}`
+          : data.details.destination
+        contentApiStatus += ` redirect→${data.details.destination}`
+        // Recurse once to follow the redirect
+        return fetchGovUkPage(destUrl)
+      }
+
       const result = parseContentApiResponse(data, url)
-      contentApiChars = result.content.length
       if (result.content.length >= 50) {
         return result
       }
       // Content API returned thin content — fall through to HTML
       contentApiStatus += ` thin(${result.content.length}ch, type=${data.document_type || 'unknown'})`
-      console.warn(`Content API returned thin content for ${url} (${result.content.length} chars, type=${data.document_type}), trying HTML`)
+    } else if (res.status === 404) {
+      // For sub-paths like /workplace-pensions/what-employers-must-do,
+      // try fetching the parent path and extracting the relevant part
+      const pathParts = path.split('/').filter(Boolean)
+      if (pathParts.length >= 2) {
+        const parentPath = '/' + pathParts[0]
+        const subSlug = pathParts[pathParts.length - 1]
+        contentApiStatus += ` 404, trying parent=${parentPath} slug=${subSlug}`
+
+        try {
+          const parentRes = await fetchWithRetry(`https://www.gov.uk/api/content${parentPath}`, {
+            headers: { 'User-Agent': USER_AGENT, 'Accept': 'application/json' },
+          })
+
+          if (parentRes.ok) {
+            const parentData: GovUkContentResponse = await parentRes.json()
+            // Check if parent has parts and find the matching one
+            const matchingPart = parentData.details?.parts?.find(p => p.slug === subSlug)
+            if (matchingPart) {
+              const content = htmlToText(`<h2>${matchingPart.title}</h2>\n${matchingPart.body}`)
+              if (content.length >= 50) {
+                return {
+                  title: `${parentData.title} - ${matchingPart.title}`,
+                  content: content.trim(),
+                  lastUpdated: parentData.public_updated_at || null,
+                  relatedUrls: [],
+                }
+              }
+            }
+            // If no matching part, try parsing the whole parent
+            const parentResult = parseContentApiResponse(parentData, url)
+            if (parentResult.content.length >= 50) {
+              return parentResult
+            }
+            contentApiStatus += ` parent_thin(${parentResult.content.length}ch)`
+          }
+        } catch {
+          contentApiStatus += ' parent_fetch_failed'
+        }
+      }
     }
   } catch (err) {
     contentApiStatus = `error: ${err instanceof Error ? err.message : String(err)}`
@@ -210,21 +262,19 @@ export async function fetchGovUkPage(url: string): Promise<{
     })
 
     if (!res.ok) {
-      const reason = `Content API: ${contentApiStatus}; HTML: status=${res.status}`
-      console.error(`Failed to fetch ${url}: ${reason}`)
+      const reason = `API: ${contentApiStatus}; HTML: status=${res.status}`
       return { failureReason: reason }
     }
 
     const html = await res.text()
     const result = parseHtmlPage(html, url)
     if (result.content.length < 30) {
-      const reason = `Content API: ${contentApiStatus}; HTML: only ${result.content.length} chars`
+      const reason = `API: ${contentApiStatus}; HTML: only ${result.content.length} chars`
       return { failureReason: reason }
     }
     return result
   } catch (err) {
-    const reason = `Content API: ${contentApiStatus}; HTML: ${err instanceof Error ? err.message : String(err)}`
-    console.error(`HTML fetch failed for ${url}:`, reason)
+    const reason = `API: ${contentApiStatus}; HTML: ${err instanceof Error ? err.message : String(err)}`
     return { failureReason: reason }
   }
 }
