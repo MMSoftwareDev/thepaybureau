@@ -167,7 +167,7 @@ export default function AIAssistantPage() {
                 throw new Error(parsed.message || 'AI failed to respond')
               }
             } catch (e) {
-              if (e instanceof Error && e.message !== 'AI failed to respond') {
+              if (e instanceof SyntaxError) {
                 continue // Skip malformed JSON
               }
               throw e
@@ -192,10 +192,11 @@ export default function AIAssistantPage() {
       setStreamingCitations([])
     } catch (err) {
       console.error('Chat error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       const errorMsg: Message = {
         id: `err-${Date.now()}`,
         role: 'assistant',
-        content: 'Sorry, something went wrong. Please try again.',
+        content: `Sorry, something went wrong: ${errorMessage}. Please try again.`,
       }
       setMessages(prev => [...prev, errorMsg])
     } finally {
