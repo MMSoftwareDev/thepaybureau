@@ -46,6 +46,23 @@ export async function POST(request: NextRequest) {
       conversationId = conversation.id
     }
 
+    // Check conversation message limit (20 messages = ~10 exchanges)
+    const MAX_MESSAGES_PER_CONVERSATION = 20
+
+    if (conversationId && conversation_id) {
+      const { count } = await supabase
+        .from('ai_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_id', conversationId)
+
+      if (count !== null && count >= MAX_MESSAGES_PER_CONVERSATION) {
+        return NextResponse.json(
+          { error: 'conversation_limit', message: 'This conversation has reached its limit. Please start a new chat to keep things fast and focused.' },
+          { status: 429 }
+        )
+      }
+    }
+
     // Store the user message
     await supabase.from('ai_messages').insert({
       conversation_id: conversationId,
