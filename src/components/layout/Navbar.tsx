@@ -26,6 +26,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard/pensions': 'Pension Declarations',
   '/dashboard/settings': 'Settings',
   '/dashboard/feature-requests': 'Feature Requests',
+  '/dashboard/ai-assistant': 'AI Assistant',
+  '/dashboard/ai-assistant/documents': 'Knowledge Base',
 }
 
 function getPageTitle(pathname: string): string {
@@ -63,6 +65,16 @@ function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
 
   if (pathname.startsWith('/dashboard/pensions')) {
     return [{ label: 'Pension Declarations' }]
+  }
+
+  if (pathname.startsWith('/dashboard/ai-assistant')) {
+    const crumbs: { label: string; href?: string }[] = [
+      { label: 'AI Assistant', href: '/dashboard/ai-assistant' },
+    ]
+    if (pathname !== '/dashboard/ai-assistant') {
+      crumbs.push({ label: title })
+    }
+    return crumbs
   }
 
   return [{ label: title }]
