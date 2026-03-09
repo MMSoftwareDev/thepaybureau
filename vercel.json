@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/hmrc-scraper",
-      "schedule": "0 3 * * 0"
+      "schedule": "0 0 * * *"
     }
   ]
 }
