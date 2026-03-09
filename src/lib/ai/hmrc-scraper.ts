@@ -88,8 +88,8 @@ export const HMRC_GUIDANCE_URLS: { url: string; category: HmrcGuidancePage['cate
 
 // ─── Content API fetching ─────────────────────────────────────
 
-const USER_AGENT = 'ThePayBureau-AI/1.0 (payroll guidance scraper; admin@thepaybureau.com)'
-const FETCH_DELAY_MS = 1500 // Be polite — 1.5s between requests
+export const USER_AGENT = 'ThePayBureau-AI/1.0 (payroll guidance scraper; admin@thepaybureau.com)'
+export const FETCH_DELAY_MS = 1500 // Be polite — 1.5s between requests
 
 interface GovUkContentResponse {
   title: string
@@ -125,14 +125,14 @@ interface GovUkContentResponse {
 const FETCH_TIMEOUT_MS = 10000 // 10s per request
 const MAX_RETRIES = 1 // 1 retry (2 attempts total) to stay within 5-min function limit
 
-function sleep(ms: number) {
+export function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 /**
  * Fetch with timeout and retry support.
  */
-async function fetchWithRetry(
+export async function fetchWithRetry(
   url: string,
   options: RequestInit,
   retries = MAX_RETRIES
@@ -391,7 +391,7 @@ function parseHtmlPage(
 /**
  * Convert HTML to clean plain text, preserving structure.
  */
-function htmlToText(html: string): string {
+export function htmlToText(html: string): string {
   const $ = cheerio.load(html)
 
   // Convert headings to markdown-style for chunker to detect
