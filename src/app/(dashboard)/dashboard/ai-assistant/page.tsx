@@ -115,8 +115,8 @@ export default function AIAssistantPage() {
       })
 
       if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
         if (res.status === 429) {
-          const data = await res.json().catch(() => ({}))
           const limitMsg: Message = {
             id: `limit-${Date.now()}`,
             role: 'assistant',
@@ -126,7 +126,7 @@ export default function AIAssistantPage() {
           setIsLoading(false)
           return
         }
-        throw new Error('Failed to send message')
+        throw new Error(data.message || data.error || `Server error (${res.status})`)
       }
 
       // Get conversation ID from header
