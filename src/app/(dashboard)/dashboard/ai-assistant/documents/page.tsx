@@ -172,7 +172,7 @@ export default function AIDocumentsPage() {
         }
         throw new Error('Failed to fetch documents')
       }
-      const data = await res.json()
+      const data = await safeJson(res)
       setDocuments(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load documents')
@@ -181,14 +181,30 @@ export default function AIDocumentsPage() {
     }
   }, [])
 
+  // Safe helper to parse JSON from our API routes — if the server crashes or
+  // times out, the response may be HTML rather than JSON.
+  const safeJson = async (res: Response) => {
+    const text = await res.text()
+    try {
+      return JSON.parse(text)
+    } catch {
+      const preview = text.length > 200 ? text.slice(0, 200) + '...' : text
+      throw new Error(
+        res.ok
+          ? `Server returned non-JSON response: ${preview}`
+          : `Server error (${res.status}): ${preview}`
+      )
+    }
+  }
+
   const fetchStatuses = useCallback(async () => {
     try {
       const [guidanceRes, manualRes] = await Promise.all([
         fetch('/api/ai-assistant/documents/scrape'),
         fetch('/api/ai-assistant/documents/scrape-manuals'),
       ])
-      if (guidanceRes.ok) setGuidanceStatus(await guidanceRes.json())
-      if (manualRes.ok) setManualStatus(await manualRes.json())
+      if (guidanceRes.ok) setGuidanceStatus(await safeJson(guidanceRes))
+      if (manualRes.ok) setManualStatus(await safeJson(manualRes))
     } catch {
       // Non-critical
     }
@@ -207,7 +223,7 @@ export default function AIDocumentsPage() {
     setGuidanceErrors([])
     try {
       const res = await fetch('/api/ai-assistant/documents/scrape', { method: 'POST' })
-      const data = await res.json()
+      const data = await safeJson(res)
       if (!res.ok) throw new Error(data.error || 'Scrape failed')
 
       setGuidanceMessage(
@@ -232,7 +248,7 @@ export default function AIDocumentsPage() {
     setManualErrors([])
     try {
       const res = await fetch('/api/ai-assistant/documents/scrape-manuals', { method: 'POST' })
-      const data = await res.json()
+      const data = await safeJson(res)
       if (!res.ok) throw new Error(data.error || 'Manual scrape failed')
 
       const statsInfo = data.manual_stats
