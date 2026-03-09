@@ -102,6 +102,7 @@ const FETCH_DELAY_MS = 1500 // Be polite — 1.5s between requests
 interface GovUkContentResponse {
   title: string
   description?: string
+  document_type?: string
   details?: {
     body?: string          // HTML body for 'guide' / 'detailed_guide' etc.
     parts?: {              // Multi-part guides
@@ -110,6 +111,12 @@ interface GovUkContentResponse {
       body: string
     }[]
     more_information?: string
+    introductory_paragraph?: string  // 'answer' and 'transaction' pages
+    collection_groups?: {            // 'document_collection' pages
+      title: string
+      body?: string
+      documents?: { title: string; base_path: string; description?: string }[]
+    }[]
     change_history?: { note: string; public_timestamp: string }[]
   }
   public_updated_at?: string
@@ -119,8 +126,37 @@ interface GovUkContentResponse {
   }
 }
 
+const FETCH_TIMEOUT_MS = 15000 // 15s per request
+const MAX_RETRIES = 2
+
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
+ * Fetch with timeout and retry support.
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = MAX_RETRIES
+): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+
+      const res = await fetch(url, { ...options, signal: controller.signal })
+      clearTimeout(timeout)
+      return res
+    } catch (err) {
+      if (attempt === retries) throw err
+      const delay = Math.pow(2, attempt + 1) * 1000 // 2s, 4s
+      console.warn(`Fetch attempt ${attempt + 1} failed for ${url}, retrying in ${delay}ms`)
+      await sleep(delay)
+    }
+  }
+  throw new Error('Unreachable')
 }
 
 /**
@@ -138,13 +174,18 @@ export async function fetchGovUkPage(url: string): Promise<{
   // Try Content API first
   try {
     const apiUrl = `https://www.gov.uk/api/content${path}`
-    const res = await fetch(apiUrl, {
+    const res = await fetchWithRetry(apiUrl, {
       headers: { 'User-Agent': USER_AGENT, 'Accept': 'application/json' },
     })
 
     if (res.ok) {
       const data: GovUkContentResponse = await res.json()
-      return parseContentApiResponse(data, url)
+      const result = parseContentApiResponse(data, url)
+      if (result.content.length >= 50) {
+        return result
+      }
+      // Content API returned thin content — fall through to HTML
+      console.warn(`Content API returned thin content for ${url} (${result.content.length} chars), trying HTML`)
     }
   } catch (err) {
     console.warn(`Content API failed for ${url}, trying HTML:`, err)
@@ -152,7 +193,7 @@ export async function fetchGovUkPage(url: string): Promise<{
 
   // Fallback: scrape HTML directly
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithRetry(url, {
       headers: {
         'User-Agent': USER_AGENT,
         'Accept': 'text/html',
@@ -187,6 +228,26 @@ function parseContentApiResponse(
     htmlContent = data.details.body
   } else if (data.details?.more_information) {
     htmlContent = data.details.more_information
+  }
+
+  // Answer/transaction pages use introductory_paragraph
+  if (data.details?.introductory_paragraph) {
+    htmlContent = htmlContent
+      ? data.details.introductory_paragraph + '\n\n' + htmlContent
+      : data.details.introductory_paragraph
+  }
+
+  // Document collection pages — extract group titles and document descriptions
+  if (data.details?.collection_groups && data.details.collection_groups.length > 0) {
+    const collectionHtml = data.details.collection_groups
+      .map(group => {
+        const docs = (group.documents || [])
+          .map(d => `<li><strong>${d.title}</strong>${d.description ? ': ' + d.description : ''}</li>`)
+          .join('\n')
+        return `<h2>${group.title}</h2>\n${group.body || ''}\n<ul>${docs}</ul>`
+      })
+      .join('\n\n')
+    htmlContent = htmlContent ? htmlContent + '\n\n' + collectionHtml : collectionHtml
   }
 
   if (!htmlContent) {
@@ -228,8 +289,12 @@ function parseHtmlPage(
     $('title').text().replace(' - GOV.UK', '').trim() ||
     'Untitled'
 
-  // Extract main content area
-  const mainContent = $('.govuk-govspeak, .gem-c-govspeak, #guide-content, .govuk-body, article, main').first()
+  // Extract main content area — try progressively broader selectors
+  const mainContent = $(
+    '.govuk-govspeak, .gem-c-govspeak, #guide-content, ' +
+    '.gem-c-contents-list + *, .govuk-grid-column-two-thirds, ' +
+    '.govuk-body, article, main'
+  ).first()
 
   let content: string
   if (mainContent.length) {
@@ -330,7 +395,12 @@ export async function scrapeGuidancePage(
   category: HmrcGuidancePage['category']
 ): Promise<HmrcGuidancePage | null> {
   const result = await fetchGovUkPage(url)
-  if (!result || !result.content || result.content.length < 50) {
+  if (!result || !result.content) {
+    console.warn(`No content returned for ${url}`)
+    return null
+  }
+  if (result.content.length < 30) {
+    console.warn(`Content too short for ${url}: ${result.content.length} chars`)
     return null
   }
 
