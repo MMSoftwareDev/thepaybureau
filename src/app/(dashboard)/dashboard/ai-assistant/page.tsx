@@ -230,7 +230,7 @@ export default function AIAssistantPage() {
   const grouped = groupConversations()
 
   return (
-    <div className="flex h-[calc(100vh-52px-48px)] -mx-4 -my-6 md:-mx-8 md:-my-8">
+    <div className="flex h-[calc(100vh-52px)] -mx-4 -my-6 md:-mx-8 md:-my-8">
       {/* Conversations sidebar */}
       <div
         className="hidden md:flex w-[260px] flex-col border-r flex-shrink-0"
@@ -366,6 +366,29 @@ export default function AIAssistantPage() {
                 citations={streamingCitations}
                 isStreaming
               />
+            )}
+            {isLoading && !streamingContent && (
+              <div className="flex gap-3">
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+                >
+                  <Bot className="w-4 h-4 text-white" />
+                </div>
+                <div
+                  className="rounded-xl px-4 py-3"
+                  style={{
+                    background: isDark ? 'rgba(255,255,255,0.04)' : `${colors.primary}04`,
+                    border: `1px solid ${colors.border}`,
+                  }}
+                >
+                  <div className="flex gap-1.5 items-center h-5">
+                    <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: colors.text.muted, animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: colors.text.muted, animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: colors.text.muted, animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
             )}
             <div ref={messagesEndRef} />
           </div>
