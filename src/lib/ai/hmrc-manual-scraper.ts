@@ -104,6 +104,23 @@ interface ManualSectionResponse {
   public_updated_at?: string
 }
 
+// ─── Safe JSON parsing ──────────────────────────────────────
+
+/**
+ * Safely parse a Response as JSON, handling cases where the Content API
+ * returns HTML error pages (e.g. "An error occurred") instead of JSON.
+ */
+async function safeJsonParse<T>(res: Response, context: string): Promise<T> {
+  const text = await res.text()
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    // Truncate for error message
+    const preview = text.length > 120 ? text.slice(0, 120) + '...' : text
+    throw new Error(`Non-JSON response from ${context}: ${preview}`)
+  }
+}
+
 // ─── Manual scraping ────────────────────────────────────────
 
 /**
@@ -122,10 +139,11 @@ async function discoverSections(
   })
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch manual index ${manualSlug}: status=${res.status}`)
+    const body = await res.text().catch(() => '')
+    throw new Error(`Failed to fetch manual index ${manualSlug}: status=${res.status} — ${body.slice(0, 200)}`)
   }
 
-  const index: ManualIndexResponse = await res.json()
+  const index = await safeJsonParse<ManualIndexResponse>(res, `manual index ${manualSlug}`)
   const topLevelSections: ManualSection[] = []
 
   // Collect all top-level sections from groups
@@ -154,7 +172,9 @@ async function discoverSections(
 
       if (!sectionRes.ok) continue
 
-      const sectionData: ManualSectionResponse = await sectionRes.json()
+      const sectionData = await safeJsonParse<ManualSectionResponse>(
+        sectionRes, `section ${section.base_path}`
+      )
       const body = sectionData.details?.body || ''
       const content = htmlToText(body)
 
@@ -178,7 +198,8 @@ async function discoverSections(
           allSections.push(child)
         }
       }
-    } catch {
+    } catch (err) {
+      console.error(`[manual-scraper] Discovery failed for ${section.base_path}:`, err)
       // Skip sections that fail to fetch during discovery
     }
   }
@@ -225,7 +246,9 @@ export async function scrapeManual(
         continue
       }
 
-      const sectionData: ManualSectionResponse = await sectionRes.json()
+      const sectionData = await safeJsonParse<ManualSectionResponse>(
+        sectionRes, `section ${section.base_path}`
+      )
       const body = sectionData.details?.body || ''
       const content = htmlToText(body)
 
