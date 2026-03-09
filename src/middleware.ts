@@ -30,6 +30,7 @@ export async function middleware(request: NextRequest) {
     // Exempt endpoints called by external services without Origin
     const isExempt = request.nextUrl.pathname.startsWith('/api/stripe/webhook')
       || request.nextUrl.pathname.startsWith('/api/v1/')
+      || request.nextUrl.pathname.startsWith('/api/cron/')
     if (!isExempt) {
       const origin = request.headers.get('origin')
       const host = request.headers.get('host')
