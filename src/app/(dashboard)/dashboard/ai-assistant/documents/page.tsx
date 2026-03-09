@@ -7,12 +7,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   FileText, Plus, Trash2, RefreshCw, ArrowLeft, Upload, AlertCircle, CheckCircle2, Clock, Loader2, X,
-  Globe, Download,
+  Globe, Download, BookOpen,
 } from 'lucide-react'
 import Link from 'next/link'
 
 interface ScrapeStatus {
-  total_seed_urls: number
+  total_seed_urls?: number
+  total_manuals?: number
+  manual_names?: string[]
   scraped_count: number
   ready: number
   processing: number
@@ -30,6 +32,8 @@ interface AIDocument {
   created_at: string
   updated_at: string
 }
+
+type TabKey = 'guidance' | 'manuals'
 
 const CATEGORIES = [
   { value: '', label: 'Select category...' },
@@ -71,20 +75,91 @@ function StatusBadge({ status }: { status: AIDocument['status'] }) {
   }
 }
 
+function ScrapeResultMessage({
+  message,
+  errors,
+  isDark,
+}: {
+  message: string
+  errors: { url: string; error: string }[]
+  isDark: boolean
+}) {
+  const [showErrors, setShowErrors] = useState(false)
+  const isError = message.startsWith('Error')
+
+  return (
+    <>
+      <div
+        className="flex items-center gap-2 p-2.5 rounded-md text-[0.78rem] mb-3"
+        style={{
+          background: isError
+            ? isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.05)'
+            : isDark ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.05)',
+          border: `1px solid ${isError ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.2)'}`,
+          color: isError
+            ? isDark ? '#fca5a5' : '#dc2626'
+            : isDark ? '#86efac' : '#16a34a',
+        }}
+      >
+        {isError ? (
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+        ) : (
+          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+        )}
+        <span className="flex-1">{message}</span>
+        {errors.length > 0 && (
+          <button
+            onClick={() => setShowErrors(!showErrors)}
+            className="text-[0.7rem] underline opacity-70 hover:opacity-100 ml-2 flex-shrink-0"
+          >
+            {showErrors ? 'Hide details' : 'Show details'}
+          </button>
+        )}
+      </div>
+
+      {showErrors && errors.length > 0 && (
+        <div
+          className="p-2.5 rounded-md text-[0.72rem] mb-3 max-h-60 overflow-y-auto space-y-1.5"
+          style={{
+            background: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.03)',
+            border: '1px solid rgba(239,68,68,0.15)',
+            color: isDark ? '#fca5a5' : '#dc2626',
+          }}
+        >
+          {errors.map((err, i) => (
+            <div key={i} className="flex gap-2">
+              <span className="font-mono opacity-60 flex-shrink-0">{new URL(err.url).pathname}</span>
+              <span className="opacity-80">{err.error}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
 export default function AIDocumentsPage() {
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
 
+  const [activeTab, setActiveTab] = useState<TabKey>('guidance')
   const [documents, setDocuments] = useState<AIDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showUpload, setShowUpload] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
-  const [scrapeStatus, setScrapeStatus] = useState<ScrapeStatus | null>(null)
-  const [scraping, setScraping] = useState(false)
-  const [scrapeMessage, setScrapeMessage] = useState<string | null>(null)
-  const [scrapeErrors, setScrapeErrors] = useState<{ url: string; error: string }[]>([])
-  const [showErrors, setShowErrors] = useState(false)
+
+  // Guidance scraper state
+  const [guidanceStatus, setGuidanceStatus] = useState<ScrapeStatus | null>(null)
+  const [guidanceScraping, setGuidanceScraping] = useState(false)
+  const [guidanceMessage, setGuidanceMessage] = useState<string | null>(null)
+  const [guidanceErrors, setGuidanceErrors] = useState<{ url: string; error: string }[]>([])
+
+  // Manual scraper state
+  const [manualStatus, setManualStatus] = useState<ScrapeStatus | null>(null)
+  const [manualScraping, setManualScraping] = useState(false)
+  const [manualMessage, setManualMessage] = useState<string | null>(null)
+  const [manualErrors, setManualErrors] = useState<{ url: string; error: string }[]>([])
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -106,49 +181,77 @@ export default function AIDocumentsPage() {
     }
   }, [])
 
-  const fetchScrapeStatus = useCallback(async () => {
+  const fetchStatuses = useCallback(async () => {
     try {
-      const res = await fetch('/api/ai-assistant/documents/scrape')
-      if (res.ok) {
-        const data = await res.json()
-        setScrapeStatus(data)
-      }
+      const [guidanceRes, manualRes] = await Promise.all([
+        fetch('/api/ai-assistant/documents/scrape'),
+        fetch('/api/ai-assistant/documents/scrape-manuals'),
+      ])
+      if (guidanceRes.ok) setGuidanceStatus(await guidanceRes.json())
+      if (manualRes.ok) setManualStatus(await manualRes.json())
     } catch {
-      // Non-critical — ignore
+      // Non-critical
     }
   }, [])
 
   useEffect(() => {
     fetchDocuments()
-    fetchScrapeStatus()
-  }, [fetchDocuments, fetchScrapeStatus])
+    fetchStatuses()
+  }, [fetchDocuments, fetchStatuses])
 
-  const handleScrapeHmrc = async () => {
-    if (!confirm('This will scrape ~50 HMRC guidance pages from gov.uk, process them into chunks, and generate embeddings. This may take a few minutes. Continue?')) return
+  const handleScrapeGuidance = async () => {
+    if (!confirm('This will scrape ~38 HMRC guidance pages from gov.uk, process them into chunks, and generate embeddings. This may take a few minutes. Continue?')) return
 
-    setScraping(true)
-    setScrapeMessage(null)
-    setScrapeErrors([])
-    setShowErrors(false)
+    setGuidanceScraping(true)
+    setGuidanceMessage(null)
+    setGuidanceErrors([])
     try {
       const res = await fetch('/api/ai-assistant/documents/scrape', { method: 'POST' })
       const data = await res.json()
-
       if (!res.ok) throw new Error(data.error || 'Scrape failed')
 
-      setScrapeMessage(
+      setGuidanceMessage(
         `Scrape complete: ${data.new} new, ${data.updated} updated, ${data.unchanged} unchanged` +
         (data.errors?.length ? `, ${data.errors.length} errors` : '')
       )
-      if (data.errors?.length) {
-        setScrapeErrors(data.errors)
-      }
+      if (data.errors?.length) setGuidanceErrors(data.errors)
       fetchDocuments()
-      fetchScrapeStatus()
+      fetchStatuses()
     } catch (err) {
-      setScrapeMessage(`Error: ${err instanceof Error ? err.message : 'Scrape failed'}`)
+      setGuidanceMessage(`Error: ${err instanceof Error ? err.message : 'Scrape failed'}`)
     } finally {
-      setScraping(false)
+      setGuidanceScraping(false)
+    }
+  }
+
+  const handleScrapeManuals = async () => {
+    if (!confirm('This will smart-crawl HMRC internal manuals (PAYE, NIC, Employment Income), filtering for payroll-relevant sections. This may take several minutes. Continue?')) return
+
+    setManualScraping(true)
+    setManualMessage(null)
+    setManualErrors([])
+    try {
+      const res = await fetch('/api/ai-assistant/documents/scrape-manuals', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Manual scrape failed')
+
+      const statsInfo = data.manual_stats
+        ?.map((s: { title: string; sectionsRelevant: number; scraped: number }) =>
+          `${s.title}: ${s.scraped} sections`)
+        .join(', ')
+
+      setManualMessage(
+        `Scrape complete: ${data.new} new, ${data.updated} updated, ${data.unchanged} unchanged` +
+        (data.errors?.length ? `, ${data.errors.length} errors` : '') +
+        (statsInfo ? ` (${statsInfo})` : '')
+      )
+      if (data.errors?.length) setManualErrors(data.errors)
+      fetchDocuments()
+      fetchStatuses()
+    } catch (err) {
+      setManualMessage(`Error: ${err instanceof Error ? err.message : 'Manual scrape failed'}`)
+    } finally {
+      setManualScraping(false)
     }
   }
 
@@ -156,7 +259,6 @@ export default function AIDocumentsPage() {
   useEffect(() => {
     const hasProcessing = documents.some(d => d.status === 'processing')
     if (!hasProcessing) return
-
     const interval = setInterval(fetchDocuments, 5000)
     return () => clearInterval(interval)
   }, [documents, fetchDocuments])
@@ -176,6 +278,17 @@ export default function AIDocumentsPage() {
     }
   }
 
+  // Filter documents by tab
+  const guidanceDocs = documents.filter(d => {
+    const source = (d.metadata as Record<string, unknown>)?.source
+    return source === 'hmrc_scraper' || !source // include manually uploaded docs
+  })
+  const manualDocs = documents.filter(d => {
+    const source = (d.metadata as Record<string, unknown>)?.source
+    return source === 'hmrc_manual_scraper'
+  })
+  const tabDocs = activeTab === 'guidance' ? guidanceDocs : manualDocs
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -192,7 +305,7 @@ export default function AIDocumentsPage() {
               AI Knowledge Base
             </h1>
             <p className="text-[0.78rem]" style={{ color: colors.text.muted }}>
-              Upload HMRC guidance documents to power the AI assistant
+              HMRC guidance and manuals powering the AI assistant
             </p>
           </div>
         </div>
@@ -206,10 +319,12 @@ export default function AIDocumentsPage() {
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button size="sm" onClick={() => setShowUpload(true)}>
-            <Plus className="w-3.5 h-3.5 mr-1.5" />
-            Upload Document
-          </Button>
+          {activeTab === 'guidance' && (
+            <Button size="sm" onClick={() => setShowUpload(true)}>
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Upload Document
+            </Button>
+          )}
         </div>
       </div>
 
@@ -227,144 +342,234 @@ export default function AIDocumentsPage() {
         </div>
       )}
 
-      {/* HMRC Scraper Card */}
-      <Card>
-        <CardContent className="py-4">
-          <div className="flex items-start gap-4">
-            <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: isDark ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.08)' }}
-            >
-              <Globe className="w-5 h-5 text-blue-500" />
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <h3 className="text-[0.88rem] font-medium mb-0.5" style={{ color: colors.text.primary }}>
-                HMRC Guidance Scraper
-              </h3>
-              <p className="text-[0.78rem] mb-3" style={{ color: colors.text.muted }}>
-                Automatically scrape ~{scrapeStatus?.total_seed_urls || 50} official HMRC payroll guidance pages from gov.uk.
-                Runs weekly to detect changes.
-              </p>
-
-              {scrapeStatus && (
-                <div className="flex flex-wrap items-center gap-3 mb-3 text-[0.75rem]" style={{ color: colors.text.muted }}>
-                  <span>
-                    <strong style={{ color: colors.text.secondary }}>{scrapeStatus.scraped_count}</strong> documents scraped
-                  </span>
-                  {scrapeStatus.ready > 0 && (
-                    <Badge variant="default" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[0.7rem] h-5">
-                      {scrapeStatus.ready} ready
-                    </Badge>
-                  )}
-                  {scrapeStatus.processing > 0 && (
-                    <Badge variant="default" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[0.7rem] h-5">
-                      {scrapeStatus.processing} processing
-                    </Badge>
-                  )}
-                  {scrapeStatus.errors > 0 && (
-                    <Badge variant="destructive" className="text-[0.7rem] h-5">
-                      {scrapeStatus.errors} errors
-                    </Badge>
-                  )}
-                  {scrapeStatus.last_scrape && (
-                    <span>
-                      Last scraped: {new Date(scrapeStatus.last_scrape).toLocaleDateString('en-GB', {
-                        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-                      })}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {scrapeMessage && (
-                <div
-                  className="flex items-center gap-2 p-2.5 rounded-md text-[0.78rem] mb-3"
-                  style={{
-                    background: scrapeMessage.startsWith('Error')
-                      ? isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.05)'
-                      : isDark ? 'rgba(34,197,94,0.1)' : 'rgba(34,197,94,0.05)',
-                    border: `1px solid ${scrapeMessage.startsWith('Error') ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.2)'}`,
-                    color: scrapeMessage.startsWith('Error')
-                      ? isDark ? '#fca5a5' : '#dc2626'
-                      : isDark ? '#86efac' : '#16a34a',
-                  }}
-                >
-                  {scrapeMessage.startsWith('Error') ? (
-                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                  ) : (
-                    <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                  )}
-                  <span className="flex-1">{scrapeMessage}</span>
-                  {scrapeErrors.length > 0 && (
-                    <button
-                      onClick={() => setShowErrors(!showErrors)}
-                      className="text-[0.7rem] underline opacity-70 hover:opacity-100 ml-2 flex-shrink-0"
-                    >
-                      {showErrors ? 'Hide details' : 'Show details'}
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {showErrors && scrapeErrors.length > 0 && (
-                <div
-                  className="p-2.5 rounded-md text-[0.72rem] mb-3 max-h-60 overflow-y-auto space-y-1.5"
-                  style={{
-                    background: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.03)',
-                    border: '1px solid rgba(239,68,68,0.15)',
-                    color: isDark ? '#fca5a5' : '#dc2626',
-                  }}
-                >
-                  {scrapeErrors.map((err, i) => (
-                    <div key={i} className="flex gap-2">
-                      <span className="font-mono opacity-60 flex-shrink-0">{new URL(err.url).pathname}</span>
-                      <span className="opacity-80">{err.error}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleScrapeHmrc}
-                disabled={scraping}
-                className="gap-1.5"
-              >
-                {scraping ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Scraping HMRC...
-                  </>
-                ) : scrapeStatus && scrapeStatus.scraped_count > 0 ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    Check for Updates
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-3.5 h-3.5" />
-                    Scrape All HMRC Guidance
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Upload modal */}
-      {showUpload && (
-        <UploadForm
-          onClose={() => setShowUpload(false)}
-          onSuccess={() => {
-            setShowUpload(false)
-            fetchDocuments()
+      {/* Tabs */}
+      <div
+        className="flex gap-1 p-1 rounded-lg"
+        style={{ background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}
+      >
+        <button
+          onClick={() => setActiveTab('guidance')}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-[0.82rem] font-medium transition-all"
+          style={{
+            background: activeTab === 'guidance'
+              ? isDark ? 'rgba(255,255,255,0.08)' : '#fff'
+              : 'transparent',
+            color: activeTab === 'guidance' ? colors.text.primary : colors.text.muted,
+            boxShadow: activeTab === 'guidance' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
           }}
-          colors={colors}
-          isDark={isDark}
-        />
+        >
+          <Globe className="w-3.5 h-3.5" />
+          Payroll Guidance
+          {guidanceDocs.length > 0 && (
+            <Badge variant="secondary" className="text-[0.65rem] h-4 px-1.5">
+              {guidanceDocs.length}
+            </Badge>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('manuals')}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-[0.82rem] font-medium transition-all"
+          style={{
+            background: activeTab === 'manuals'
+              ? isDark ? 'rgba(255,255,255,0.08)' : '#fff'
+              : 'transparent',
+            color: activeTab === 'manuals' ? colors.text.primary : colors.text.muted,
+            boxShadow: activeTab === 'manuals' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+          }}
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          HMRC Manuals
+          {manualDocs.length > 0 && (
+            <Badge variant="secondary" className="text-[0.65rem] h-4 px-1.5">
+              {manualDocs.length}
+            </Badge>
+          )}
+        </button>
+      </div>
+
+      {/* Guidance Tab */}
+      {activeTab === 'guidance' && (
+        <>
+          <Card>
+            <CardContent className="py-4">
+              <div className="flex items-start gap-4">
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: isDark ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.08)' }}
+                >
+                  <Globe className="w-5 h-5 text-blue-500" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-[0.88rem] font-medium mb-0.5" style={{ color: colors.text.primary }}>
+                    HMRC Guidance Scraper
+                  </h3>
+                  <p className="text-[0.78rem] mb-3" style={{ color: colors.text.muted }}>
+                    Scrape ~{guidanceStatus?.total_seed_urls || 38} official HMRC payroll guidance pages from gov.uk.
+                    Runs weekly to detect changes.
+                  </p>
+
+                  {guidanceStatus && (
+                    <div className="flex flex-wrap items-center gap-3 mb-3 text-[0.75rem]" style={{ color: colors.text.muted }}>
+                      <span>
+                        <strong style={{ color: colors.text.secondary }}>{guidanceStatus.scraped_count}</strong> documents scraped
+                      </span>
+                      {guidanceStatus.ready > 0 && (
+                        <Badge variant="default" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[0.7rem] h-5">
+                          {guidanceStatus.ready} ready
+                        </Badge>
+                      )}
+                      {guidanceStatus.processing > 0 && (
+                        <Badge variant="default" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[0.7rem] h-5">
+                          {guidanceStatus.processing} processing
+                        </Badge>
+                      )}
+                      {guidanceStatus.errors > 0 && (
+                        <Badge variant="destructive" className="text-[0.7rem] h-5">
+                          {guidanceStatus.errors} errors
+                        </Badge>
+                      )}
+                      {guidanceStatus.last_scrape && (
+                        <span>
+                          Last scraped: {new Date(guidanceStatus.last_scrape).toLocaleDateString('en-GB', {
+                            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                          })}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {guidanceMessage && (
+                    <ScrapeResultMessage message={guidanceMessage} errors={guidanceErrors} isDark={isDark} />
+                  )}
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleScrapeGuidance}
+                    disabled={guidanceScraping}
+                    className="gap-1.5"
+                  >
+                    {guidanceScraping ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Scraping HMRC...
+                      </>
+                    ) : guidanceStatus && guidanceStatus.scraped_count > 0 ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Check for Updates
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3.5 h-3.5" />
+                        Scrape All HMRC Guidance
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {showUpload && (
+            <UploadForm
+              onClose={() => setShowUpload(false)}
+              onSuccess={() => {
+                setShowUpload(false)
+                fetchDocuments()
+              }}
+              colors={colors}
+              isDark={isDark}
+            />
+          )}
+        </>
+      )}
+
+      {/* Manuals Tab */}
+      {activeTab === 'manuals' && (
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex items-start gap-4">
+              <div
+                className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ background: isDark ? 'rgba(168,85,247,0.15)' : 'rgba(168,85,247,0.08)' }}
+              >
+                <BookOpen className="w-5 h-5 text-purple-500" />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <h3 className="text-[0.88rem] font-medium mb-0.5" style={{ color: colors.text.primary }}>
+                  HMRC Manual Scraper
+                </h3>
+                <p className="text-[0.78rem] mb-3" style={{ color: colors.text.muted }}>
+                  Smart-crawl {manualStatus?.total_manuals || 3} HMRC internal manuals
+                  {manualStatus?.manual_names ? ` (${manualStatus.manual_names.join(', ')})` : ''}.
+                  Filters for payroll-relevant sections only.
+                </p>
+
+                {manualStatus && (
+                  <div className="flex flex-wrap items-center gap-3 mb-3 text-[0.75rem]" style={{ color: colors.text.muted }}>
+                    <span>
+                      <strong style={{ color: colors.text.secondary }}>{manualStatus.scraped_count}</strong> sections scraped
+                    </span>
+                    {manualStatus.ready > 0 && (
+                      <Badge variant="default" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[0.7rem] h-5">
+                        {manualStatus.ready} ready
+                      </Badge>
+                    )}
+                    {manualStatus.processing > 0 && (
+                      <Badge variant="default" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[0.7rem] h-5">
+                        {manualStatus.processing} processing
+                      </Badge>
+                    )}
+                    {manualStatus.errors > 0 && (
+                      <Badge variant="destructive" className="text-[0.7rem] h-5">
+                        {manualStatus.errors} errors
+                      </Badge>
+                    )}
+                    {manualStatus.last_scrape && (
+                      <span>
+                        Last scraped: {new Date(manualStatus.last_scrape).toLocaleDateString('en-GB', {
+                          day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                        })}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {manualMessage && (
+                  <ScrapeResultMessage message={manualMessage} errors={manualErrors} isDark={isDark} />
+                )}
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleScrapeManuals}
+                  disabled={manualScraping}
+                  className="gap-1.5"
+                >
+                  {manualScraping ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Crawling Manuals...
+                    </>
+                  ) : manualStatus && manualStatus.scraped_count > 0 ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Check for Updates
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3.5 h-3.5" />
+                      Scrape HMRC Manuals
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Documents list */}
@@ -372,25 +577,29 @@ export default function AIDocumentsPage() {
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 animate-spin" style={{ color: colors.text.muted }} />
         </div>
-      ) : documents.length === 0 ? (
+      ) : tabDocs.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
             <FileText className="w-12 h-12 mb-4" style={{ color: colors.text.muted }} />
             <h3 className="text-[0.95rem] font-medium mb-1" style={{ color: colors.text.primary }}>
-              No documents yet
+              {activeTab === 'guidance' ? 'No guidance documents yet' : 'No manual sections yet'}
             </h3>
             <p className="text-[0.82rem] mb-4" style={{ color: colors.text.muted }}>
-              Upload HMRC guidance documents to start building the AI knowledge base.
+              {activeTab === 'guidance'
+                ? 'Scrape HMRC guidance or upload documents to build the knowledge base.'
+                : 'Use the scraper above to crawl HMRC internal manuals for relevant sections.'}
             </p>
-            <Button size="sm" onClick={() => setShowUpload(true)}>
-              <Upload className="w-3.5 h-3.5 mr-1.5" />
-              Upload First Document
-            </Button>
+            {activeTab === 'guidance' && (
+              <Button size="sm" onClick={() => setShowUpload(true)}>
+                <Upload className="w-3.5 h-3.5 mr-1.5" />
+                Upload First Document
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-3">
-          {documents.map((doc) => (
+          {tabDocs.map((doc) => (
             <Card key={doc.id}>
               <CardContent className="flex items-center gap-4 py-4">
                 <div
@@ -523,7 +732,6 @@ function UploadForm({
       if (!title) setTitle(file.name.replace(/\.[^.]+$/, ''))
     } else if (file.type === 'text/html' || file.name.endsWith('.html')) {
       const text = await file.text()
-      // Strip HTML tags for plain text content
       const parser = new DOMParser()
       const doc = parser.parseFromString(text, 'text/html')
       setContent(doc.body.textContent || text)
@@ -532,7 +740,6 @@ function UploadForm({
       setError('Currently only .txt, .md, and .html files are supported for direct upload. For PDFs, copy and paste the text content below.')
     }
 
-    // Reset file input
     e.target.value = ''
   }
 
