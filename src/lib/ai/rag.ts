@@ -118,8 +118,18 @@ export async function streamRagResponse(
   stream: ReadableStream<Uint8Array>
   citationsPromise: Promise<Citation[]>
 }> {
-  const chunks = await searchDocuments(query)
-  const { contextText, citations } = await buildContext(chunks)
+  let contextText = ''
+  let citations: Citation[] = []
+
+  try {
+    const chunks = await searchDocuments(query)
+    const context = await buildContext(chunks)
+    contextText = context.contextText
+    citations = context.citations
+  } catch (err) {
+    console.error('RAG retrieval failed, falling back to AI without context:', err)
+    // Continue without context — AI will answer from its own knowledge
+  }
 
   const userMessage = contextText
     ? `Based on the following HMRC guidance:\n\n${contextText}\n\n---\n\nQuestion: ${query}`
