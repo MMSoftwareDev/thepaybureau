@@ -126,8 +126,8 @@ interface GovUkContentResponse {
   }
 }
 
-const FETCH_TIMEOUT_MS = 15000 // 15s per request
-const MAX_RETRIES = 2
+const FETCH_TIMEOUT_MS = 10000 // 10s per request
+const MAX_RETRIES = 1 // 1 retry (2 attempts total) to stay within 5-min function limit
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -162,14 +162,18 @@ async function fetchWithRetry(
 /**
  * Fetch a gov.uk page using the Content API (returns JSON).
  * Falls back to HTML scraping if the Content API doesn't have the page.
+ *
+ * Returns an object with content + a `failureReason` field for diagnostics.
  */
 export async function fetchGovUkPage(url: string): Promise<{
   title: string
   content: string
   lastUpdated: string | null
   relatedUrls: string[]
-} | null> {
+} | { failureReason: string } | null> {
   const path = new URL(url).pathname
+  let contentApiStatus = ''
+  let contentApiChars = 0
 
   // Try Content API first
   try {
@@ -178,16 +182,21 @@ export async function fetchGovUkPage(url: string): Promise<{
       headers: { 'User-Agent': USER_AGENT, 'Accept': 'application/json' },
     })
 
+    contentApiStatus = `status=${res.status}`
+
     if (res.ok) {
       const data: GovUkContentResponse = await res.json()
       const result = parseContentApiResponse(data, url)
+      contentApiChars = result.content.length
       if (result.content.length >= 50) {
         return result
       }
       // Content API returned thin content — fall through to HTML
-      console.warn(`Content API returned thin content for ${url} (${result.content.length} chars), trying HTML`)
+      contentApiStatus += ` thin(${result.content.length}ch, type=${data.document_type || 'unknown'})`
+      console.warn(`Content API returned thin content for ${url} (${result.content.length} chars, type=${data.document_type}), trying HTML`)
     }
   } catch (err) {
+    contentApiStatus = `error: ${err instanceof Error ? err.message : String(err)}`
     console.warn(`Content API failed for ${url}, trying HTML:`, err)
   }
 
@@ -201,15 +210,22 @@ export async function fetchGovUkPage(url: string): Promise<{
     })
 
     if (!res.ok) {
-      console.error(`Failed to fetch ${url}: ${res.status}`)
-      return null
+      const reason = `Content API: ${contentApiStatus}; HTML: status=${res.status}`
+      console.error(`Failed to fetch ${url}: ${reason}`)
+      return { failureReason: reason }
     }
 
     const html = await res.text()
-    return parseHtmlPage(html, url)
+    const result = parseHtmlPage(html, url)
+    if (result.content.length < 30) {
+      const reason = `Content API: ${contentApiStatus}; HTML: only ${result.content.length} chars`
+      return { failureReason: reason }
+    }
+    return result
   } catch (err) {
-    console.error(`HTML fetch failed for ${url}:`, err)
-    return null
+    const reason = `Content API: ${contentApiStatus}; HTML: ${err instanceof Error ? err.message : String(err)}`
+    console.error(`HTML fetch failed for ${url}:`, reason)
+    return { failureReason: reason }
   }
 }
 
@@ -389,19 +405,24 @@ export function hashContent(content: string): string {
 
 /**
  * Scrape a single HMRC guidance page and return structured data.
+ * Returns the page data on success, or an error string on failure.
  */
 export async function scrapeGuidancePage(
   url: string,
   category: HmrcGuidancePage['category']
-): Promise<HmrcGuidancePage | null> {
+): Promise<HmrcGuidancePage | string> {
   const result = await fetchGovUkPage(url)
-  if (!result || !result.content) {
-    console.warn(`No content returned for ${url}`)
-    return null
+
+  if (!result) {
+    return 'No response from gov.uk'
   }
-  if (result.content.length < 30) {
-    console.warn(`Content too short for ${url}: ${result.content.length} chars`)
-    return null
+
+  if ('failureReason' in result) {
+    return result.failureReason
+  }
+
+  if (!result.content || result.content.length < 30) {
+    return `Content too short (${result.content?.length || 0} chars)`
   }
 
   return {
@@ -433,8 +454,10 @@ export async function scrapeAllGuidance(
       onProgress?.(`Scraping: ${url}`)
       const page = await scrapeGuidancePage(url, category)
 
-      if (!page) {
-        result.errors.push({ url, error: 'Failed to fetch or empty content' })
+      if (typeof page === 'string') {
+        // page is an error message
+        result.errors.push({ url, error: page })
+        await sleep(FETCH_DELAY_MS) // Rate limit even on failures
         continue
       }
 
@@ -444,6 +467,7 @@ export async function scrapeAllGuidance(
       if (existing) {
         if (existing.contentHash === page.contentHash) {
           result.unchanged++
+          await sleep(FETCH_DELAY_MS)
           continue // No changes
         }
         result.updated++
@@ -457,6 +481,7 @@ export async function scrapeAllGuidance(
       await sleep(FETCH_DELAY_MS)
     } catch (err) {
       result.errors.push({ url, error: err instanceof Error ? err.message : String(err) })
+      await sleep(FETCH_DELAY_MS)
     }
   }
 
