@@ -145,44 +145,49 @@ export async function streamRagResponse(
   })
 
   const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      try {
-        const response = client.messages.stream({
-          model: AI_MODEL,
-          max_tokens: 2048,
-          system: PAYROLL_SYSTEM_PROMPT,
-          messages,
-        })
+    start(controller) {
+      const run = async () => {
+        try {
+          const response = client.messages.stream({
+            model: AI_MODEL,
+            max_tokens: 2048,
+            system: PAYROLL_SYSTEM_PROMPT,
+            messages,
+          })
 
-        response.on('text', (text) => {
-          const sseData = `data: ${JSON.stringify({ type: 'text', content: text })}\n\n`
-          controller.enqueue(encoder.encode(sseData))
-        })
+          response.on('text', (text) => {
+            const sseData = `data: ${JSON.stringify({ type: 'text', content: text })}\n\n`
+            controller.enqueue(encoder.encode(sseData))
+          })
 
-        const finalMessage = await response.finalMessage()
-        inputTokens = finalMessage.usage.input_tokens
-        outputTokens = finalMessage.usage.output_tokens
+          const finalMessage = await response.finalMessage()
+          inputTokens = finalMessage.usage.input_tokens
+          outputTokens = finalMessage.usage.output_tokens
 
-        // Send citations
-        const citationData = `data: ${JSON.stringify({ type: 'citations', citations })}\n\n`
-        controller.enqueue(encoder.encode(citationData))
+          // Send citations
+          const citationData = `data: ${JSON.stringify({ type: 'citations', citations })}\n\n`
+          controller.enqueue(encoder.encode(citationData))
 
-        // Send usage info
-        const usageData = `data: ${JSON.stringify({
-          type: 'done',
-          usage: { input_tokens: inputTokens, output_tokens: outputTokens },
-          model: AI_MODEL,
-        })}\n\n`
-        controller.enqueue(encoder.encode(usageData))
+          // Send usage info
+          const usageData = `data: ${JSON.stringify({
+            type: 'done',
+            usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+            model: AI_MODEL,
+          })}\n\n`
+          controller.enqueue(encoder.encode(usageData))
 
-        controller.close()
-        citationsResolve.resolve(citations)
-      } catch (error) {
-        const errorMsg = `data: ${JSON.stringify({ type: 'error', message: 'Failed to generate response' })}\n\n`
-        controller.enqueue(encoder.encode(errorMsg))
-        controller.close()
-        citationsResolve.reject(error instanceof Error ? error : new Error('Unknown error'))
+          controller.close()
+          citationsResolve.resolve(citations)
+        } catch (error) {
+          console.error('RAG streaming error:', error)
+          const errorMsg = `data: ${JSON.stringify({ type: 'error', message: 'Failed to generate response' })}\n\n`
+          controller.enqueue(encoder.encode(errorMsg))
+          controller.close()
+          citationsResolve.reject(error instanceof Error ? error : new Error('Unknown error'))
+        }
       }
+
+      run()
     },
   })
 
