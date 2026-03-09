@@ -8,7 +8,7 @@ export const maxDuration = 300 // 5 minutes
  * Vercel Cron job that triggers the HMRC guidance scraper weekly.
  * Calls the scrape endpoint internally with the cron secret.
  *
- * Schedule: Every Sunday at 3am UTC (configured in vercel.json)
+ * Schedule: Every day at midnight UTC (configured in vercel.json)
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
