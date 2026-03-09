@@ -35,26 +35,22 @@ export interface ScrapeResult {
 export const HMRC_GUIDANCE_URLS: { url: string; category: HmrcGuidancePage['category'] }[] = [
   // PAYE
   { url: 'https://www.gov.uk/paye-for-employers', category: 'paye' },
-  { url: 'https://www.gov.uk/guidance/paying-hmrc-paye', category: 'paye' },
-  { url: 'https://www.gov.uk/guidance/paye-tax-and-national-insurance-for-employees', category: 'paye' },
+  { url: 'https://www.gov.uk/pay-paye-tax', category: 'paye' },
   { url: 'https://www.gov.uk/new-employee', category: 'paye' },
   { url: 'https://www.gov.uk/employee-leaving', category: 'paye' },
-  { url: 'https://www.gov.uk/guidance/cwg2-further-guide-to-paye-and-national-insurance-contributions', category: 'paye' },
+  { url: 'https://www.gov.uk/government/publications/cwg2-further-guide-to-paye-and-national-insurance-contributions/2025-to-2026-employer-further-guide-to-paye-and-national-insurance-contributions', category: 'paye' },
   { url: 'https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2025-to-2026', category: 'paye' },
   { url: 'https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2024-to-2025', category: 'paye' },
   { url: 'https://www.gov.uk/tax-codes', category: 'paye' },
   { url: 'https://www.gov.uk/employee-tax-codes', category: 'paye' },
-  { url: 'https://www.gov.uk/guidance/emergency-tax-codes', category: 'paye' },
-  { url: 'https://www.gov.uk/guidance/student-loan-and-postgraduate-loan-repayment-for-employers', category: 'paye' },
-  { url: 'https://www.gov.uk/guidance/payroll-information-to-report-to-hmrc', category: 'paye' },
-  { url: 'https://www.gov.uk/guidance/employment-allowance', category: 'paye' },
+  { url: 'https://www.gov.uk/guidance/special-rules-for-student-loans', category: 'paye' },
+  { url: 'https://www.gov.uk/claim-employment-allowance', category: 'paye' },
+  { url: 'https://www.gov.uk/paye-online', category: 'paye' },
 
   // National Insurance
   { url: 'https://www.gov.uk/national-insurance', category: 'nic' },
   { url: 'https://www.gov.uk/national-insurance-rates-letters', category: 'nic' },
-  { url: 'https://www.gov.uk/guidance/national-insurance-contributions-for-employers', category: 'nic' },
-  { url: 'https://www.gov.uk/guidance/classify-national-insurance-contribution-letters', category: 'nic' },
-  { url: 'https://www.gov.uk/guidance/directors-national-insurance-contributions', category: 'nic' },
+  { url: 'https://www.gov.uk/employee-directors', category: 'nic' },
 
   // Statutory Pay
   { url: 'https://www.gov.uk/employers-sick-pay', category: 'statutory_pay' },
@@ -62,24 +58,21 @@ export const HMRC_GUIDANCE_URLS: { url: string; category: HmrcGuidancePage['cate
   { url: 'https://www.gov.uk/employers-maternity-pay-leave', category: 'statutory_pay' },
   { url: 'https://www.gov.uk/statutory-maternity-pay', category: 'statutory_pay' },
   { url: 'https://www.gov.uk/employers-paternity-pay-leave', category: 'statutory_pay' },
-  { url: 'https://www.gov.uk/statutory-paternity-pay', category: 'statutory_pay' },
   { url: 'https://www.gov.uk/shared-parental-leave-and-pay-employer-guide', category: 'statutory_pay' },
   { url: 'https://www.gov.uk/employers-parental-bereavement-pay-leave', category: 'statutory_pay' },
+  { url: 'https://www.gov.uk/recover-statutory-payments', category: 'statutory_pay' },
   { url: 'https://www.gov.uk/guidance/statutory-sick-pay-how-different-employment-types-affect-what-you-pay', category: 'statutory_pay' },
 
   // Pensions
   { url: 'https://www.gov.uk/workplace-pensions-employers', category: 'pensions' },
-  { url: 'https://www.gov.uk/auto-enrolment-if-youre-already-paying-into-a-workplace-pension', category: 'pensions' },
-  { url: 'https://www.gov.uk/workplace-pensions/what-employers-must-do', category: 'pensions' },
+  { url: 'https://www.gov.uk/workplace-pensions', category: 'pensions' },
+  { url: 'https://www.gov.uk/employers-workplace-pensions-rules', category: 'pensions' },
   { url: 'https://www.gov.uk/guidance/pension-administrators-reporting-to-hmrc', category: 'pensions' },
-  { url: 'https://www.gov.uk/guidance/manage-your-automatic-enrolment-duties', category: 'pensions' },
 
   // RTI (Real Time Information)
+  { url: 'https://www.gov.uk/running-payroll', category: 'rti' },
   { url: 'https://www.gov.uk/guidance/what-payroll-information-to-report-to-hmrc', category: 'rti' },
-  { url: 'https://www.gov.uk/guidance/sending-an-employment-payment-summary-eps', category: 'rti' },
-  { url: 'https://www.gov.uk/guidance/correcting-your-fps-or-eps-after-youve-sent-it', category: 'rti' },
-  { url: 'https://www.gov.uk/guidance/sending-a-full-payment-submission-fps', category: 'rti' },
-  { url: 'https://www.gov.uk/guidance/sending-an-earlier-year-update-eyu', category: 'rti' },
+  { url: 'https://www.gov.uk/payroll-errors', category: 'rti' },
 
   // Expenses & Benefits
   { url: 'https://www.gov.uk/employer-reporting-expenses-benefits', category: 'expenses' },
@@ -88,10 +81,9 @@ export const HMRC_GUIDANCE_URLS: { url: string; category: HmrcGuidancePage['cate
   { url: 'https://www.gov.uk/guidance/report-end-of-year-expenses-and-benefits-online', category: 'expenses' },
 
   // General / Year-end
-  { url: 'https://www.gov.uk/guidance/year-end-payroll', category: 'general' },
-  { url: 'https://www.gov.uk/guidance/setting-up-payroll', category: 'general' },
-  { url: 'https://www.gov.uk/running-payroll', category: 'general' },
-  { url: 'https://www.gov.uk/guidance/hmrc-email-updates-newsletters-and-webinars-for-employers', category: 'general' },
+  { url: 'https://www.gov.uk/payroll-annual-reporting', category: 'general' },
+  { url: 'https://www.gov.uk/register-employer', category: 'general' },
+  { url: 'https://www.gov.uk/guidance/help-and-support-for-employing-people', category: 'general' },
 ]
 
 // ─── Content API fetching ─────────────────────────────────────
