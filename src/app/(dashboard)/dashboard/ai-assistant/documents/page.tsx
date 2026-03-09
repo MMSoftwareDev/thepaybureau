@@ -13,8 +13,23 @@ import Link from 'next/link'
 
 interface ScrapeStatus {
   total_seed_urls?: number
-  total_manuals?: number
-  manual_names?: string[]
+  scraped_count: number
+  ready: number
+  processing: number
+  errors: number
+  last_scrape: string | null
+}
+
+interface ManualScrapeStatus {
+  total_manuals: number
+  manuals: {
+    slug: string
+    title: string
+    scraped_count: number
+    ready: number
+    errors: number
+    last_scrape: string | null
+  }[]
   scraped_count: number
   ready: number
   processing: number
@@ -155,11 +170,11 @@ export default function AIDocumentsPage() {
   const [guidanceMessage, setGuidanceMessage] = useState<string | null>(null)
   const [guidanceErrors, setGuidanceErrors] = useState<{ url: string; error: string }[]>([])
 
-  // Manual scraper state
-  const [manualStatus, setManualStatus] = useState<ScrapeStatus | null>(null)
-  const [manualScraping, setManualScraping] = useState(false)
-  const [manualMessage, setManualMessage] = useState<string | null>(null)
-  const [manualErrors, setManualErrors] = useState<{ url: string; error: string }[]>([])
+  // Manual scraper state (per-manual)
+  const [manualStatus, setManualStatus] = useState<ManualScrapeStatus | null>(null)
+  const [manualScraping, setManualScraping] = useState<string | null>(null) // slug of manual being scraped
+  const [manualMessages, setManualMessages] = useState<Record<string, string>>({})
+  const [manualErrors, setManualErrors] = useState<Record<string, { url: string; error: string }[]>>({})
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -240,34 +255,35 @@ export default function AIDocumentsPage() {
     }
   }
 
-  const handleScrapeManuals = async () => {
-    if (!confirm('This will smart-crawl HMRC internal manuals (PAYE, NIC, Employment Income), filtering for payroll-relevant sections. This may take several minutes. Continue?')) return
+  const handleScrapeManual = async (slug: string, title: string) => {
+    if (!confirm(`This will smart-crawl the ${title}, filtering for payroll-relevant sections. This may take a few minutes. Continue?`)) return
 
-    setManualScraping(true)
-    setManualMessage(null)
-    setManualErrors([])
+    setManualScraping(slug)
+    setManualMessages(prev => ({ ...prev, [slug]: '' }))
+    setManualErrors(prev => ({ ...prev, [slug]: [] }))
     try {
-      const res = await fetch('/api/ai-assistant/documents/scrape-manuals', { method: 'POST' })
+      const res = await fetch(`/api/ai-assistant/documents/scrape-manuals?manual=${slug}`, { method: 'POST' })
       const data = await safeJson(res)
       if (!res.ok) throw new Error(data.error || 'Manual scrape failed')
 
-      const statsInfo = data.manual_stats
-        ?.map((s: { title: string; sectionsRelevant: number; scraped: number }) =>
-          `${s.title}: ${s.scraped} sections`)
-        .join(', ')
-
-      setManualMessage(
-        `Scrape complete: ${data.new} new, ${data.updated} updated, ${data.unchanged} unchanged` +
-        (data.errors?.length ? `, ${data.errors.length} errors` : '') +
-        (statsInfo ? ` (${statsInfo})` : '')
-      )
-      if (data.errors?.length) setManualErrors(data.errors)
+      setManualMessages(prev => ({
+        ...prev,
+        [slug]: `Done: ${data.new} new, ${data.updated} updated, ${data.unchanged} unchanged` +
+          (data.errors?.length ? `, ${data.errors.length} errors` : '') +
+          ` (${data.sections_relevant} relevant of ${data.sections_found} sections)`,
+      }))
+      if (data.errors?.length) {
+        setManualErrors(prev => ({ ...prev, [slug]: data.errors }))
+      }
       fetchDocuments()
       fetchStatuses()
     } catch (err) {
-      setManualMessage(`Error: ${err instanceof Error ? err.message : 'Manual scrape failed'}`)
+      setManualMessages(prev => ({
+        ...prev,
+        [slug]: `Error: ${err instanceof Error ? err.message : 'Manual scrape failed'}`,
+      }))
     } finally {
-      setManualScraping(false)
+      setManualScraping(null)
     }
   }
 
@@ -502,90 +518,100 @@ export default function AIDocumentsPage() {
         </>
       )}
 
-      {/* Manuals Tab */}
+      {/* Manuals Tab — one card per manual */}
       {activeTab === 'manuals' && (
-        <Card>
-          <CardContent className="py-4">
-            <div className="flex items-start gap-4">
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                style={{ background: isDark ? 'rgba(168,85,247,0.15)' : 'rgba(168,85,247,0.08)' }}
-              >
-                <BookOpen className="w-5 h-5 text-purple-500" />
-              </div>
+        <div className="grid gap-3">
+          <p className="text-[0.78rem]" style={{ color: colors.text.muted }}>
+            Smart-crawl HMRC internal manuals for payroll-relevant sections. Each manual is scraped independently.
+          </p>
 
-              <div className="flex-1 min-w-0">
-                <h3 className="text-[0.88rem] font-medium mb-0.5" style={{ color: colors.text.primary }}>
-                  HMRC Manual Scraper
-                </h3>
-                <p className="text-[0.78rem] mb-3" style={{ color: colors.text.muted }}>
-                  Smart-crawl {manualStatus?.total_manuals || 3} HMRC internal manuals
-                  {manualStatus?.manual_names ? ` (${manualStatus.manual_names.join(', ')})` : ''}.
-                  Filters for payroll-relevant sections only.
-                </p>
-
-                {manualStatus && (
-                  <div className="flex flex-wrap items-center gap-3 mb-3 text-[0.75rem]" style={{ color: colors.text.muted }}>
-                    <span>
-                      <strong style={{ color: colors.text.secondary }}>{manualStatus.scraped_count}</strong> sections scraped
-                    </span>
-                    {manualStatus.ready > 0 && (
-                      <Badge variant="default" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[0.7rem] h-5">
-                        {manualStatus.ready} ready
-                      </Badge>
-                    )}
-                    {manualStatus.processing > 0 && (
-                      <Badge variant="default" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[0.7rem] h-5">
-                        {manualStatus.processing} processing
-                      </Badge>
-                    )}
-                    {manualStatus.errors > 0 && (
-                      <Badge variant="destructive" className="text-[0.7rem] h-5">
-                        {manualStatus.errors} errors
-                      </Badge>
-                    )}
-                    {manualStatus.last_scrape && (
-                      <span>
-                        Last scraped: {new Date(manualStatus.last_scrape).toLocaleDateString('en-GB', {
-                          day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-                        })}
-                      </span>
-                    )}
+          {(manualStatus?.manuals || [
+            { slug: 'paye-manual', title: 'PAYE Manual', scraped_count: 0, ready: 0, errors: 0, last_scrape: null },
+            { slug: 'national-insurance-manual', title: 'National Insurance Manual', scraped_count: 0, ready: 0, errors: 0, last_scrape: null },
+            { slug: 'employment-income-manual', title: 'Employment Income Manual', scraped_count: 0, ready: 0, errors: 0, last_scrape: null },
+          ]).map((m) => (
+            <Card key={m.slug}>
+              <CardContent className="py-4">
+                <div className="flex items-start gap-4">
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ background: isDark ? 'rgba(168,85,247,0.15)' : 'rgba(168,85,247,0.08)' }}
+                  >
+                    <BookOpen className="w-5 h-5 text-purple-500" />
                   </div>
-                )}
 
-                {manualMessage && (
-                  <ScrapeResultMessage message={manualMessage} errors={manualErrors} isDark={isDark} />
-                )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-[0.88rem] font-medium mb-1" style={{ color: colors.text.primary }}>
+                      {m.title}
+                    </h3>
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleScrapeManuals}
-                  disabled={manualScraping}
-                  className="gap-1.5"
-                >
-                  {manualScraping ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      Crawling Manuals...
-                    </>
-                  ) : manualStatus && manualStatus.scraped_count > 0 ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      Check for Updates
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-3.5 h-3.5" />
-                      Scrape HMRC Manuals
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                    <div className="flex flex-wrap items-center gap-3 mb-2 text-[0.75rem]" style={{ color: colors.text.muted }}>
+                      {m.scraped_count > 0 ? (
+                        <>
+                          <span>
+                            <strong style={{ color: colors.text.secondary }}>{m.scraped_count}</strong> sections
+                          </span>
+                          {m.ready > 0 && (
+                            <Badge variant="default" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[0.7rem] h-5">
+                              {m.ready} ready
+                            </Badge>
+                          )}
+                          {m.errors > 0 && (
+                            <Badge variant="destructive" className="text-[0.7rem] h-5">
+                              {m.errors} errors
+                            </Badge>
+                          )}
+                        </>
+                      ) : (
+                        <span>Not yet scraped</span>
+                      )}
+                      {m.last_scrape && (
+                        <span>
+                          Last: {new Date(m.last_scrape).toLocaleDateString('en-GB', {
+                            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                          })}
+                        </span>
+                      )}
+                    </div>
+
+                    {manualMessages[m.slug] && (
+                      <ScrapeResultMessage
+                        message={manualMessages[m.slug]}
+                        errors={manualErrors[m.slug] || []}
+                        isDark={isDark}
+                      />
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleScrapeManual(m.slug, m.title)}
+                      disabled={manualScraping !== null}
+                      className="gap-1.5"
+                    >
+                      {manualScraping === m.slug ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Crawling...
+                        </>
+                      ) : m.scraped_count > 0 ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          Check for Updates
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-3.5 h-3.5" />
+                          Scrape Manual
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
       {/* Documents list */}

@@ -1,11 +1,11 @@
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
-import { scrapeAllManuals, HMRC_MANUALS } from '@/lib/ai/hmrc-manual-scraper'
+import { scrapeManual, HMRC_MANUALS, getManualBySlug } from '@/lib/ai/hmrc-manual-scraper'
 import { chunkDocument } from '@/lib/ai/chunking'
 import { embedDocuments } from '@/lib/ai/embeddings'
 import { writeAuditLog } from '@/lib/audit'
 
-export const maxDuration = 300 // 5 minutes
+export const maxDuration = 300 // 5 minutes per manual
 
 function isAdmin(email: string): boolean {
   const adminEmails = (process.env.PLATFORM_ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase())
@@ -15,8 +15,10 @@ function isAdmin(email: string): boolean {
 /**
  * POST /api/ai-assistant/documents/scrape-manuals
  *
- * Triggers a smart crawl of HMRC internal manuals.
- * Discovers relevant sections by keyword, scrapes content, and processes embeddings.
+ * Triggers a smart crawl of ONE HMRC internal manual.
+ * Requires a `manual` query param (slug) to specify which manual.
+ *
+ * Example: POST /api/ai-assistant/documents/scrape-manuals?manual=paye-manual
  */
 export async function POST(request: NextRequest) {
   try {
@@ -46,6 +48,23 @@ export async function POST(request: NextRequest) {
       tenantId = user?.tenant_id || null
     }
 
+    // Get the manual slug from query params
+    const manualSlug = request.nextUrl.searchParams.get('manual')
+    if (!manualSlug) {
+      return NextResponse.json(
+        { error: 'Missing `manual` query parameter. Valid values: ' + HMRC_MANUALS.map(m => m.slug).join(', ') },
+        { status: 400 }
+      )
+    }
+
+    const manual = getManualBySlug(manualSlug)
+    if (!manual) {
+      return NextResponse.json(
+        { error: `Unknown manual: ${manualSlug}. Valid values: ${HMRC_MANUALS.map(m => m.slug).join(', ')}` },
+        { status: 400 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
 
     // Get existing manual documents with their source URLs and content hashes
@@ -67,8 +86,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Run the manual scraper
-    const { pages, result, manualStats } = await scrapeAllManuals(existingMap)
+    // Run the scraper for this single manual
+    const { pages, result, sectionsFound, sectionsRelevant } = await scrapeManual(manual, existingMap)
 
     // Process each new/updated page
     for (const page of pages) {
@@ -76,14 +95,12 @@ export async function POST(request: NextRequest) {
         const existing = existingMap.get(page.url)
 
         if (existing) {
-          // Delete old document (cascade deletes chunks)
           await supabase
             .from('ai_documents')
             .delete()
             .eq('id', existing.id)
         }
 
-        // Create new document record
         const { data: document, error: docError } = await supabase
           .from('ai_documents')
           .insert({
@@ -96,6 +113,7 @@ export async function POST(request: NextRequest) {
               scraped_at: new Date().toISOString(),
               last_updated_on_govuk: page.lastUpdated,
               source: 'hmrc_manual_scraper',
+              manual_slug: manual.slug,
             },
           })
           .select()
@@ -107,7 +125,6 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Chunk the content
         const chunks = chunkDocument(page.content)
 
         if (chunks.length === 0) {
@@ -118,11 +135,9 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Generate embeddings
         const texts = chunks.map(c => c.content)
         const embeddings = await embedDocuments(texts)
 
-        // Store chunks with embeddings
         const chunkRecords = chunks.map((chunk, i) => ({
           document_id: document.id,
           content: chunk.content,
@@ -145,7 +160,6 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Mark as ready
         await supabase
           .from('ai_documents')
           .update({
@@ -172,16 +186,18 @@ export async function POST(request: NextRequest) {
         userEmail: authUserEmail,
         action: 'CREATE',
         resourceType: 'ai_document',
-        resourceId: 'hmrc-manual-scrape',
-        resourceName: `HMRC manual scrape: ${result.new} new, ${result.updated} updated`,
+        resourceId: `hmrc-manual-scrape-${manual.slug}`,
+        resourceName: `${manual.title} scrape: ${result.new} new, ${result.updated} updated`,
         request,
       })
     }
 
     return NextResponse.json({
       ok: true,
-      manuals: HMRC_MANUALS.length,
-      manual_stats: manualStats,
+      manual: manual.slug,
+      manual_title: manual.title,
+      sections_found: sectionsFound,
+      sections_relevant: sectionsRelevant,
       ...result,
     })
   } catch (error) {
@@ -196,7 +212,7 @@ export async function POST(request: NextRequest) {
 /**
  * GET /api/ai-assistant/documents/scrape-manuals
  *
- * Returns manual scrape status.
+ * Returns manual scrape status — per-manual breakdown.
  */
 export async function GET() {
   try {
@@ -207,7 +223,6 @@ export async function GET() {
 
     const supabase = createServerSupabaseClient()
 
-    // Count manual-scraped documents
     const { data: allDocs } = await supabase
       .from('ai_documents')
       .select('id, title, source_url, status, metadata, created_at, updated_at')
@@ -218,13 +233,30 @@ export async function GET() {
       d => (d.metadata as Record<string, unknown>)?.source === 'hmrc_manual_scraper'
     )
 
-    const lastScrape = manualDocs.length > 0
-      ? manualDocs[0].updated_at
-      : null
+    // Per-manual breakdown
+    const perManual = HMRC_MANUALS.map(m => {
+      const docs = manualDocs.filter(d =>
+        (d.metadata as Record<string, unknown>)?.manual_slug === m.slug
+        // Fallback: check if source_url contains the manual slug
+        || d.source_url?.includes(`/hmrc-internal-manuals/${m.slug}/`)
+      )
+      const lastDoc = docs.length > 0 ? docs[0] : null
+
+      return {
+        slug: m.slug,
+        title: m.title,
+        scraped_count: docs.length,
+        ready: docs.filter(d => d.status === 'ready').length,
+        errors: docs.filter(d => d.status === 'error').length,
+        last_scrape: lastDoc?.updated_at || null,
+      }
+    })
+
+    const lastScrape = manualDocs.length > 0 ? manualDocs[0].updated_at : null
 
     return NextResponse.json({
       total_manuals: HMRC_MANUALS.length,
-      manual_names: HMRC_MANUALS.map(m => m.title),
+      manuals: perManual,
       scraped_count: manualDocs.length,
       ready: manualDocs.filter(d => d.status === 'ready').length,
       processing: manualDocs.filter(d => d.status === 'processing').length,
