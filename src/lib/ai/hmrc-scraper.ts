@@ -156,6 +156,20 @@ export async function fetchWithRetry(
 }
 
 /**
+ * Safely parse a Response as JSON, handling cases where gov.uk
+ * returns HTML error pages instead of JSON.
+ */
+async function safeJsonParse<T>(res: Response, context: string): Promise<T> {
+  const text = await res.text()
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    const preview = text.length > 120 ? text.slice(0, 120) + '...' : text
+    throw new Error(`Non-JSON response from ${context}: ${preview}`)
+  }
+}
+
+/**
  * Fetch a gov.uk page using the Content API (returns JSON).
  * Falls back to HTML scraping if the Content API doesn't have the page.
  *
@@ -180,7 +194,7 @@ export async function fetchGovUkPage(url: string): Promise<{
     contentApiStatus = `status=${res.status}`
 
     if (res.ok) {
-      const data: GovUkContentResponse = await res.json()
+      const data = await safeJsonParse<GovUkContentResponse>(res, `content-api ${path}`)
 
       // Handle redirect document type — follow to the destination
       if (data.document_type === 'redirect' && data.details?.destination) {
@@ -213,7 +227,7 @@ export async function fetchGovUkPage(url: string): Promise<{
           })
 
           if (parentRes.ok) {
-            const parentData: GovUkContentResponse = await parentRes.json()
+            const parentData = await safeJsonParse<GovUkContentResponse>(parentRes, `content-api parent ${parentPath}`)
             // Check if parent has parts and find the matching one
             const matchingPart = parentData.details?.parts?.find(p => p.slug === subSlug)
             if (matchingPart) {
