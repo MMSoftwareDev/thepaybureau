@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import FeedbackWidget from '@/components/ui/FeedbackWidget'
 import SidebarStatusIndicator from '@/components/ui/SidebarStatusIndicator'
+import { APP_VERSION, CURRENT_STAGE, CURRENT_STAGE_COLOR } from '@/config/version'
 
 interface NavSection {
   label: string
@@ -414,6 +415,25 @@ export default function Sidebar({ isAdmin = false, mobileOpen = false, onMobileC
             {isDark ? 'Light mode' : 'Dark mode'}
           </span>
         </button>
+
+        {/* Version badge */}
+        <div className="flex items-center justify-center gap-1.5 pt-1">
+          <span
+            className="text-[0.65rem] font-medium"
+            style={{ color: colors.text.muted }}
+          >
+            {APP_VERSION.label}
+          </span>
+          <span
+            className="px-1.5 py-0.5 rounded text-[0.6rem] font-semibold uppercase tracking-wide"
+            style={{
+              background: CURRENT_STAGE_COLOR.bg,
+              color: CURRENT_STAGE_COLOR.text,
+            }}
+          >
+            {CURRENT_STAGE}
+          </span>
+        </div>
 
       </div>
     </nav>
