@@ -16,11 +16,13 @@ import {
 //   Manual → Section Groups → Sections → Sub-sections
 //
 // The smart crawl runs ONE manual per request to stay within
-// Vercel's function timeout. It uses a single-pass approach:
-// fetch each section once, keep content if relevant.
+// Vercel's function timeout. Uses concurrent batch fetching
+// (5 at a time) and strict keyword filtering to stay fast.
 // ═══════════════════════════════════════════════════════════════
 
-const MANUAL_DELAY_MS = 1000 // 1s between requests (Content API is lightweight)
+const BATCH_SIZE = 5        // Concurrent requests per batch
+const BATCH_DELAY_MS = 800  // Delay between batches
+const MAX_SECTIONS = 80     // Hard cap per manual to stay within timeout
 
 // ─── Manuals to scrape ──────────────────────────────────────
 
@@ -41,33 +43,38 @@ export function getManualBySlug(slug: string): HmrcManualConfig | undefined {
 }
 
 // ─── Keyword-based section filtering ────────────────────────
+// These must be specific enough to avoid matching every section.
+// Words like 'employer', 'rate', 'threshold', 'allowance' are
+// too broad and match nearly everything in the PAYE manual.
 
 const RELEVANCE_KEYWORDS = [
   // PAYE operations
-  'employer', 'payroll', 'paye operation', 'tax code', 'tax table',
-  'p45', 'p46', 'p60', 'p11d', 'starter', 'leaver',
+  'paye operation', 'tax code', 'tax table', 'coding notice',
+  'payroll', 'p45', 'p46', 'p60', 'p11d',
+  'starter checklist', 'new employee', 'leaver',
   // RTI
-  'fps', 'eps', 'rti', 'real time', 'full payment', 'employer payment',
+  'fps', 'eps', 'rti', 'real time information', 'full payment submission',
+  'employer payment summary',
   // NIC
   'ni category', 'ni letter', 'nic ', 'national insurance contribution',
-  'director', 'company director', 'category letter',
+  'company director', 'category letter',
   // Statutory pay
-  'statutory', 'ssp', 'smp', 'spp', 'sap', 'shpp', 'spbp',
-  'sick pay', 'maternity', 'paternity', 'bereavement',
-  // Deductions & benefits
+  'statutory sick pay', 'statutory maternity', 'statutory paternity',
+  'statutory adoption', 'statutory bereavement', 'statutory parental',
+  'ssp', 'smp', 'spp', 'sap', 'shpp', 'spbp',
+  // Deductions
   'student loan', 'postgraduate loan',
-  'benefit', 'expense', 'payrolling', 'p11d',
   'attachment of earnings', 'court order',
   'salary sacrifice', 'optional remuneration',
+  // Benefits in kind
+  'payrolling benefit', 'benefit in kind', 'benefits in kind',
   // Pensions
   'pension', 'auto-enrolment', 'automatic enrolment',
   // Employment types
-  'apprentice', 'employment allowance',
-  'construction industry', 'cis',
+  'apprentice levy', 'employment allowance',
+  'construction industry scheme', 'cis ',
   // Year-end
-  'year end', 'year-end', 'annual', 'end of year',
-  // Rates & thresholds
-  'rate', 'threshold', 'limit', 'allowance',
+  'year end', 'year-end', 'end of year',
 ]
 
 function isRelevantSection(title: string): boolean {
@@ -120,12 +127,8 @@ async function safeJsonParse<T>(res: Response, context: string): Promise<T> {
   }
 }
 
-// ─── Single-pass manual scraping ────────────────────────────
+// ─── Concurrent batch fetching ──────────────────────────────
 
-/**
- * Fetch a single section from the Content API.
- * Returns null if the section can't be fetched or has no content.
- */
 async function fetchSection(
   basePath: string,
 ): Promise<ManualSectionResponse | null> {
@@ -143,16 +146,45 @@ async function fetchSection(
 }
 
 /**
- * Scrape a single HMRC manual in one pass.
+ * Fetch multiple sections concurrently in batches.
+ */
+async function fetchSectionsBatch(
+  sections: ManualSection[]
+): Promise<Map<string, ManualSectionResponse>> {
+  const results = new Map<string, ManualSectionResponse>()
+
+  for (let i = 0; i < sections.length; i += BATCH_SIZE) {
+    const batch = sections.slice(i, i + BATCH_SIZE)
+
+    const batchResults = await Promise.all(
+      batch.map(s => fetchSection(s.base_path).then(data => ({ path: s.base_path, data })))
+    )
+
+    for (const { path, data } of batchResults) {
+      if (data) results.set(path, data)
+    }
+
+    // Delay between batches (not after the last one)
+    if (i + BATCH_SIZE < sections.length) {
+      await sleep(BATCH_DELAY_MS)
+    }
+  }
+
+  return results
+}
+
+// ─── Single-pass manual scraping ────────────────────────────
+
+/**
+ * Scrape a single HMRC manual.
  *
  * Strategy:
  * 1. Fetch the manual index → get top-level sections
- * 2. For each relevant top-level section, fetch it (single request gets
- *    both content AND child section list)
- * 3. Keep content from top-level sections if substantial
- * 4. For relevant child sections, fetch and keep content
- *
- * Each section is fetched exactly once.
+ * 2. Filter top-level sections by keywords
+ * 3. Fetch relevant top-level sections concurrently (5 at a time)
+ *    — gets content AND child section list in one request
+ * 4. Collect relevant child sections, fetch them concurrently
+ * 5. Hard cap at MAX_SECTIONS to stay within timeout
  */
 export async function scrapeManual(
   manual: HmrcManualConfig,
@@ -190,6 +222,12 @@ export async function scrapeManual(
   }
   sectionsFound = topLevelSections.length
 
+  // 2. Filter top-level sections by keywords
+  const relevantTopLevel = topLevelSections.filter(s => isRelevantSection(s.title))
+  sectionsRelevant = relevantTopLevel.length
+
+  console.log(`[manual-scraper] ${manual.title}: ${relevantTopLevel.length} relevant of ${topLevelSections.length} top-level sections`)
+
   // Helper to process a fetched section's content
   const processSection = (
     sectionData: ManualSectionResponse,
@@ -224,13 +262,14 @@ export async function scrapeManual(
     })
   }
 
-  // 2. Fetch relevant top-level sections (single pass — gets content + children)
-  for (const section of topLevelSections) {
-    if (!isRelevantSection(section.title)) continue
-    sectionsRelevant++
+  // 3. Fetch relevant top-level sections concurrently
+  const topLevelResults = await fetchSectionsBatch(relevantTopLevel)
 
-    await sleep(MANUAL_DELAY_MS)
-    const sectionData = await fetchSection(section.base_path)
+  // Process top-level sections and collect child sections to fetch
+  const childSectionsToFetch: ManualSection[] = []
+
+  for (const section of relevantTopLevel) {
+    const sectionData = topLevelResults.get(section.base_path)
     if (!sectionData) {
       result.errors.push({
         url: `https://www.gov.uk${section.base_path}`,
@@ -239,7 +278,7 @@ export async function scrapeManual(
       continue
     }
 
-    // Keep content from this top-level section if it has any
+    // Process content from this top-level section
     const url = `https://www.gov.uk${section.base_path}`
     try {
       processSection(sectionData, url)
@@ -247,31 +286,43 @@ export async function scrapeManual(
       result.errors.push({ url, error: err instanceof Error ? err.message : String(err) })
     }
 
-    // 3. Discover and fetch relevant child sections
+    // Collect relevant child sections
     for (const group of sectionData.details?.child_section_groups || []) {
       for (const child of group.child_sections || []) {
         sectionsFound++
-
-        if (!isRelevantSection(child.title)) continue
+        // Take ALL children of a relevant parent (the parent was already filtered)
+        childSectionsToFetch.push(child)
         sectionsRelevant++
-
-        await sleep(MANUAL_DELAY_MS)
-        const childData = await fetchSection(child.base_path)
-        if (!childData) {
-          result.errors.push({
-            url: `https://www.gov.uk${child.base_path}`,
-            error: 'Failed to fetch',
-          })
-          continue
-        }
-
-        const childUrl = `https://www.gov.uk${child.base_path}`
-        try {
-          processSection(childData, childUrl)
-        } catch (err) {
-          result.errors.push({ url: childUrl, error: err instanceof Error ? err.message : String(err) })
-        }
       }
+    }
+  }
+
+  // 4. Apply hard cap to child sections
+  const cappedChildren = childSectionsToFetch.slice(0, MAX_SECTIONS)
+  if (childSectionsToFetch.length > MAX_SECTIONS) {
+    console.log(`[manual-scraper] ${manual.title}: Capped child sections from ${childSectionsToFetch.length} to ${MAX_SECTIONS}`)
+  }
+
+  console.log(`[manual-scraper] ${manual.title}: Fetching ${cappedChildren.length} child sections`)
+
+  // 5. Fetch child sections concurrently
+  const childResults = await fetchSectionsBatch(cappedChildren)
+
+  for (const child of cappedChildren) {
+    const childData = childResults.get(child.base_path)
+    if (!childData) {
+      result.errors.push({
+        url: `https://www.gov.uk${child.base_path}`,
+        error: 'Failed to fetch',
+      })
+      continue
+    }
+
+    const childUrl = `https://www.gov.uk${child.base_path}`
+    try {
+      processSection(childData, childUrl)
+    } catch (err) {
+      result.errors.push({ url: childUrl, error: err instanceof Error ? err.message : String(err) })
     }
   }
 
