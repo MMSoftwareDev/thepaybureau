@@ -7,7 +7,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 import { Analytics } from '@vercel/analytics/next'
 import CookieConsent from '@/components/CookieConsent'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.thepaybureau.com'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://thepaybureau.com'
 
 export const metadata: Metadata = {
   title: {
