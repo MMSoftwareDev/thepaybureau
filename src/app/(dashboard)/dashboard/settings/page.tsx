@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +18,15 @@ import {
   Plus,
   X,
   Loader2,
+  Camera,
+  Lock,
+  Eye,
+  EyeOff,
+  Star,
+  Trash2,
+  Copy,
+  Download,
+  AlertTriangle,
 } from 'lucide-react'
 
 interface ChecklistDefault {
@@ -24,8 +34,16 @@ interface ChecklistDefault {
   sort_order: number
 }
 
+interface ChecklistTemplate {
+  id: string
+  name: string
+  is_default: boolean
+  steps: ChecklistDefault[]
+}
+
 interface TenantSettings {
   default_checklist?: ChecklistDefault[]
+  checklist_templates?: ChecklistTemplate[]
   [key: string]: unknown
 }
 
@@ -33,23 +51,37 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Profile state
   const [userName, setUserName] = useState('')
   const [userEmail, setUserEmail] = useState('')
   const [userId, setUserId] = useState('')
   const [tenantId, setTenantId] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileMessage, setProfileMessage] = useState('')
 
-  // Checklist defaults state
-  const [checklistItems, setChecklistItems] = useState<ChecklistDefault[]>([])
-  const [tenantSettings, setTenantSettings] = useState<TenantSettings>({})
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [confirmError, setConfirmError] = useState('')
+  const [savingPassword, setSavingPassword] = useState(false)
+  const [passwordMessage, setPasswordMessage] = useState('')
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [exportingData, setExportingData] = useState(false)
+
+  const [templates, setTemplates] = useState<ChecklistTemplate[]>([])
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null)
+  const [, setTenantSettings] = useState<TenantSettings>({})
   const [savingChecklist, setSavingChecklist] = useState(false)
   const [checklistMessage, setChecklistMessage] = useState('')
 
   const { isDark, toggleTheme } = useTheme()
   const colors = getThemeColors(isDark)
-
   const supabase = createClientSupabaseClient()
 
   const DEFAULT_CHECKLIST: ChecklistDefault[] = [
@@ -62,11 +94,9 @@ export default function SettingsPage() {
     { name: 'Pension submission', sort_order: 6 },
   ]
 
-  // Fetch user data and tenant settings
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
-
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) return
 
@@ -80,14 +110,28 @@ export default function SettingsPage() {
         setUserId(userRecord.id)
         setUserName(userRecord.name || '')
         setUserEmail(userRecord.email || '')
+        setAvatarUrl(userRecord.avatar_url || null)
         setTenantId(userRecord.tenant_id || '')
-
         const tenant = userRecord.tenants as { settings: TenantSettings | null } | null
         const settings = (tenant?.settings || {}) as TenantSettings
         setTenantSettings(settings)
 
-        const defaults = settings.default_checklist || DEFAULT_CHECKLIST
-        setChecklistItems(defaults)
+        // Load named templates, or migrate legacy default_checklist
+        if (settings.checklist_templates?.length) {
+          setTemplates(settings.checklist_templates)
+          const defaultTpl = settings.checklist_templates.find((t) => t.is_default)
+          setActiveTemplateId(defaultTpl?.id || settings.checklist_templates[0].id)
+        } else {
+          const steps = settings.default_checklist || DEFAULT_CHECKLIST
+          const migrated: ChecklistTemplate = {
+            id: crypto.randomUUID(),
+            name: 'Default',
+            is_default: true,
+            steps,
+          }
+          setTemplates([migrated])
+          setActiveTemplateId(migrated.id)
+        }
       }
     } catch (err) {
       console.error('Error fetching settings data:', err)
@@ -102,27 +146,21 @@ export default function SettingsPage() {
     fetchData()
   }, [fetchData])
 
-  // Show a temporary success/error message
-  const showMessage = (
-    setter: (msg: string) => void,
-    message: string,
-    duration = 3000
-  ) => {
+  const showMessage = (setter: (msg: string) => void, message: string, duration = 3000) => {
     setter(message)
     setTimeout(() => setter(''), duration)
   }
 
-  // Save profile name
   const handleSaveProfile = async () => {
     if (!userId) return
     setSavingProfile(true)
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ name: userName })
-        .eq('id', userId)
-
-      if (error) throw error
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_profile', name: userName }),
+      })
+      if (!res.ok) throw new Error('Failed to save')
       showMessage(setProfileMessage, 'Profile saved!')
     } catch (err) {
       console.error('Error saving profile:', err)
@@ -132,63 +170,307 @@ export default function SettingsPage() {
     }
   }
 
-  // Checklist item handlers
-  const updateChecklistItem = (index: number, name: string) => {
-    setChecklistItems(prev =>
-      prev.map((item, i) => (i === index ? { ...item, name } : item))
-    )
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !userId) return
+
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+      showMessage(setProfileMessage, 'Please select an image file.')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      showMessage(setProfileMessage, 'Image must be under 2MB.')
+      return
+    }
+
+    setUploadingAvatar(true)
+    try {
+      // Always use a fixed filename so re-uploads overwrite the old file
+      const filePath = `${userId}/avatar`
+
+      // Remove any existing avatars (old extension-based + new fixed name)
+      const { data: existingFiles } = await supabase.storage
+        .from('avatars')
+        .list(userId)
+      if (existingFiles?.length) {
+        await supabase.storage
+          .from('avatars')
+          .remove(existingFiles.map((f) => `${userId}/${f.name}`))
+      }
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      // Get public URL with cache-busting param
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      const urlWithCacheBust = `${publicUrl}?t=${Date.now()}`
+
+      // Save URL to user record (via API for audit logging)
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_avatar', avatar_url: urlWithCacheBust }),
+      })
+      if (!res.ok) throw new Error('Failed to update avatar record')
+
+      setAvatarUrl(urlWithCacheBust)
+      window.dispatchEvent(new CustomEvent('avatar-updated', { detail: urlWithCacheBust }))
+      showMessage(setProfileMessage, 'Profile photo updated!')
+    } catch (err) {
+      console.error('Error uploading avatar:', err)
+      showMessage(setProfileMessage, 'Error uploading photo. Please try again.')
+    } finally {
+      setUploadingAvatar(false)
+      // Reset the input so the same file can be re-selected
+      e.target.value = ''
+    }
   }
 
-  const removeChecklistItem = (index: number) => {
-    setChecklistItems(prev => prev.filter((_, i) => i !== index))
+  const handleAvatarRemove = async () => {
+    if (!userId) return
+    setUploadingAvatar(true)
+    try {
+      // Remove all files in user's avatar folder
+      const { data: existingFiles } = await supabase.storage
+        .from('avatars')
+        .list(userId)
+      if (existingFiles?.length) {
+        await supabase.storage
+          .from('avatars')
+          .remove(existingFiles.map((f) => `${userId}/${f.name}`))
+      }
+
+      // Update user record via API for audit logging
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_avatar', avatar_url: null }),
+      })
+      if (!res.ok) throw new Error('Failed to update avatar record')
+
+      setAvatarUrl(null)
+      window.dispatchEvent(new CustomEvent('avatar-updated', { detail: null }))
+      showMessage(setProfileMessage, 'Profile photo removed.')
+    } catch (err) {
+      console.error('Error removing avatar:', err)
+      showMessage(setProfileMessage, 'Error removing photo. Please try again.')
+    } finally {
+      setUploadingAvatar(false)
+    }
   }
 
-  const addChecklistItem = () => {
-    setChecklistItems(prev => [
-      ...prev,
-      { name: '', sort_order: prev.length },
-    ])
+  const handleChangePassword = async () => {
+    setPasswordError('')
+    setConfirmError('')
+
+    let hasErrors = false
+
+    if (!newPassword) {
+      setPasswordError('Password is required')
+      hasErrors = true
+    } else if (newPassword.length < 8) {
+      setPasswordError('Must be at least 8 characters')
+      hasErrors = true
+    }
+
+    if (!confirmPassword) {
+      setConfirmError('Please confirm your password')
+      hasErrors = true
+    } else if (newPassword !== confirmPassword) {
+      setConfirmError('Passwords do not match')
+      hasErrors = true
+    }
+
+    if (hasErrors) return
+
+    setSavingPassword(true)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'change_password', password: newPassword }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to update password')
+      }
+      setNewPassword('')
+      setConfirmPassword('')
+      setShowPassword(false)
+      showMessage(setPasswordMessage, 'Password updated successfully!')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error updating password. Please try again.'
+      setPasswordError(message)
+    } finally {
+      setSavingPassword(false)
+    }
   }
 
-  // Save checklist defaults
+  const handleExportData = async () => {
+    setExportingData(true)
+    try {
+      const res = await fetch('/api/account/export')
+      if (!res.ok) throw new Error('Failed to export data')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `thepaybureau-export-${new Date().toISOString().split('T')[0]}.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Error exporting data:', err)
+      alert('Failed to export data. Please try again.')
+    } finally {
+      setExportingData(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE MY ACCOUNT') return
+    setDeletingAccount(true)
+    setDeleteError('')
+    try {
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation: 'DELETE MY ACCOUNT' }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to delete account')
+      }
+      window.location.href = '/login'
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete account'
+      setDeleteError(message)
+      setDeletingAccount(false)
+    }
+  }
+
+  const activeTemplate = templates.find((t) => t.id === activeTemplateId) || templates[0]
+
+  const updateTemplateStep = (index: number, name: string) =>
+    setTemplates((prev) => prev.map((t) =>
+      t.id === activeTemplateId
+        ? { ...t, steps: t.steps.map((s, i) => (i === index ? { ...s, name } : s)) }
+        : t
+    ))
+
+  const removeTemplateStep = (index: number) =>
+    setTemplates((prev) => prev.map((t) =>
+      t.id === activeTemplateId
+        ? { ...t, steps: t.steps.filter((_, i) => i !== index) }
+        : t
+    ))
+
+  const addTemplateStep = () =>
+    setTemplates((prev) => prev.map((t) =>
+      t.id === activeTemplateId
+        ? { ...t, steps: [...t.steps, { name: '', sort_order: t.steps.length }] }
+        : t
+    ))
+
+  const updateTemplateName = (name: string) =>
+    setTemplates((prev) => prev.map((t) =>
+      t.id === activeTemplateId ? { ...t, name } : t
+    ))
+
+  const addTemplate = () => {
+    const newTemplate: ChecklistTemplate = {
+      id: crypto.randomUUID(),
+      name: 'New Template',
+      is_default: false,
+      steps: [{ name: '', sort_order: 0 }],
+    }
+    setTemplates((prev) => [...prev, newTemplate])
+    setActiveTemplateId(newTemplate.id)
+  }
+
+  const duplicateTemplate = () => {
+    if (!activeTemplate) return
+    const dup: ChecklistTemplate = {
+      id: crypto.randomUUID(),
+      name: `${activeTemplate.name} (Copy)`,
+      is_default: false,
+      steps: activeTemplate.steps.map((s) => ({ ...s })),
+    }
+    setTemplates((prev) => [...prev, dup])
+    setActiveTemplateId(dup.id)
+  }
+
+  const deleteTemplate = () => {
+    if (templates.length <= 1) return
+    const wasDefault = activeTemplate?.is_default
+    const remaining = templates.filter((t) => t.id !== activeTemplateId)
+    if (wasDefault && remaining.length > 0) {
+      remaining[0].is_default = true
+    }
+    setTemplates(remaining)
+    setActiveTemplateId(remaining[0].id)
+  }
+
+  const setAsDefault = () =>
+    setTemplates((prev) => prev.map((t) => ({
+      ...t,
+      is_default: t.id === activeTemplateId,
+    })))
+
   const handleSaveChecklist = async () => {
     if (!tenantId) return
     setSavingChecklist(true)
     try {
-      const currentSettings = tenantSettings || {}
-      const { error } = await supabase
-        .from('tenants')
-        .update({
-          settings: {
-            ...currentSettings,
-            default_checklist: checklistItems.map((item, idx) => ({
-              name: item.name,
-              sort_order: idx,
-            })),
-          },
-        })
-        .eq('id', tenantId)
-
-      if (error) throw error
-      showMessage(setChecklistMessage, 'Defaults saved!')
+      const normalized = templates.map((t) => ({
+        ...t,
+        steps: t.steps.map((s, idx) => ({ name: s.name, sort_order: idx })),
+      }))
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save_checklist_templates',
+          templates: normalized,
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to save')
+      showMessage(setChecklistMessage, 'Templates saved!')
     } catch (err) {
-      console.error('Error saving checklist defaults:', err)
-      showMessage(
-        setChecklistMessage,
-        'Error saving defaults. Please try again.'
-      )
+      console.error('Error saving checklist templates:', err)
+      showMessage(setChecklistMessage, 'Error saving templates. Please try again.')
     } finally {
       setSavingChecklist(false)
     }
   }
 
-  // Prevent hydration mismatch
+  const cardStyle = {
+    backgroundColor: colors.surface,
+    borderRadius: '12px',
+    border: `1px solid ${colors.border}`,
+  }
+
+  const inputStyle = {
+    background: isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg,
+    color: colors.text.primary,
+    border: `1px solid ${colors.border}`,
+  }
+
   if (!mounted) {
     return (
-      <div className="space-y-8 animate-pulse">
-        <div className="h-20 rounded-xl bg-gray-200" />
-        <div className="h-64 rounded-xl bg-gray-200" />
-        <div className="h-64 rounded-xl bg-gray-200" />
+      <div className="space-y-6 max-w-3xl mx-auto animate-pulse">
+        <div className="h-14 rounded-lg" style={{ background: colors.border }} />
+        <div className="h-72 rounded-lg" style={{ background: colors.border }} />
+        <div className="h-72 rounded-lg" style={{ background: colors.border }} />
+        <div className="h-96 rounded-lg" style={{ background: colors.border }} />
       </div>
     )
   }
@@ -196,290 +478,378 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center">
-          <div
-            className="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-xl flex items-center justify-center"
-            style={{
-              background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-              boxShadow: isDark
-                ? `0 25px 50px ${colors.shadow.heavy}`
-                : `0 20px 40px ${colors.primary}30`,
-            }}
-          >
-            <Loader2 className="w-10 h-10 text-white animate-spin" />
-          </div>
-          <p
-            className="text-xl font-semibold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            Loading settings...
-          </p>
-        </div>
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: colors.primary }} />
       </div>
     )
   }
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
-      {/* Header */}
+    <div className="space-y-6 max-w-3xl mx-auto">
       <div>
-        <h1
-          className="text-3xl md:text-4xl font-bold transition-colors duration-300"
-          style={{ color: colors.text.primary }}
-        >
+        <h1 className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>
           Settings
         </h1>
-        <p
-          className="text-base md:text-lg transition-colors duration-300 mt-2"
-          style={{ color: colors.text.secondary }}
-        >
+        <p className="text-[0.82rem] mt-0.5" style={{ color: colors.text.muted }}>
           Manage your profile, defaults, and preferences.
         </p>
       </div>
 
-      {/* Section 1: Profile */}
-      <Card
-        className="border-0 shadow-xl"
-        style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 15px 35px ${colors.shadow.medium}`
-            : `0 10px 25px ${colors.shadow.light}`,
-        }}
-      >
-        <CardHeader className="pb-6">
-          <CardTitle
-            className="flex items-center text-xl md:text-2xl font-bold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mr-4 shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                boxShadow: `0 8px 25px ${colors.primary}30`,
-              }}
-            >
-              <User className="w-6 h-6 text-white" />
+      {/* Profile */}
+      <Card className="border-0" style={cardStyle}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-3 text-base font-bold" style={{ color: colors.text.primary }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.primary}12` }}>
+              <User className="w-[18px] h-[18px]" style={{ color: colors.primary }} />
             </div>
             Profile
           </CardTitle>
         </CardHeader>
-
-        <CardContent className="p-6 md:p-8">
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
-                <Label
-                  htmlFor="profile-name"
-                  className="font-semibold"
-                  style={{ color: colors.text.primary }}
-                >
-                  Name
-                </Label>
-                <Input
-                  id="profile-name"
-                  value={userName}
-                  onChange={(e) => setUserName(e.target.value)}
-                  placeholder="Your name"
-                  className="mt-2 rounded-xl border-0 shadow-lg transition-all duration-300"
-                  style={{
-                    background: colors.glass.surface,
-                    color: colors.text.primary,
-                    border: `1px solid ${colors.borderElevated}`,
-                  }}
+        <CardContent className="pt-4">
+          {/* Avatar */}
+          <div className="flex items-center gap-4 mb-5">
+            <div className="relative group">
+              {avatarUrl ? (
+                <Image
+                  src={avatarUrl}
+                  alt="Profile"
+                  width={64}
+                  height={64}
+                  className="rounded-xl object-cover"
                 />
-              </div>
-
-              <div>
-                <Label
-                  htmlFor="profile-email"
-                  className="font-semibold"
-                  style={{ color: colors.text.primary }}
+              ) : (
+                <div
+                  className="w-16 h-16 rounded-xl flex items-center justify-center text-white text-lg font-bold"
+                  style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
                 >
-                  Email
-                </Label>
-                <Input
-                  id="profile-email"
-                  value={userEmail}
-                  readOnly
-                  className="mt-2 rounded-xl border-0 shadow-lg transition-all duration-300 opacity-70 cursor-not-allowed"
-                  style={{
-                    background: colors.glass.surface,
-                    color: colors.text.secondary,
-                    border: `1px solid ${colors.borderElevated}`,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 pt-2">
-              <Button
-                onClick={handleSaveProfile}
-                disabled={savingProfile}
-                className="text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] border-0"
-                style={{
-                  background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-                  boxShadow: `0 10px 25px ${colors.primary}30`,
-                }}
+                  {userName?.[0]?.toUpperCase() || userEmail?.[0]?.toUpperCase() || 'U'}
+                </div>
+              )}
+              <label className="absolute inset-0 flex items-center justify-center rounded-xl cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                style={{ background: 'rgba(0,0,0,0.5)' }}
               >
-                {savingProfile ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Saving...
-                  </>
+                {uploadingAvatar ? (
+                  <Loader2 className="w-5 h-5 text-white animate-spin" />
                 ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Profile
-                  </>
+                  <Camera className="w-5 h-5 text-white" />
                 )}
-              </Button>
-
-              {profileMessage && (
-                <span
-                  className="text-sm font-semibold transition-opacity duration-300"
-                  style={{
-                    color: profileMessage.includes('Error')
-                      ? colors.error
-                      : colors.success,
-                  }}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                  disabled={uploadingAvatar}
+                />
+              </label>
+            </div>
+            <div>
+              <p className="text-[0.85rem] font-semibold" style={{ color: colors.text.primary }}>
+                Profile photo
+              </p>
+              <p className="text-[0.75rem]" style={{ color: colors.text.muted }}>
+                Hover to change. Max 2MB.
+              </p>
+              {avatarUrl && (
+                <button
+                  onClick={handleAvatarRemove}
+                  disabled={uploadingAvatar}
+                  className="text-[0.75rem] font-medium mt-1 transition-colors duration-150"
+                  style={{ color: colors.error }}
+                  onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
                 >
-                  {profileMessage}
-                </span>
+                  Remove photo
+                </button>
               )}
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <Label htmlFor="profile-name" className="text-[0.78rem] font-semibold uppercase tracking-[0.04em]" style={{ color: colors.text.muted }}>
+                Name
+              </Label>
+              <Input
+                id="profile-name"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Your name"
+                className="mt-1.5 h-10 rounded-lg border-0 text-[0.88rem] font-medium"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <Label htmlFor="profile-email" className="text-[0.78rem] font-semibold uppercase tracking-[0.04em]" style={{ color: colors.text.muted }}>
+                Email
+              </Label>
+              <Input
+                id="profile-email"
+                value={userEmail}
+                readOnly
+                className="mt-1.5 h-10 rounded-lg border-0 text-[0.88rem] font-medium opacity-60 cursor-not-allowed"
+                style={inputStyle}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-3 mt-5">
+            <Button
+              onClick={handleSaveProfile}
+              disabled={savingProfile}
+              className="text-white font-semibold py-2 px-5 rounded-lg border-0"
+              style={{
+                background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
+              }}
+            >
+              {savingProfile ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Profile</>}
+            </Button>
+            {profileMessage && (
+              <span className="text-[0.82rem] font-semibold" style={{ color: profileMessage.includes('Error') ? colors.error : colors.success }}>
+                {profileMessage}
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Section 2: Default Checklist Template */}
-      <Card
-        className="border-0 shadow-xl"
-        style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 15px 35px ${colors.shadow.medium}`
-            : `0 10px 25px ${colors.shadow.light}`,
-        }}
-      >
-        <CardHeader className="pb-6">
-          <CardTitle
-            className="flex items-center text-xl md:text-2xl font-bold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mr-4 shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                boxShadow: `0 8px 25px ${colors.primary}30`,
-              }}
-            >
-              <ListChecks className="w-6 h-6 text-white" />
+      {/* Change Password */}
+      <Card className="border-0" style={cardStyle}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-3 text-base font-bold" style={{ color: colors.text.primary }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.primary}12` }}>
+              <Lock className="w-[18px] h-[18px]" style={{ color: colors.primary }} />
             </div>
-            Default Checklist Template
+            Change Password
           </CardTitle>
         </CardHeader>
-
-        <CardContent className="p-6 md:p-8">
-          <p
-            className="text-sm mb-6 transition-colors duration-300"
-            style={{ color: colors.text.secondary }}
-          >
-            Define the default checklist steps that are pre-populated when
-            creating a new client.
+        <CardContent className="pt-4">
+          <p className="text-[0.82rem] mb-5" style={{ color: colors.text.secondary }}>
+            Update your password. Must be at least 8 characters.
           </p>
-
-          <div className="space-y-3">
-            {checklistItems.map((item, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <span
-                  className="text-sm font-bold w-8 text-center flex-shrink-0"
-                  style={{ color: colors.text.muted }}
-                >
-                  {index + 1}
-                </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <Label htmlFor="new-password" className="text-[0.78rem] font-semibold uppercase tracking-[0.04em]" style={{ color: colors.text.muted }}>
+                New password
+              </Label>
+              <div className="relative mt-1.5">
                 <Input
-                  value={item.name}
-                  onChange={(e) => updateChecklistItem(index, e.target.value)}
-                  placeholder="Step name"
-                  className="flex-1 rounded-xl border-0 shadow-lg transition-all duration-300"
+                  id="new-password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value)
+                    if (passwordError) setPasswordError('')
+                  }}
+                  placeholder="At least 8 characters"
+                  autoComplete="new-password"
+                  disabled={savingPassword}
+                  className="h-10 rounded-lg border-0 text-[0.88rem] font-medium pr-10"
                   style={{
-                    background: colors.glass.surface,
-                    color: colors.text.primary,
-                    border: `1px solid ${colors.borderElevated}`,
+                    ...inputStyle,
+                    ...(passwordError ? { borderColor: colors.error } : {}),
                   }}
                 />
                 <button
-                  onClick={() => removeChecklistItem(index)}
-                  className="w-9 h-9 flex-shrink-0 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
-                  style={{
-                    backgroundColor: `${colors.error}15`,
-                    color: colors.error,
-                    border: `1px solid ${colors.error}30`,
-                  }}
-                  title="Remove step"
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded transition-colors"
+                  style={{ color: colors.text.muted }}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  <X className="w-4 h-4" />
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-            ))}
+              {passwordError && (
+                <p className="text-[0.78rem] font-medium mt-1" style={{ color: colors.error }}>
+                  {passwordError}
+                </p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="confirm-password" className="text-[0.78rem] font-semibold uppercase tracking-[0.04em]" style={{ color: colors.text.muted }}>
+                Confirm password
+              </Label>
+              <Input
+                id="confirm-password"
+                type={showPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value)
+                  if (confirmError) setConfirmError('')
+                }}
+                placeholder="Re-enter your password"
+                autoComplete="new-password"
+                disabled={savingPassword}
+                className="mt-1.5 h-10 rounded-lg border-0 text-[0.88rem] font-medium"
+                style={{
+                  ...inputStyle,
+                  ...(confirmError ? { borderColor: colors.error } : {}),
+                }}
+              />
+              {confirmError && (
+                <p className="text-[0.78rem] font-medium mt-1" style={{ color: colors.error }}>
+                  {confirmError}
+                </p>
+              )}
+            </div>
           </div>
-
-          <div className="mt-4">
+          <div className="flex items-center gap-3 mt-5">
             <Button
-              onClick={addChecklistItem}
-              variant="outline"
-              className="rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-md"
+              onClick={handleChangePassword}
+              disabled={savingPassword}
+              className="text-white font-semibold py-2 px-5 rounded-lg border-0"
               style={{
-                borderColor: colors.borderElevated,
-                color: colors.text.secondary,
-                backgroundColor: colors.glass.surface,
-                backdropFilter: 'blur(10px)',
+                background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
               }}
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Step
+              {savingPassword ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Updating...</> : <><Lock className="w-4 h-4 mr-2" />Update Password</>}
             </Button>
+            {passwordMessage && (
+              <span className="text-[0.82rem] font-semibold" style={{ color: passwordMessage.includes('Error') ? colors.error : colors.success }}>
+                {passwordMessage}
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Checklist Templates */}
+      <Card className="border-0" style={cardStyle}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-3 text-base font-bold" style={{ color: colors.text.primary }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.primary}12` }}>
+              <ListChecks className="w-[18px] h-[18px]" style={{ color: colors.primary }} />
+            </div>
+            Checklist Templates
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <p className="text-[0.82rem] mb-4" style={{ color: colors.text.secondary }}>
+            Create named checklist templates to choose from when onboarding clients.
+          </p>
+
+          {/* Template tabs */}
+          <div className="flex flex-wrap items-center gap-2 mb-5">
+            {templates.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTemplateId(t.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[0.82rem] font-semibold transition-all"
+                style={{
+                  background: t.id === activeTemplateId
+                    ? `${colors.primary}18`
+                    : colors.lightBg,
+                  color: t.id === activeTemplateId ? colors.primary : colors.text.secondary,
+                  border: `1px solid ${t.id === activeTemplateId ? colors.primary : colors.border}`,
+                }}
+              >
+                {t.is_default && <Star className="w-3 h-3" />}
+                {t.name || 'Untitled'}
+              </button>
+            ))}
+            <button
+              onClick={addTemplate}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[0.82rem] font-semibold transition-colors"
+              style={{ color: colors.text.muted, border: `1px dashed ${colors.border}` }}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add
+            </button>
           </div>
 
-          <div className="flex items-center gap-4 pt-6 mt-6 border-t" style={{ borderColor: colors.borderElevated }}>
+          {/* Active template editor */}
+          {activeTemplate && (
+            <div className="space-y-4">
+              {/* Template name + actions */}
+              <div className="flex items-center gap-2.5">
+                <Input
+                  value={activeTemplate.name}
+                  onChange={(e) => updateTemplateName(e.target.value)}
+                  placeholder="Template name"
+                  className="flex-1 h-9 rounded-lg border-0 text-[0.85rem] font-semibold"
+                  style={inputStyle}
+                />
+                <button
+                  onClick={setAsDefault}
+                  className="h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-[0.78rem] font-semibold transition-colors whitespace-nowrap"
+                  style={{
+                    color: activeTemplate.is_default ? colors.primary : colors.text.muted,
+                    background: activeTemplate.is_default ? `${colors.primary}12` : 'transparent',
+                  }}
+                  title={activeTemplate.is_default ? 'This is the default template' : 'Set as default'}
+                >
+                  <Star className="w-3.5 h-3.5" />
+                  {activeTemplate.is_default ? 'Default' : 'Set default'}
+                </button>
+                <button
+                  onClick={duplicateTemplate}
+                  className="w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors"
+                  style={{ color: colors.text.muted }}
+                  title="Duplicate template"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+                {templates.length > 1 && (
+                  <button
+                    onClick={deleteTemplate}
+                    className="w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
+                    style={{ color: colors.error }}
+                    title="Delete template"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Steps */}
+              <div className="space-y-2.5">
+                {activeTemplate.steps.map((step, index) => (
+                  <div key={index} className="flex items-center gap-2.5">
+                    <span className="text-[0.75rem] font-bold w-7 text-center flex-shrink-0" style={{ color: colors.text.muted }}>
+                      {index + 1}
+                    </span>
+                    <Input
+                      value={step.name}
+                      onChange={(e) => updateTemplateStep(index, e.target.value)}
+                      placeholder="Step name"
+                      className="flex-1 h-9 rounded-lg border-0 text-[0.85rem] font-medium"
+                      style={inputStyle}
+                    />
+                    <button
+                      onClick={() => removeTemplateStep(index)}
+                      className="w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
+                      style={{ color: colors.error }}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                onClick={addTemplateStep}
+                variant="outline"
+                size="sm"
+                className="rounded-lg font-semibold text-[0.82rem]"
+                style={{ borderColor: colors.border, color: colors.text.secondary }}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                Add Step
+              </Button>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 mt-6 pt-5 border-t" style={{ borderColor: colors.border }}>
             <Button
               onClick={handleSaveChecklist}
               disabled={savingChecklist}
-              className="text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] border-0"
+              className="text-white font-semibold py-2 px-5 rounded-lg border-0"
               style={{
-                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-                boxShadow: `0 10px 25px ${colors.primary}30`,
+                background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
               }}
             >
-              {savingChecklist ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Defaults
-                </>
-              )}
+              {savingChecklist ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Templates</>}
             </Button>
-
             {checklistMessage && (
-              <span
-                className="text-sm font-semibold transition-opacity duration-300"
-                style={{
-                  color: checklistMessage.includes('Error')
-                    ? colors.error
-                    : colors.success,
-                }}
-              >
+              <span className="text-[0.82rem] font-semibold" style={{ color: checklistMessage.includes('Error') ? colors.error : colors.success }}>
                 {checklistMessage}
               </span>
             )}
@@ -487,131 +857,184 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Section 3: Theme */}
-      <Card
-        className="border-0 shadow-xl"
-        style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 15px 35px ${colors.shadow.medium}`
-            : `0 10px 25px ${colors.shadow.light}`,
-        }}
-      >
-        <CardHeader className="pb-6">
-          <CardTitle
-            className="flex items-center text-xl md:text-2xl font-bold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mr-4 shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                boxShadow: `0 8px 25px ${colors.primary}30`,
-              }}
-            >
-              {isDark ? (
-                <Moon className="w-6 h-6 text-white" />
-              ) : (
-                <Sun className="w-6 h-6 text-white" />
-              )}
+      {/* Theme */}
+      <Card className="border-0" style={cardStyle}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-3 text-base font-bold" style={{ color: colors.text.primary }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.primary}12` }}>
+              {isDark ? <Moon className="w-[18px] h-[18px]" style={{ color: colors.primary }} /> : <Sun className="w-[18px] h-[18px]" style={{ color: colors.primary }} />}
             </div>
-            Theme
+            Appearance
           </CardTitle>
         </CardHeader>
-
-        <CardContent className="p-6 md:p-8">
+        <CardContent className="pt-4">
           <div className="flex items-center justify-between">
             <div>
-              <p
-                className="text-base font-semibold transition-colors duration-300"
-                style={{ color: colors.text.primary }}
-              >
+              <p className="text-[0.88rem] font-semibold" style={{ color: colors.text.primary }}>
                 {isDark ? 'Dark Mode' : 'Light Mode'}
               </p>
-              <p
-                className="text-sm transition-colors duration-300 mt-1"
-                style={{ color: colors.text.secondary }}
-              >
+              <p className="text-[0.78rem] mt-0.5" style={{ color: colors.text.muted }}>
                 Switch between light and dark appearance.
               </p>
             </div>
-
             <button
               onClick={toggleTheme}
-              className="relative w-16 h-9 rounded-full transition-all duration-300 shadow-lg"
+              className="relative w-14 h-8 rounded-full transition-all duration-300"
               style={{
                 backgroundColor: isDark ? colors.primary : colors.border,
-                boxShadow: isDark
-                  ? `0 4px 15px ${colors.primary}40`
-                  : `0 4px 15px ${colors.shadow.light}`,
               }}
-              title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
             >
               <div
-                className="absolute top-1 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 shadow-md"
+                className="absolute top-1 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm"
                 style={{
-                  left: isDark ? '32px' : '4px',
+                  left: isDark ? '28px' : '4px',
                   backgroundColor: isDark ? colors.surface : '#FFFFFF',
                 }}
               >
-                {isDark ? (
-                  <Moon className="w-4 h-4" style={{ color: colors.primary }} />
-                ) : (
-                  <Sun className="w-4 h-4" style={{ color: '#F59E0B' }} />
-                )}
+                {isDark ? <Moon className="w-3.5 h-3.5" style={{ color: colors.primary }} /> : <Sun className="w-3.5 h-3.5" style={{ color: '#F59E0B' }} />}
               </div>
             </button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Section 4: About */}
-      <Card
-        className="border-0 shadow-xl"
-        style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 15px 35px ${colors.shadow.medium}`
-            : `0 10px 25px ${colors.shadow.light}`,
-        }}
-      >
-        <CardHeader className="pb-6">
-          <CardTitle
-            className="flex items-center text-xl md:text-2xl font-bold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mr-4 shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                boxShadow: `0 8px 25px ${colors.primary}30`,
-              }}
-            >
-              <Info className="w-6 h-6 text-white" />
+      {/* About */}
+      <Card className="border-0" style={cardStyle}>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.primary}12` }}>
+              <Info className="w-[18px] h-[18px]" style={{ color: colors.primary }} />
             </div>
-            About
+            <div>
+              <p className="text-[0.88rem] font-bold" style={{ color: colors.text.primary }}>
+                ThePayBureau Pro v2.1
+              </p>
+              <p className="text-[0.78rem]" style={{ color: colors.text.muted }}>
+                Payroll bureau management made simple.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Delete Account */}
+      <Card className="border-0" style={{ ...cardStyle, borderColor: colors.error + '40' }}>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-3 text-base font-bold" style={{ color: colors.error }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${colors.error}12` }}>
+              <Trash2 className="w-[18px] h-[18px]" style={{ color: colors.error }} />
+            </div>
+            Delete Account
           </CardTitle>
         </CardHeader>
+        <CardContent className="pt-4">
+          <div className="rounded-lg p-4 mb-4" style={{ background: `${colors.error}08`, border: `1px solid ${colors.error}20` }}>
+            <div className="flex gap-3">
+              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: colors.error }} />
+              <div>
+                <p className="text-[0.85rem] font-semibold mb-1" style={{ color: colors.error }}>
+                  This action is permanent and cannot be undone
+                </p>
+                <p className="text-[0.82rem]" style={{ color: colors.text.secondary }}>
+                  Deleting your account will permanently remove all of your data including:
+                </p>
+                <ul className="text-[0.82rem] mt-2 space-y-1 list-disc list-inside" style={{ color: colors.text.secondary }}>
+                  <li>Your profile and account settings</li>
+                  <li>All clients and their details</li>
+                  <li>All payroll runs and checklists</li>
+                  <li>Training records</li>
+                  <li>Audit logs</li>
+                  <li>Badges and achievements</li>
+                </ul>
+              </div>
+            </div>
+          </div>
 
-        <CardContent className="p-6 md:p-8">
-          <p
-            className="text-base font-semibold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            ThePayBureau Pro v1.0
+          <p className="text-[0.85rem] font-semibold mb-3" style={{ color: colors.text.primary }}>
+            Please export your data before deleting your account.
           </p>
-          <p
-            className="text-sm transition-colors duration-300 mt-1"
-            style={{ color: colors.text.secondary }}
+
+          <Button
+            onClick={handleExportData}
+            disabled={exportingData}
+            variant="outline"
+            className="rounded-lg font-semibold text-[0.85rem] mb-5"
+            style={{ borderColor: colors.border, color: colors.text.primary }}
           >
-            Payroll bureau management made simple.
-          </p>
+            {exportingData ? (
+              <><Loader2 className="w-4 h-4 animate-spin mr-2" />Exporting...</>
+            ) : (
+              <><Download className="w-4 h-4 mr-2" />Export All Data (CSV)</>
+            )}
+          </Button>
+
+          {!showDeleteConfirm ? (
+            <div>
+              <Button
+                onClick={() => setShowDeleteConfirm(true)}
+                variant="outline"
+                className="rounded-lg font-semibold text-[0.85rem]"
+                style={{ borderColor: colors.error + '60', color: colors.error }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete My Account
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-lg p-4" style={{ background: isDark ? 'rgba(255,255,255,0.03)' : colors.lightBg, border: `1px solid ${colors.border}` }}>
+              <p className="text-[0.85rem] font-semibold mb-3" style={{ color: colors.text.primary }}>
+                Type <span className="font-mono" style={{ color: colors.error }}>DELETE MY ACCOUNT</span> to confirm:
+              </p>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => {
+                  setDeleteConfirmText(e.target.value)
+                  if (deleteError) setDeleteError('')
+                }}
+                placeholder="DELETE MY ACCOUNT"
+                className="mb-3 h-10 rounded-lg border-0 text-[0.88rem] font-medium font-mono"
+                style={{
+                  ...inputStyle,
+                  ...(deleteError ? { borderColor: colors.error } : {}),
+                }}
+                disabled={deletingAccount}
+              />
+              {deleteError && (
+                <p className="text-[0.78rem] font-medium mb-3" style={{ color: colors.error }}>
+                  {deleteError}
+                </p>
+              )}
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handleDeleteAccount}
+                  disabled={deletingAccount || deleteConfirmText !== 'DELETE MY ACCOUNT'}
+                  className="rounded-lg font-semibold text-[0.85rem] text-white"
+                  style={{
+                    background: deleteConfirmText === 'DELETE MY ACCOUNT' ? colors.error : colors.border,
+                  }}
+                >
+                  {deletingAccount ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-2" />Deleting...</>
+                  ) : (
+                    <><Trash2 className="w-4 h-4 mr-2" />Permanently Delete Account</>
+                  )}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowDeleteConfirm(false)
+                    setDeleteConfirmText('')
+                    setDeleteError('')
+                  }}
+                  variant="outline"
+                  className="rounded-lg font-semibold text-[0.85rem]"
+                  style={{ borderColor: colors.border, color: colors.text.secondary }}
+                  disabled={deletingAccount}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

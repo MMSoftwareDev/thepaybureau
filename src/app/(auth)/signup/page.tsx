@@ -2,12 +2,14 @@
 
 import { useState, useCallback, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { isDisposableEmail } from '@/lib/disposable-domains'
 
 const GRAIN_TEXTURE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E")`
 
@@ -68,6 +70,15 @@ export default function SignupPage() {
       return
     }
 
+    if (isDisposableEmail(email)) {
+      setEmailValidation({
+        isValid: false,
+        message: 'Disposable emails are not allowed',
+        suggestion: 'Please use a permanent business email address'
+      })
+      return
+    }
+
     const suggestedCompany = domain?.split('.')[0]
       .split(/[-_]/)
       .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -105,8 +116,8 @@ export default function SignupPage() {
       newErrors.password = 'Password is required'
     } else if (formData.password.length < 8) {
       newErrors.password = 'Password must be at least 8 characters'
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-      newErrors.password = 'Must include uppercase, lowercase, and number'
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?])/.test(formData.password)) {
+      newErrors.password = 'Must include uppercase, lowercase, number, and special character'
     }
 
     if (!formData.companyName.trim()) {
@@ -137,7 +148,8 @@ export default function SignupPage() {
       const data = await response.json()
 
       if (response.ok) {
-        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`)
+        sessionStorage.setItem('verify_email', formData.email)
+        router.push('/verify-email')
       } else {
         setErrors({ submit: data.error || 'Registration failed. Please try again.' })
       }
@@ -183,14 +195,7 @@ export default function SignupPage() {
         <div className="relative z-10">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="flex h-[42px] w-[42px] items-center justify-center rounded-xl border border-white/10 bg-white/15 backdrop-blur-sm">
-              <svg viewBox="0 0 24 24" fill="none" className="h-[22px] w-[22px]">
-                <path d="M4 4h6v6H4V4z" fill="rgba(255,255,255,0.9)" />
-                <path d="M14 4h6v6h-6V4z" fill="rgba(255,255,255,0.5)" />
-                <path d="M4 14h6v6H4v-6z" fill="rgba(255,255,255,0.5)" />
-                <path d="M14 14h6v6h-6v-6z" fill="rgba(255,255,255,0.3)" />
-              </svg>
-            </div>
+            <Image src="/logo.png" alt="ThePayBureau" width={42} height={42} className="rounded-xl" />
             <span className="font-[family-name:var(--font-body)] text-[1.25rem] font-extrabold tracking-tight text-white">
               ThePayBureau
             </span>
@@ -263,17 +268,7 @@ export default function SignupPage() {
         <div className="relative z-10 w-full max-w-[420px]">
           {/* Mobile logo */}
           <div className="mb-8 flex items-center gap-2 md:hidden">
-            <div
-              className="flex h-9 w-9 items-center justify-center rounded-lg"
-              style={{ background: 'var(--login-purple)' }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
-                <path d="M4 4h6v6H4V4z" fill="rgba(255,255,255,0.9)" />
-                <path d="M14 4h6v6h-6V4z" fill="rgba(255,255,255,0.5)" />
-                <path d="M4 14h6v6H4v-6z" fill="rgba(255,255,255,0.5)" />
-                <path d="M14 14h6v6h-6v-6z" fill="rgba(255,255,255,0.3)" />
-              </svg>
-            </div>
+            <Image src="/logo.png" alt="ThePayBureau" width={36} height={36} className="rounded-lg" />
             <span className="font-[family-name:var(--font-body)] text-lg font-extrabold tracking-tight text-[var(--login-fg)]">
               ThePayBureau
             </span>
@@ -442,7 +437,7 @@ export default function SignupPage() {
                 type="password"
                 value={formData.password}
                 onChange={(e) => handleInputChange('password', e.target.value)}
-                placeholder="Min 8 chars, upper + lower + number"
+                placeholder="Min 8 chars, upper + lower + number + special"
                 autoComplete="new-password"
                 disabled={loading}
                 className={cn(

@@ -4,7 +4,6 @@
 import { useEffect, useState } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
-import { useRouter } from 'next/navigation'
 import DashboardWrapper from '@/components/layout/DashboardWrapper'
 
 export default function DashboardLayout({
@@ -13,70 +12,43 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const router = useRouter()
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const supabase = createClientSupabaseClient()
 
   useEffect(() => {
-    checkUser()
+    // Auth is already enforced by middleware — this just fetches user info for display
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUser(user)
+        // Fetch avatar in parallel, non-blocking
+        supabase
+          .from('users')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .single()
+          .then(({ data }) => {
+            if (data?.avatar_url) setAvatarUrl(data.avatar_url)
+          })
+        // Check admin status server-side
+        fetch('/api/admin/check')
+          .then(res => res.json())
+          .then(data => setIsAdmin(data.isAdmin === true))
+          .catch(() => {})
+      }
+    })
+
+    const handleAvatarUpdate = (e: CustomEvent<string | null>) => {
+      setAvatarUrl(e.detail)
+    }
+    window.addEventListener('avatar-updated', handleAvatarUpdate as EventListener)
+    return () => window.removeEventListener('avatar-updated', handleAvatarUpdate as EventListener)
   }, [])
 
-  const checkUser = async () => {
-    try {
-      // Check current session
-      const { data: { session }, error } = await supabase.auth.getSession()
-      
-      console.log('Dashboard layout - checking session:', !!session)
-      console.log('Dashboard layout - session error:', error)
-      
-      if (error) {
-        console.error('Session error:', error)
-        router.push('/login')
-        return
-      }
-
-      if (!session) {
-        console.log('No session found, redirecting to login')
-        router.push('/login')
-        return
-      }
-
-      console.log('Session found, user:', session.user)
-      setUser(session.user)
-    } catch (error) {
-      console.error('Error checking user:', error)
-      router.push('/login')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Show login redirect message
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <p className="text-gray-600">Redirecting to login...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Show dashboard if user is authenticated
+  // Render immediately — middleware already ensures auth.
+  // User info populates asynchronously for sidebar/navbar display.
   return (
-    <DashboardWrapper user={user}>
+    <DashboardWrapper user={user} avatarUrl={avatarUrl} isAdmin={isAdmin}>
       {children}
     </DashboardWrapper>
   )

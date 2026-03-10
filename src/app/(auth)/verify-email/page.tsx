@@ -1,15 +1,22 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Mail, ArrowLeft } from 'lucide-react'
-import { Suspense } from 'react'
 
 const GRAIN_TEXTURE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E")`
 
 function VerifyEmailContent() {
-  const searchParams = useSearchParams()
-  const email = searchParams.get('email') || 'your email'
+  const [email, setEmail] = useState('your email')
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('verify_email')
+    if (stored) {
+      setEmail(stored)
+      sessionStorage.removeItem('verify_email')
+    }
+  }, [])
 
   return (
     <div className="grid min-h-screen grid-cols-1 md:grid-cols-[44%_1fr]">
@@ -46,14 +53,7 @@ function VerifyEmailContent() {
         <div className="relative z-10">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="flex h-[42px] w-[42px] items-center justify-center rounded-xl border border-white/10 bg-white/15 backdrop-blur-sm">
-              <svg viewBox="0 0 24 24" fill="none" className="h-[22px] w-[22px]">
-                <path d="M4 4h6v6H4V4z" fill="rgba(255,255,255,0.9)" />
-                <path d="M14 4h6v6h-6V4z" fill="rgba(255,255,255,0.5)" />
-                <path d="M4 14h6v6H4v-6z" fill="rgba(255,255,255,0.5)" />
-                <path d="M14 14h6v6h-6v-6z" fill="rgba(255,255,255,0.3)" />
-              </svg>
-            </div>
+            <Image src="/logo.png" alt="ThePayBureau" width={42} height={42} className="rounded-xl" />
             <span className="font-[family-name:var(--font-body)] text-[1.25rem] font-extrabold tracking-tight text-white">
               ThePayBureau
             </span>
@@ -166,9 +166,5 @@ function VerifyEmailContent() {
 }
 
 export default function VerifyEmailPage() {
-  return (
-    <Suspense fallback={null}>
-      <VerifyEmailContent />
-    </Suspense>
-  )
+  return <VerifyEmailContent />
 }

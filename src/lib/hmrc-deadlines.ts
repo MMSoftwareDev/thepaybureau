@@ -9,7 +9,7 @@ import {
   startOfDay,
 } from 'date-fns'
 
-export type PayFrequency = 'weekly' | 'fortnightly' | 'four_weekly' | 'monthly'
+export type PayFrequency = 'weekly' | 'two_weekly' | 'four_weekly' | 'monthly' | 'quarterly' | 'biannually' | 'annually'
 export type PayrollStatus =
   | 'not_started'
   | 'in_progress'
@@ -85,31 +85,93 @@ export function calculateNextPayDate(
 ): Date {
   const after = startOfDay(afterDate)
 
-  if (frequency === 'monthly') {
-    // Check for "last_xxx" pattern
+  // Determine the month increment for monthly-like frequencies
+  const monthIncrement: Record<string, number> = {
+    monthly: 1,
+    quarterly: 3,
+    biannually: 6,
+    annually: 12,
+  }
+
+  if (frequency in monthIncrement) {
+    const increment = monthIncrement[frequency]
+
+    // Helper: get Nth from last working day of month (n=1 is last, n=2 is 2nd from last, etc.)
+    const getNthFromLastWorkingDay = (year: number, month: number, n: number): Date => {
+      const last = lastDayOfMonth(new Date(year, month, 1))
+      let d = last
+      let count = 0
+      while (count < n) {
+        if (getDay(d) !== 0 && getDay(d) !== 6) {
+          count++
+          if (count === n) break
+        }
+        d = subDays(d, 1)
+      }
+      return startOfDay(d)
+    }
+
+    // Helper: get Nth from last specific weekday of month (e.g. 2nd from last Friday)
+    const getNthFromLastWeekday = (year: number, month: number, weekday: number, n: number): Date => {
+      const last = lastDayOfMonth(new Date(year, month, 1))
+      let d = last
+      let count = 0
+      while (count < n) {
+        if (getDay(d) === weekday) {
+          count++
+          if (count === n) break
+        }
+        d = subDays(d, 1)
+      }
+      return startOfDay(d)
+    }
+
+    // Helper to try current month then advance
+    const tryMonthThenNext = (resolver: (year: number, month: number) => Date): Date => {
+      const current = resolver(after.getFullYear(), after.getMonth())
+      if (current.getTime() > after.getTime()) {
+        return current
+      }
+      const nextMonth = addMonths(after, increment)
+      return resolver(nextMonth.getFullYear(), nextMonth.getMonth())
+    }
+
+    // "last_day_of_month" — last calendar day
+    if (payDay === 'last_day_of_month') {
+      return tryMonthThenNext((year, month) => startOfDay(lastDayOfMonth(new Date(year, month, 1))))
+    }
+
+    // "last_working_day" — last weekday (Mon-Fri) of the month (legacy support)
+    if (payDay === 'last_working_day') {
+      return tryMonthThenNext((year, month) => getNthFromLastWorkingDay(year, month, 1))
+    }
+
+    // "2nd_from_last_working_day"
+    if (payDay === '2nd_from_last_working_day') {
+      return tryMonthThenNext((year, month) => getNthFromLastWorkingDay(year, month, 2))
+    }
+
+    // "3rd_from_last_working_day"
+    if (payDay === '3rd_from_last_working_day') {
+      return tryMonthThenNext((year, month) => getNthFromLastWorkingDay(year, month, 3))
+    }
+
+    // "2nd_from_last_friday"
+    if (payDay === '2nd_from_last_friday') {
+      return tryMonthThenNext((year, month) => getNthFromLastWeekday(year, month, 5, 2))
+    }
+
+    // Check for "last_xxx" pattern (e.g. last_monday, last_friday)
     if (payDay.startsWith('last_')) {
       const dayName = payDay.replace('last_', '')
       const weekday = dayNameToNumber(dayName)
 
-      // Try the current month first
-      const currentMonthResult = getLastWeekdayOfMonth(
-        after.getFullYear(),
-        after.getMonth(),
-        weekday
-      )
-      if (currentMonthResult.getTime() > after.getTime()) {
-        return currentMonthResult
-      }
-
-      // Otherwise, try next month
-      const nextMonth = addMonths(after, 1)
-      return getLastWeekdayOfMonth(nextMonth.getFullYear(), nextMonth.getMonth(), weekday)
+      return tryMonthThenNext((year, month) => getLastWeekdayOfMonth(year, month, weekday))
     }
 
-    // Numeric payDay
+    // Numeric payDay (1-31)
     const numericDay = parseInt(payDay, 10)
 
-    // Try current month first
     const currentMonthLast = lastDayOfMonth(new Date(after.getFullYear(), after.getMonth(), 1))
     const currentMonthDay = Math.min(numericDay, currentMonthLast.getDate())
     const currentMonthCandidate = setDate(
@@ -121,20 +183,28 @@ export function calculateNextPayDate(
       return startOfDay(currentMonthCandidate)
     }
 
-    // Next month
-    const nextMonth = addMonths(new Date(after.getFullYear(), after.getMonth(), 1), 1)
+    const nextMonth = addMonths(new Date(after.getFullYear(), after.getMonth(), 1), increment)
     const nextMonthLast = lastDayOfMonth(nextMonth)
     const nextMonthDay = Math.min(numericDay, nextMonthLast.getDate())
     return startOfDay(setDate(nextMonth, nextMonthDay))
   }
 
-  // weekly, fortnightly, four_weekly — find next occurrence of that weekday after afterDate
+  // weekly, two_weekly, four_weekly — find next occurrence of that weekday after afterDate
   const targetWeekday = dayNameToNumber(payDay)
   const afterWeekday = getDay(after)
 
   let daysUntil = targetWeekday - afterWeekday
   if (daysUntil <= 0) {
     daysUntil += 7
+  }
+
+  // For two_weekly and four_weekly, the interval between pay dates is 14 or 28 days.
+  // When generating the next run from a previous pay date, daysUntil will be 7
+  // (same weekday), so add the extra weeks for the correct interval.
+  if (frequency === 'two_weekly' && daysUntil <= 7) {
+    daysUntil += 7
+  } else if (frequency === 'four_weekly' && daysUntil <= 7) {
+    daysUntil += 21
   }
 
   const nextDate = new Date(after)
@@ -251,9 +321,31 @@ export function calculatePeriodDates(
     return { periodStart, periodEnd }
   }
 
+  if (frequency === 'quarterly') {
+    // Quarter: 3-month period ending on pay date's month
+    const quarterStart = new Date(pd.getFullYear(), pd.getMonth() - 2, 1)
+    const quarterEnd = lastDayOfMonth(pd)
+    return { periodStart: quarterStart, periodEnd: quarterEnd }
+  }
+
+  if (frequency === 'biannually') {
+    // 6-month period ending on pay date's month
+    const halfStart = new Date(pd.getFullYear(), pd.getMonth() - 5, 1)
+    const halfEnd = lastDayOfMonth(pd)
+    return { periodStart: halfStart, periodEnd: halfEnd }
+  }
+
+  if (frequency === 'annually') {
+    // Annual: April 6 to April 5 tax year
+    const year = pd.getMonth() >= 3 ? pd.getFullYear() : pd.getFullYear() - 1
+    const periodStart = new Date(year, 3, 6) // 6 April
+    const periodEnd = new Date(year + 1, 3, 5) // 5 April next year
+    return { periodStart, periodEnd }
+  }
+
   const daysBack: Record<string, number> = {
     weekly: 6,
-    fortnightly: 13,
+    two_weekly: 13,
     four_weekly: 27,
   }
 
@@ -271,6 +363,15 @@ export function calculatePeriodDates(
  * - in_progress: within 5 days with some items done, or some items done regardless
  * - not_started: otherwise
  */
+/**
+ * Parse a YYYY-MM-DD date string as a local date (not UTC).
+ * Using parseISO on date-only strings creates UTC midnight which is wrong during BST.
+ */
+export function parseDateString(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
 export function getPayrollStatus(
   payDate: Date,
   totalItems: number,

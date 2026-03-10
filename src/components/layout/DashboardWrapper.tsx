@@ -2,38 +2,44 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import Sidebar from '@/components/layout/Sidebar'
 import Navbar from '@/components/layout/Navbar'
+import BadgeToast from '@/components/gamification/BadgeToast'
+import ChatWidget from '@/components/ai/ChatWidget'
 
 interface DashboardWrapperProps {
   children: React.ReactNode
-  user: any
+  user: { email?: string; user_metadata?: { name?: string } } | null
+  avatarUrl?: string | null
+  isAdmin?: boolean
 }
 
-export default function DashboardWrapper({ children, user }: DashboardWrapperProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+export default function DashboardWrapper({ children, user, avatarUrl, isAdmin }: DashboardWrapperProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
+  const pathname = usePathname()
 
+  useEffect(() => { setMounted(true) }, [])
+
+  // Close mobile menu on route change
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMobileMenuOpen(false)
+  }, [pathname])
 
-  // Prevent hydration mismatch by showing a neutral state initially
   if (!mounted) {
     return (
       <div className="flex h-screen overflow-hidden">
-        <div className="hidden md:block w-80 h-screen bg-gray-100 animate-pulse"></div>
+        <div className="hidden md:block w-[252px] h-screen border-r" style={{ background: colors.surface, borderColor: colors.border }} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="h-16 bg-white border-b animate-pulse"></div>
-          <main className="flex-1 overflow-y-auto bg-gray-50 p-6">
-            <div className="space-y-4">
-              <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
-              <div className="h-32 bg-gray-200 rounded animate-pulse"></div>
-              <div className="h-48 bg-gray-200 rounded animate-pulse"></div>
+          <div className="h-[52px] border-b" style={{ background: colors.surface, borderColor: colors.border }} />
+          <main className="flex-1 overflow-y-auto p-6" style={{ background: colors.lightBg }}>
+            <div className="space-y-4 max-w-5xl mx-auto">
+              <div className="h-8 rounded-lg animate-pulse" style={{ background: colors.border }} />
+              <div className="h-32 rounded-lg animate-pulse" style={{ background: colors.border }} />
             </div>
           </main>
         </div>
@@ -42,70 +48,42 @@ export default function DashboardWrapper({ children, user }: DashboardWrapperPro
   }
 
   return (
-    <div
-      className="flex h-screen overflow-hidden transition-colors duration-300"
-      style={{
-        background: colors.lightBg
-      }}
-    >
+    <div className="flex h-screen overflow-hidden transition-colors duration-200" style={{ background: colors.lightBg }}>
       {/* Mobile overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
-      {/* Sidebar — hidden on mobile by default, slides in when mobileMenuOpen */}
       <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        user={user}
+        avatarUrl={avatarUrl}
+        isAdmin={isAdmin}
         mobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
       />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Navbar with hamburger on mobile */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Navbar
-          user={user}
           onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+          user={user}
+          avatarUrl={avatarUrl}
         />
 
-        {/* Page Content */}
         <main
-          className="flex-1 overflow-x-hidden overflow-y-auto transition-colors duration-300 relative"
-          style={{
-            background: isDark
-              ? `linear-gradient(135deg, ${colors.lightBg} 0%, rgba(26, 27, 46, 0.8) 100%)`
-              : `linear-gradient(135deg, ${colors.lightBg} 0%, #ffffff 30%, ${colors.lightBg} 100%)`,
-            padding: '1.5rem'
-          }}
+          className="flex-1 overflow-x-hidden overflow-y-auto transition-colors duration-200"
+          style={{ background: colors.lightBg }}
         >
-          {/* Floating background elements for depth */}
-          <div
-            className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-5 pointer-events-none transition-opacity duration-300"
-            style={{
-              background: `radial-gradient(circle, ${colors.primary} 0%, transparent 70%)`,
-              transform: 'translate(30%, -30%)',
-              animation: 'pulse 4s ease-in-out infinite'
-            }}
-          />
-          <div
-            className="absolute bottom-0 left-0 w-80 h-80 rounded-full opacity-3 pointer-events-none transition-opacity duration-300"
-            style={{
-              background: `radial-gradient(circle, ${colors.secondary} 0%, transparent 70%)`,
-              transform: 'translate(-30%, 30%)',
-              animation: 'pulse 6s ease-in-out infinite reverse'
-            }}
-          />
-
-          {/* Content with proper z-index */}
-          <div className="relative z-10">
+          <div className="max-w-6xl mx-auto px-4 py-6 md:px-8 md:py-8">
             {children}
           </div>
         </main>
       </div>
+
+      <BadgeToast />
+      <ChatWidget />
     </div>
   )
 }

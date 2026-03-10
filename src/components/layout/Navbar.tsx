@@ -1,95 +1,114 @@
 // src/components/layout/Navbar.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createClientSupabaseClient } from '@/lib/supabase'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
-import {
-  Search,
-  Bell,
-  User,
-  HelpCircle,
-  ChevronDown,
-  LogOut,
-  Settings,
-  Sun,
-  Moon,
-  Menu
-} from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
+import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
+import { createClientSupabaseClient } from '@/lib/supabase'
+import { clearSWRCache } from '@/lib/swr'
+import { Menu, ChevronRight, LogOut, ChevronDown } from 'lucide-react'
+import BadgeDropdown from '@/components/gamification/BadgeDropdown'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 
 interface NavbarProps {
-  user?: any
   onMenuToggle?: () => void
+  user?: { email?: string; user_metadata?: { name?: string } } | null
+  avatarUrl?: string | null
 }
 
-// Theme Toggle Component
-function ThemeToggle() {
-  const { isDark, toggleTheme } = useTheme()
-  const colors = getThemeColors(isDark)
-
-  return (
-    <Button
-      onClick={toggleTheme}
-      variant="ghost"
-      size="sm"
-      className="p-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.05] group"
-      style={{
-        background: colors.glass.surfaceActive,
-        backdropFilter: 'blur(15px)',
-        border: `1px solid ${colors.borderElevated}`
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = colors.glass.surfaceHover
-        e.currentTarget.style.transform = 'scale(1.05)'
-        e.currentTarget.style.boxShadow = isDark 
-          ? `0 8px 25px ${colors.shadow.medium}` 
-          : `0 8px 25px ${colors.shadow.light}`
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = colors.glass.surfaceActive
-        e.currentTarget.style.transform = 'scale(1)'
-        e.currentTarget.style.boxShadow = 'none'
-      }}
-      title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-    >
-      {isDark ? (
-        <Sun className="w-5 h-5 text-yellow-400 transition-transform duration-300 group-hover:rotate-12" />
-      ) : (
-        <Moon className="w-5 h-5 transition-transform duration-300 group-hover:rotate-12" style={{ color: colors.text.muted }} />
-      )}
-    </Button>
-  )
+const PAGE_TITLES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/dashboard/clients': 'Clients',
+  '/dashboard/clients/add': 'Add Client',
+  '/dashboard/payrolls': 'Payroll Runs',
+  '/dashboard/pensions': 'Pension Declarations',
+  '/dashboard/settings': 'Settings',
+  '/dashboard/feature-requests': 'Feature Requests',
+  '/dashboard/ai-assistant': 'AI Assistant',
+  '/dashboard/ai-assistant/documents': 'Knowledge Base',
 }
 
-export default function Navbar({ user, onMenuToggle }: NavbarProps) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [notifications, setNotifications] = useState<{ id: number; type: string; message: string; time: string; unread: boolean }[]>([])
-  const [showNotifications, setShowNotifications] = useState(false)
+function getPageTitle(pathname: string): string {
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]
+  if (pathname.match(/^\/dashboard\/clients\/[^/]+\/edit$/)) return 'Edit Client'
+  if (pathname.match(/^\/dashboard\/clients\/[^/]+$/)) return 'Client Details'
+  if (pathname.match(/^\/dashboard\/payrolls\/[^/]+$/)) return 'Payroll Details'
+  return 'Dashboard'
+}
+
+function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
+  const title = getPageTitle(pathname)
+
+  if (pathname === '/dashboard') return [{ label: 'Dashboard' }]
+
+  if (pathname.startsWith('/dashboard/clients')) {
+    const crumbs: { label: string; href?: string }[] = [
+      { label: 'Clients', href: '/dashboard/clients' },
+    ]
+    if (pathname !== '/dashboard/clients') {
+      crumbs.push({ label: title })
+    }
+    return crumbs
+  }
+
+  if (pathname.startsWith('/dashboard/payrolls')) {
+    const crumbs: { label: string; href?: string }[] = [
+      { label: 'Payroll Runs', href: '/dashboard/payrolls' },
+    ]
+    if (pathname !== '/dashboard/payrolls') {
+      crumbs.push({ label: title })
+    }
+    return crumbs
+  }
+
+  if (pathname.startsWith('/dashboard/pensions')) {
+    return [{ label: 'Pension Declarations' }]
+  }
+
+  if (pathname.startsWith('/dashboard/ai-assistant')) {
+    const crumbs: { label: string; href?: string }[] = [
+      { label: 'AI Assistant', href: '/dashboard/ai-assistant' },
+    ]
+    if (pathname !== '/dashboard/ai-assistant') {
+      crumbs.push({ label: title })
+    }
+    return crumbs
+  }
+
+  return [{ label: title }]
+}
+
+export default function Navbar({ onMenuToggle, user, avatarUrl }: NavbarProps) {
   const [mounted, setMounted] = useState(false)
-  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const pathname = usePathname()
   const router = useRouter()
-  const supabase = createClientSupabaseClient()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
+  const supabase = createClientSupabaseClient()
 
+  useEffect(() => { setMounted(true) }, [])
+
+  // Close dropdown on outside click
   useEffect(() => {
-    setMounted(true)
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (searchQuery.trim()) {
-      router.push(`/dashboard/clients?search=${encodeURIComponent(searchQuery.trim())}`)
-      setSearchQuery('')
-    }
-  }
+  // Close dropdown on route change
+  useEffect(() => { setDropdownOpen(false) }, [pathname])
 
   const handleLogout = async () => {
     try {
+      clearSWRCache()
       await supabase.auth.signOut()
       router.push('/login')
     } catch (error) {
@@ -97,473 +116,169 @@ export default function Navbar({ user, onMenuToggle }: NavbarProps) {
     }
   }
 
-  const markNotificationAsRead = (id: number) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === id ? { ...notif, unread: false } : notif
-      )
-    )
+  const getUserName = () => {
+    if (!mounted) return 'User'
+    return user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'
   }
-
-  const unreadCount = notifications.filter(n => n.unread).length
 
   const getUserInitial = () => {
     if (!mounted) return 'U'
-    return user?.user_metadata?.name?.[0] || user?.name?.[0] || user?.email?.[0]?.toUpperCase() || 'U'
+    return user?.user_metadata?.name?.[0] || user?.email?.[0]?.toUpperCase() || 'U'
   }
 
-  const getUserName = () => {
-    if (!mounted) return 'User'
-    return user?.user_metadata?.name || user?.name || user?.email?.split('@')[0] || 'User'
-  }
-
-  // Prevent hydration mismatch
   if (!mounted) {
     return (
-      <nav className="h-16 border-b bg-white animate-pulse">
-        <div className="max-w-full mx-auto px-6">
-          <div className="flex items-center justify-between h-16">
-            <div className="w-96 h-10 bg-gray-200 rounded-xl"></div>
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gray-200 rounded-xl"></div>
-              <div className="w-10 h-10 bg-gray-200 rounded-xl"></div>
-              <div className="w-12 h-12 bg-gray-200 rounded-2xl"></div>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <nav
+        className="h-[52px] border-b"
+        style={{ background: colors.surface, borderColor: colors.border }}
+      />
     )
   }
 
+  const breadcrumbs = getBreadcrumbs(pathname)
+
   return (
-    <nav 
-      className="border-b shadow-2xl relative z-50 transition-all duration-300"
+    <nav
+      className="h-[52px] flex items-center px-4 md:px-5 gap-3 transition-colors duration-200"
       style={{
-        background: colors.glass.navbar || colors.glass.background,
-        backdropFilter: 'blur(25px)',
-        borderBottom: `1px solid ${colors.borderElevated}`,
-        boxShadow: isDark 
-          ? `0 4px 20px ${colors.shadow.medium}` 
-          : `0 4px 20px ${colors.shadow.light}`
+        background: colors.surface,
+        borderBottom: `1px solid ${colors.border}`,
       }}
     >
-      <div className="max-w-full mx-auto px-6 relative z-10">
-        <div className="flex items-center justify-between h-16">
-          
-          {/* Left Section - Hamburger + Search */}
-          <div className="flex items-center flex-1 max-w-lg gap-3">
-            {/* Hamburger menu - mobile only */}
-            {onMenuToggle && (
-              <Button
-                onClick={onMenuToggle}
-                variant="ghost"
-                size="sm"
-                className="p-3 rounded-xl transition-all duration-300 md:hidden"
-                style={{
-                  background: colors.glass.surfaceActive,
-                  border: `1px solid ${colors.borderElevated}`
-                }}
-              >
-                <Menu className="w-5 h-5" style={{ color: colors.text.primary }} />
-              </Button>
+      {/* Hamburger - mobile only */}
+      {onMenuToggle && (
+        <button
+          aria-label="Toggle navigation menu"
+          onClick={onMenuToggle}
+          className="md:hidden flex items-center justify-center h-8 w-8 rounded-md transition-colors duration-150"
+          style={{ color: colors.text.secondary }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent'
+          }}
+        >
+          <Menu className="w-[18px] h-[18px]" />
+        </button>
+      )}
+
+      {/* Breadcrumbs */}
+      <div className="flex items-center gap-1 min-w-0 flex-1">
+        {breadcrumbs.map((crumb, index) => (
+          <div key={index} className="flex items-center gap-1 min-w-0">
+            {index > 0 && (
+              <ChevronRight
+                className="w-3.5 h-3.5 flex-shrink-0"
+                style={{ color: colors.text.muted }}
+              />
             )}
-            <form onSubmit={handleSearch} className="relative w-full">
-              <Search 
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors duration-300" 
-                style={{ color: colors.text.muted }} 
-              />
-              <Input
-                type="text"
-                placeholder="Search clients..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 h-12 text-sm border-0 shadow-lg transition-all duration-300 focus:shadow-2xl rounded-xl font-medium"
-                style={{
-                  background: colors.glass.surface,
-                  backdropFilter: 'blur(15px)',
-                  color: colors.text.primary,
-                  fontSize: '14px',
-                  border: `1px solid ${colors.borderElevated}`,
-                  boxShadow: isDark 
-                    ? `0 4px 20px ${colors.shadow.light}` 
-                    : `0 4px 15px ${colors.shadow.light}`
-                }}
-                onFocus={(e) => {
-                  e.target.style.background = colors.glass.surfaceHover
-                  e.target.style.boxShadow = isDark
-                    ? `0 12px 35px ${colors.shadow.medium}, 0 0 0 1px ${colors.primary}40`
-                    : `0 8px 25px ${colors.primary}25, 0 0 0 1px ${colors.primary}30`
-                  e.target.style.borderColor = `${colors.primary}60`
-                }}
-                onBlur={(e) => {
-                  e.target.style.background = colors.glass.surface
-                  e.target.style.boxShadow = isDark 
-                    ? `0 4px 20px ${colors.shadow.light}` 
-                    : `0 4px 15px ${colors.shadow.light}`
-                  e.target.style.borderColor = colors.borderElevated
-                }}
-              />
-            </form>
-          </div>
-
-          {/* Right Section - Enhanced Icons */}
-          <div className="flex items-center space-x-3">
-            
-            {/* Theme Toggle */}
-            <ThemeToggle />
-            
-            {/* Help Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="p-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.05] group"
-              style={{
-                background: colors.glass.surfaceActive,
-                backdropFilter: 'blur(15px)',
-                border: `1px solid ${colors.borderElevated}`
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = colors.glass.surfaceHover
-                e.currentTarget.style.transform = 'scale(1.05)'
-                e.currentTarget.style.boxShadow = isDark 
-                  ? `0 8px 25px ${colors.shadow.medium}` 
-                  : `0 8px 25px ${colors.shadow.light}`
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = colors.glass.surfaceActive
-                e.currentTarget.style.transform = 'scale(1)'
-                e.currentTarget.style.boxShadow = 'none'
-              }}
-            >
-              <HelpCircle 
-                className="w-5 h-5 transition-all duration-300 group-hover:rotate-12" 
-                style={{ color: colors.text.muted }} 
-              />
-            </Button>
-
-            {/* Notifications */}
-            <div className="relative">
-              <Button
-                onClick={() => setShowNotifications(!showNotifications)}
-                variant="ghost"
-                size="sm"
-                className="relative p-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.05] group"
-                style={{
-                  background: colors.glass.surfaceActive,
-                  backdropFilter: 'blur(15px)',
-                  border: `1px solid ${colors.borderElevated}`
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = colors.glass.surfaceHover
-                  e.currentTarget.style.transform = 'scale(1.05)'
-                  e.currentTarget.style.boxShadow = isDark 
-                    ? `0 8px 25px ${colors.shadow.medium}` 
-                    : `0 8px 25px ${colors.shadow.light}`
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = colors.glass.surfaceActive
-                  e.currentTarget.style.transform = 'scale(1)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
+            {crumb.href ? (
+              <Link
+                href={crumb.href}
+                className="text-[0.8rem] font-medium transition-colors duration-150 hover:underline underline-offset-2"
+                style={{ color: colors.text.muted }}
               >
-                <Bell 
-                  className="w-5 h-5 transition-all duration-300 group-hover:rotate-12" 
-                  style={{ color: colors.text.muted }} 
-                />
-                {unreadCount > 0 && (
-                  <Badge 
-                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full text-xs flex items-center justify-center text-white border-2 font-bold shadow-xl animate-pulse transition-all duration-300"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${colors.secondary} 0%, ${colors.accent} 100%)`,
-                      boxShadow: isDark
-                        ? `0 8px 20px ${colors.secondary}60, 0 0 20px ${colors.secondary}40`
-                        : `0 8px 20px ${colors.secondary}40`,
-                      borderColor: colors.surface
-                    }}
-                  >
-                    {unreadCount}
-                  </Badge>
-                )}
-              </Button>
-
-              {/* Notifications Dropdown */}
-              {showNotifications && (
-                <div 
-                  className="absolute right-0 top-full mt-3 w-80 rounded-2xl shadow-2xl z-50 overflow-hidden transition-all duration-300"
-                  style={{
-                    background: colors.glass.card,
-                    backdropFilter: 'blur(25px)',
-                    border: `1px solid ${colors.borderElevated}`,
-                    boxShadow: isDark 
-                      ? `0 25px 50px ${colors.shadow.heavy}, 0 0 40px ${colors.shadow.medium}` 
-                      : `0 20px 40px ${colors.primary}20`
-                  }}
-                >
-                  <div className="p-5 border-b transition-colors duration-300" style={{ borderColor: colors.borderElevated }}>
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-bold transition-colors duration-300" style={{ color: colors.text.primary }}>
-                        Notifications
-                      </h3>
-                      {unreadCount > 0 && (
-                        <Badge
-                          className="text-white text-xs px-3 py-1 font-bold transition-all duration-300 shadow-lg"
-                          style={{
-                            background: `linear-gradient(135deg, ${colors.secondary} 0%, ${colors.accent} 100%)`,
-                            boxShadow: `0 4px 15px ${colors.secondary}30`
-                          }}
-                        >
-                          {unreadCount} new
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="max-h-80 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                      <div className="p-8 text-center">
-                        <Bell className="w-8 h-8 mx-auto mb-3" style={{ color: colors.text.muted, opacity: 0.5 }} />
-                        <p className="text-sm font-medium" style={{ color: colors.text.muted }}>
-                          No notifications yet
-                        </p>
-                      </div>
-                    ) : notifications.map((notification) => (
-                      <button
-                        key={notification.id}
-                        onClick={() => markNotificationAsRead(notification.id)}
-                        className={`w-full p-4 text-left transition-all duration-300 border-b group hover:scale-[1.01] ${
-                          notification.unread 
-                            ? isDark ? 'bg-white/3' : 'bg-white/40' 
-                            : ''
-                        }`}
-                        style={{
-                          borderColor: colors.borderElevated
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = colors.glass.surfaceHover
-                          e.currentTarget.style.transform = 'scale(1.01)'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = notification.unread 
-                            ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.4)')
-                            : 'transparent'
-                          e.currentTarget.style.transform = 'scale(1)'
-                        }}
-                      >
-                        <div className="flex items-start space-x-3">
-                          <div 
-                            className={`w-3 h-3 rounded-full mt-2 shadow-lg transition-all duration-300 ${
-                              notification.unread ? 'animate-pulse scale-110' : 'opacity-30'
-                            }`}
-                            style={{ 
-                              backgroundColor: colors.secondary,
-                              boxShadow: notification.unread 
-                                ? `0 0 15px ${colors.secondary}60` 
-                                : 'none'
-                            }}
-                          />
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold transition-colors duration-300 group-hover:scale-[1.01]" 
-                               style={{ color: colors.text.primary }}>
-                              {notification.message}
-                            </p>
-                            <p className="text-xs mt-1 font-medium transition-colors duration-300" 
-                               style={{ color: colors.text.muted }}>
-                              {notification.time}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  
-                  {notifications.length > 0 && (
-                  <div className="p-4 border-t transition-colors duration-300" style={{ borderColor: colors.borderElevated }}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full text-sm font-semibold transition-all duration-300 hover:scale-[1.02] rounded-xl py-2"
-                      style={{
-                        color: colors.primary,
-                        background: `${colors.primary}10`,
-                        border: `1px solid ${colors.primary}20`
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = `${colors.primary}20`
-                        e.currentTarget.style.transform = 'scale(1.02)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = `${colors.primary}10`
-                        e.currentTarget.style.transform = 'scale(1)'
-                      }}
-                    >
-                      View All Notifications
-                    </Button>
-                  </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* User Profile */}
-            <div className="flex items-center space-x-3 pl-4 ml-2 border-l transition-colors duration-300" 
-                 style={{ borderColor: colors.borderElevated }}>
-              <div className="text-right hidden md:block">
-                <div className="text-sm font-bold transition-colors duration-300" style={{ color: colors.text.primary }}>
-                  {getUserName()}
-                </div>
-                <div className="text-xs font-medium transition-colors duration-300" style={{ color: colors.text.muted }}>
-                  Administrator
-                </div>
-              </div>
-              
-              <div className="relative">
-                <button 
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-2 p-2 rounded-2xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02] group"
-                  style={{
-                    background: 'transparent',
-                    backdropFilter: 'none'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = colors.glass.surfaceHover
-                    e.currentTarget.style.transform = 'scale(1.02)'
-                    e.currentTarget.style.boxShadow = isDark 
-                      ? `0 12px 30px ${colors.shadow.medium}` 
-                      : `0 8px 25px ${colors.shadow.light}`
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent'
-                    e.currentTarget.style.transform = 'scale(1)'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
-                >
-                  <div 
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-xl relative overflow-hidden transition-all duration-300 group-hover:scale-110"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                      boxShadow: isDark
-                        ? `0 15px 35px ${colors.primary}40, 0 0 25px ${colors.secondary}30`
-                        : `0 10px 25px ${colors.primary}30`
-                    }}
-                  >
-                    {getUserInitial()}
-                    {/* Shine effect */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-white/10 to-transparent group-hover:from-white/30"></div>
-                  </div>
-                  <ChevronDown 
-                    className={`w-4 h-4 hidden md:block transition-all duration-300 ${showUserMenu ? 'rotate-180' : ''} group-hover:scale-110`}
-                    style={{ color: colors.text.muted }}
-                  />
-                </button>
-
-                {/* User Dropdown Menu */}
-                {showUserMenu && (
-                  <div 
-                    className="absolute right-0 top-full mt-3 w-64 rounded-2xl shadow-2xl z-50 overflow-hidden transition-all duration-300"
-                    style={{
-                      background: colors.glass.card,
-                      backdropFilter: 'blur(25px)',
-                      border: `1px solid ${colors.borderElevated}`,
-                      boxShadow: isDark 
-                        ? `0 25px 50px ${colors.shadow.heavy}, 0 0 40px ${colors.shadow.medium}` 
-                        : `0 20px 40px ${colors.primary}20`
-                    }}
-                  >
-                    <div className="p-5 border-b transition-colors duration-300" style={{ borderColor: colors.borderElevated }}>
-                      <div className="font-bold text-base transition-colors duration-300" style={{ color: colors.text.primary }}>
-                        {getUserName()}
-                      </div>
-                      <div className="text-sm mt-1 transition-colors duration-300" style={{ color: colors.text.muted }}>
-                        {user?.email}
-                      </div>
-                    </div>
-                    
-                    <div className="p-3">
-                      <button 
-                        className="w-full flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02] group"
-                        style={{ 
-                          color: colors.text.secondary,
-                          background: 'transparent'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = colors.glass.surfaceHover
-                          e.currentTarget.style.color = colors.text.primary
-                          e.currentTarget.style.transform = 'scale(1.02)'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent'
-                          e.currentTarget.style.color = colors.text.secondary
-                          e.currentTarget.style.transform = 'scale(1)'
-                        }}
-                      >
-                        <User className="w-5 h-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
-                        Profile Settings
-                      </button>
-                      
-                      <button 
-                        className="w-full flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02] group"
-                        style={{ 
-                          color: colors.text.secondary,
-                          background: 'transparent'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = colors.glass.surfaceHover
-                          e.currentTarget.style.color = colors.text.primary
-                          e.currentTarget.style.transform = 'scale(1.02)'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent'
-                          e.currentTarget.style.color = colors.text.secondary
-                          e.currentTarget.style.transform = 'scale(1)'
-                        }}
-                      >
-                        <Settings className="w-5 h-5 mr-3 transition-transform duration-300 group-hover:rotate-90" />
-                        Account Settings
-                      </button>
-                      
-                      <div className="my-3 border-t transition-colors duration-300" style={{ borderColor: colors.borderElevated }}></div>
-                      
-                      <button 
-                        onClick={handleLogout}
-                        className="w-full flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02] group"
-                        style={{ 
-                          color: colors.error,
-                          background: `${colors.error}10`,
-                          border: `1px solid ${colors.error}20`
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = `${colors.error}20`
-                          e.currentTarget.style.transform = 'scale(1.02)'
-                          e.currentTarget.style.boxShadow = `0 8px 25px ${colors.error}30`
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = `${colors.error}10`
-                          e.currentTarget.style.transform = 'scale(1)'
-                          e.currentTarget.style.boxShadow = 'none'
-                        }}
-                      >
-                        <LogOut className="w-5 h-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
-                        Sign Out
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+                {crumb.label}
+              </Link>
+            ) : (
+              <span
+                className="text-[0.8rem] font-semibold truncate"
+                style={{ color: colors.text.primary }}
+              >
+                {crumb.label}
+              </span>
+            )}
           </div>
-        </div>
+        ))}
       </div>
 
-      {/* Click outside to close menus */}
-      {(showUserMenu || showNotifications) && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => {
-            setShowUserMenu(false)
-            setShowNotifications(false)
+      {/* User profile dropdown */}
+      <div className="relative flex-shrink-0" ref={dropdownRef}>
+        <button
+          onClick={() => setDropdownOpen(!dropdownOpen)}
+          className="flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors duration-150"
+          style={{ color: colors.text.secondary }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
           }}
-        />
-      )}
+          onMouseLeave={(e) => {
+            if (!dropdownOpen) e.currentTarget.style.background = 'transparent'
+          }}
+        >
+          {avatarUrl ? (
+            <Image
+              src={avatarUrl}
+              alt={getUserName()}
+              width={26}
+              height={26}
+              className="rounded-md object-cover flex-shrink-0"
+            />
+          ) : (
+            <div
+              className="h-[26px] w-[26px] rounded-md flex items-center justify-center text-white text-[0.65rem] font-bold flex-shrink-0"
+              style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+            >
+              {getUserInitial()}
+            </div>
+          )}
+          <span className="hidden sm:inline text-[0.78rem] font-medium max-w-[120px] truncate">
+            {getUserName()}
+          </span>
+          <ChevronDown
+            className="w-3 h-3 transition-transform"
+            style={{
+              color: colors.text.muted,
+              transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            }}
+          />
+        </button>
+
+        {/* Dropdown */}
+        {dropdownOpen && (
+          <div
+            className="absolute right-0 top-full mt-1 w-56 rounded-lg border shadow-lg py-1 z-50"
+            style={{
+              background: colors.surface,
+              borderColor: colors.border,
+              boxShadow: isDark
+                ? '0 8px 24px rgba(0,0,0,0.4)'
+                : '0 8px 24px rgba(0,0,0,0.08)',
+            }}
+          >
+            {/* User info */}
+            <div className="px-3 py-2.5 border-b" style={{ borderColor: colors.border }}>
+              <div className="text-[0.78rem] font-semibold truncate" style={{ color: colors.text.primary }}>
+                {getUserName()}
+              </div>
+              <div className="text-[0.65rem] truncate" style={{ color: colors.text.muted }}>
+                {user?.email || ''}
+              </div>
+            </div>
+
+            {/* Badges */}
+            <BadgeDropdown colors={colors} isDark={isDark} />
+
+            {/* Logout */}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150"
+              style={{ color: colors.text.secondary }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isDark ? 'rgba(239,68,68,0.08)' : 'rgba(217,48,37,0.05)'
+                e.currentTarget.style.color = colors.error
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.color = colors.text.secondary
+              }}
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="text-[0.78rem] font-medium">Sign out</span>
+            </button>
+          </div>
+        )}
+      </div>
     </nav>
   )
 }

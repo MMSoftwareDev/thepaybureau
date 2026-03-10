@@ -1,5 +1,5 @@
 // src/app/api/clients/route.ts
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { clientOnboardingSchema } from '@/lib/validations'
 import {
@@ -10,66 +10,64 @@ import {
   type PayFrequency,
 } from '@/lib/hmrc-deadlines'
 import { z } from 'zod'
+import type { User } from '@supabase/supabase-js'
+import { writeAuditLog } from '@/lib/audit'
 
-async function getOrCreateUser(supabase: ReturnType<typeof createServerSupabaseClient>) {
-  const { data: { session } } = await supabase.auth.getSession()
-
-  if (!session) {
-    return { user: null, session: null, error: 'Unauthorized' }
-  }
-
+async function getOrCreateUser(supabase: ReturnType<typeof createServerSupabaseClient>, authUser: User) {
   let { data: user } = await supabase
     .from('users')
     .select('tenant_id')
-    .eq('id', session.user.id)
+    .eq('id', authUser.id)
     .single()
 
   if (!user) {
     const { data: newTenant, error: tenantError } = await supabase
       .from('tenants')
       .insert({
-        name: session.user.email?.split('@')[0] || 'My Bureau',
-        plan: 'starter',
+        name: authUser.email?.split('@')[0] || 'My Bureau',
+        plan: 'free',
       })
       .select()
       .single()
 
     if (tenantError) {
-      return { user: null, session, error: 'Failed to create tenant' }
+      return { user: null, error: 'Failed to create tenant' }
     }
 
     const { data: newUser, error: newUserError } = await supabase
       .from('users')
       .insert({
-        id: session.user.id,
+        id: authUser.id,
         tenant_id: newTenant.id,
-        email: session.user.email!,
+        email: authUser.email!,
         name:
-          session.user.user_metadata?.name ||
-          session.user.email?.split('@')[0] ||
+          authUser.user_metadata?.name ||
+          authUser.email?.split('@')[0] ||
           'User',
       })
       .select()
       .single()
 
     if (newUserError) {
-      return { user: null, session, error: 'Failed to create user' }
+      return { user: null, error: 'Failed to create user' }
     }
 
     user = newUser
   }
 
-  return { user, session, error: null }
+  return { user, error: null }
 }
 
 export async function GET() {
   try {
-    const supabase = createServerSupabaseClient()
-    const { user, error: authError } = await getOrCreateUser(supabase)
-
-    if (authError === 'Unauthorized') {
+    const authUser = await getAuthUser()
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const supabase = createServerSupabaseClient()
+    const { user, error: authError } = await getOrCreateUser(supabase, authUser)
+
     if (!user) {
       return NextResponse.json({ error: authError }, { status: 500 })
     }
@@ -81,7 +79,8 @@ export async function GET() {
       .order('created_at', { ascending: false })
 
     if (clientsError) {
-      return NextResponse.json({ error: clientsError.message }, { status: 400 })
+      console.error('Database error in GET /api/clients:', clientsError)
+      return NextResponse.json({ error: 'Failed to fetch clients' }, { status: 400 })
     }
 
     if (!clients || clients.length === 0) {
@@ -122,12 +121,14 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient()
-    const { user, session, error: authError } = await getOrCreateUser(supabase)
-
-    if (authError === 'Unauthorized' || !session) {
+    const authUser = await getAuthUser()
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const supabase = createServerSupabaseClient()
+    const { user, error: authError } = await getOrCreateUser(supabase, authUser)
+
     if (!user) {
       return NextResponse.json({ error: authError }, { status: 500 })
     }
@@ -144,14 +145,15 @@ export async function POST(request: NextRequest) {
       .insert({
         ...clientData,
         tenant_id: user.tenant_id,
-        created_by: session.user.id,
+        created_by: authUser.id,
         status: 'active',
       })
       .select()
       .single()
 
     if (clientError) {
-      return NextResponse.json({ error: clientError.message }, { status: 400 })
+      console.error('Client creation error:', clientError)
+      return NextResponse.json({ error: 'Failed to create client' }, { status: 400 })
     }
 
     // 2. Insert checklist templates
@@ -169,7 +171,9 @@ export async function POST(request: NextRequest) {
 
     if (templatesError) {
       console.error('Checklist templates creation error:', templatesError)
-      return NextResponse.json({ error: templatesError.message }, { status: 400 })
+      // Cleanup: remove the client we just created
+      await supabase.from('clients').delete().eq('id', client.id)
+      return NextResponse.json({ error: 'Failed to create checklist templates' }, { status: 400 })
     }
 
     // 3. Calculate dates for the first payroll run
@@ -203,7 +207,10 @@ export async function POST(request: NextRequest) {
 
     if (runError) {
       console.error('Payroll run creation error:', runError)
-      return NextResponse.json({ error: runError.message }, { status: 400 })
+      // Cleanup: remove templates and client
+      await supabase.from('checklist_templates').delete().eq('client_id', client.id)
+      await supabase.from('clients').delete().eq('id', client.id)
+      return NextResponse.json({ error: 'Failed to create payroll run' }, { status: 400 })
     }
 
     // 5. Copy checklist templates into checklist_items for this run
@@ -224,6 +231,18 @@ export async function POST(request: NextRequest) {
         console.error('Checklist items creation error:', itemsError)
       }
     }
+
+    // Audit log: client created
+    writeAuditLog({
+      tenantId: user.tenant_id,
+      userId: authUser.id,
+      userEmail: authUser.email!,
+      action: 'CREATE',
+      resourceType: 'client',
+      resourceId: client.id,
+      resourceName: client.name,
+      request,
+    })
 
     return NextResponse.json({
       ...client,

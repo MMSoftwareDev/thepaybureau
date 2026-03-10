@@ -5,7 +5,9 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
+  // Validate redirect path — only allow relative paths starting with /
+  const nextParam = searchParams.get('next') ?? '/dashboard'
+  const next = nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : '/dashboard'
 
   if (code) {
     const cookieStore = await cookies()
@@ -37,7 +39,14 @@ export async function GET(request: NextRequest) {
       if (isLocalEnv) {
         return NextResponse.redirect(`${origin}${next}`)
       } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
+        // Validate forwarded host against known app URL to prevent open redirect
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL
+        const allowedHost = appUrl ? new URL(appUrl).host : null
+        if (allowedHost && forwardedHost === allowedHost) {
+          return NextResponse.redirect(`https://${forwardedHost}${next}`)
+        }
+        // Fall through to origin-based redirect if host not in allowlist
+        return NextResponse.redirect(`${origin}${next}`)
       } else {
         return NextResponse.redirect(`${origin}${next}`)
       }

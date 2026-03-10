@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -90,14 +91,7 @@ export default function ForgotPasswordPage() {
         <div className="relative z-10">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="flex h-[42px] w-[42px] items-center justify-center rounded-xl border border-white/10 bg-white/15 backdrop-blur-sm">
-              <svg viewBox="0 0 24 24" fill="none" className="h-[22px] w-[22px]">
-                <path d="M4 4h6v6H4V4z" fill="rgba(255,255,255,0.9)" />
-                <path d="M14 4h6v6h-6V4z" fill="rgba(255,255,255,0.5)" />
-                <path d="M4 14h6v6H4v-6z" fill="rgba(255,255,255,0.5)" />
-                <path d="M14 14h6v6h-6v-6z" fill="rgba(255,255,255,0.3)" />
-              </svg>
-            </div>
+            <Image src="/logo.png" alt="ThePayBureau" width={42} height={42} className="rounded-xl" />
             <span className="font-[family-name:var(--font-body)] text-[1.25rem] font-extrabold tracking-tight text-white">
               ThePayBureau
             </span>
@@ -215,17 +209,7 @@ export default function ForgotPasswordPage() {
             <>
               {/* Mobile logo */}
               <div className="mb-8 flex items-center gap-2 md:hidden">
-                <div
-                  className="flex h-9 w-9 items-center justify-center rounded-lg"
-                  style={{ background: 'var(--login-purple)' }}
-                >
-                  <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
-                    <path d="M4 4h6v6H4V4z" fill="rgba(255,255,255,0.9)" />
-                    <path d="M14 4h6v6h-6V4z" fill="rgba(255,255,255,0.5)" />
-                    <path d="M4 14h6v6H4v-6z" fill="rgba(255,255,255,0.5)" />
-                    <path d="M14 14h6v6h-6v-6z" fill="rgba(255,255,255,0.3)" />
-                  </svg>
-                </div>
+                <Image src="/logo.png" alt="ThePayBureau" width={36} height={36} className="rounded-lg" />
                 <span className="font-[family-name:var(--font-body)] text-lg font-extrabold tracking-tight text-[var(--login-text)]">
                   ThePayBureau
                 </span>

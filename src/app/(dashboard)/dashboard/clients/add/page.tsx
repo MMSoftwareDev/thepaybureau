@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
+import { calculateNextPayDate, calculatePeriodDates } from '@/lib/hmrc-deadlines'
+import type { PayFrequency } from '@/lib/hmrc-deadlines'
 import { cn } from '@/lib/utils'
 import {
   ArrowLeft,
@@ -46,16 +48,19 @@ interface FormData {
   // Step 2
   pay_frequency: string
   pay_day: string
-  tax_period_start: string
+  period_start: string
+  period_end: string
+  payroll_software: string
+  employment_allowance: string
   // Step 3
   pension_provider: string
   pension_staging_date: string
+  pension_reenrolment_date: string
+  declaration_of_compliance_deadline: string
   // Step 4
   contact_name: string
   contact_email: string
   contact_phone: string
-  email: string
-  phone: string
   notes: string
 }
 
@@ -88,20 +93,26 @@ const WEEKDAYS = [
 ]
 
 const MONTHLY_PAY_DAYS = [
+  { value: 'last_day_of_month', label: 'Last Day of the Month' },
+  { value: 'last_working_day', label: 'Last Working Day of the Month' },
+  { value: 'last_monday', label: 'Last Monday of the Month' },
+  { value: 'last_tuesday', label: 'Last Tuesday of the Month' },
+  { value: 'last_wednesday', label: 'Last Wednesday of the Month' },
+  { value: 'last_thursday', label: 'Last Thursday of the Month' },
+  { value: 'last_friday', label: 'Last Friday of the Month' },
+  { value: 'last_saturday', label: 'Last Saturday of the Month' },
+  { value: 'last_sunday', label: 'Last Sunday of the Month' },
+  { value: '2nd_from_last_working_day', label: '2nd from Last Working Day of the Month' },
+  { value: '3rd_from_last_working_day', label: '3rd from Last Working Day of the Month' },
+  { value: '2nd_from_last_friday', label: '2nd from Last Friday of the Month' },
   ...Array.from({ length: 31 }, (_, i) => ({
     value: String(i + 1),
-    label: String(i + 1),
+    label: `${i + 1}${i + 1 === 1 ? 'st' : i + 1 === 2 ? 'nd' : i + 1 === 3 ? 'rd' : i + 1 === 21 ? 'st' : i + 1 === 22 ? 'nd' : i + 1 === 23 ? 'rd' : i + 1 === 31 ? 'st' : 'th'} of the Month`,
   })),
-  { value: 'last_monday', label: 'Last Monday' },
-  { value: 'last_tuesday', label: 'Last Tuesday' },
-  { value: 'last_wednesday', label: 'Last Wednesday' },
-  { value: 'last_thursday', label: 'Last Thursday' },
-  { value: 'last_friday', label: 'Last Friday' },
-  { value: 'last_saturday', label: 'Last Saturday' },
-  { value: 'last_sunday', label: 'Last Sunday' },
 ]
 
 const PENSION_PROVIDERS = [
+  'Exempt',
   'NEST',
   'NOW Pensions',
   'Smart Pension',
@@ -109,12 +120,28 @@ const PENSION_PROVIDERS = [
   'Aviva',
   'Scottish Widows',
   'Royal London',
+  'Penfold',
+  'Legal & General',
+  'Standard Life',
+  'LGPS',
+  'Cushon',
+  'Creative',
+  'True Potential',
 ]
 
 // ─── Component ───────────────────────────────────────────────────────
 
 export default function AddClientPage() {
+  return (
+    <Suspense>
+      <AddClientContent />
+    </Suspense>
+  )
+}
+
+function AddClientContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
 
@@ -123,6 +150,7 @@ export default function AddClientPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [duplicating, setDuplicating] = useState(false)
 
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -132,14 +160,17 @@ export default function AddClientPage() {
     employee_count: '',
     pay_frequency: '',
     pay_day: '',
-    tax_period_start: '2025-04-06',
+    period_start: '',
+    period_end: '',
+    payroll_software: '',
+    employment_allowance: '',
     pension_provider: '',
     pension_staging_date: '',
+    pension_reenrolment_date: '',
+    declaration_of_compliance_deadline: '',
     contact_name: '',
     contact_email: '',
     contact_phone: '',
-    email: '',
-    phone: '',
     notes: '',
   })
 
@@ -147,9 +178,174 @@ export default function AddClientPage() {
     DEFAULT_CHECKLIST
   )
 
+  // Named templates from tenant settings
+  const [availableTemplates, setAvailableTemplates] = useState<
+    { id: string; name: string; is_default: boolean; steps: { name: string; sort_order: number }[] }[]
+  >([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
+
   useEffect(() => {
     setMounted(true)
+    // Fetch saved checklist templates
+    fetch('/api/settings')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.templates?.length) {
+          setAvailableTemplates(data.templates)
+          const defaultTpl = data.templates.find((t: { is_default: boolean }) => t.is_default)
+          if (defaultTpl) {
+            setSelectedTemplateId(defaultTpl.id)
+            setChecklistItems(defaultTpl.steps.map((s: { name: string }) => ({ name: s.name })))
+          }
+        }
+      })
+      .catch(() => { /* fall back to DEFAULT_CHECKLIST */ })
   }, [])
+
+  // Pre-fill form when duplicating an existing client
+  useEffect(() => {
+    const duplicateId = searchParams.get('duplicate')
+    if (!duplicateId) return
+
+    const fetchSource = async () => {
+      setDuplicating(true)
+      try {
+        const res = await fetch(`/api/clients/${duplicateId}`)
+        if (!res.ok) return
+        const data = await res.json()
+        const client = data.client ?? data
+
+        setFormData({
+          name: `${client.name || ''} (Copy)`,
+          paye_reference: client.paye_reference || '',
+          accounts_office_ref: client.accounts_office_ref || '',
+          address: client.address || { street: '', city: '', postcode: '' },
+          employee_count: client.employee_count != null ? String(client.employee_count) : '',
+          pay_frequency: client.pay_frequency || '',
+          pay_day: client.pay_day || '',
+          period_start: '',
+          period_end: '',
+          payroll_software: client.payroll_software || '',
+          employment_allowance: client.employment_allowance != null ? String(client.employment_allowance) : '',
+          pension_provider: client.pension_provider || '',
+          pension_staging_date: client.pension_staging_date || '',
+          pension_reenrolment_date: client.pension_reenrolment_date || '',
+          declaration_of_compliance_deadline: client.declaration_of_compliance_deadline || '',
+          contact_name: client.contact_name || '',
+          contact_email: client.contact_email || '',
+          contact_phone: client.contact_phone || '',
+          notes: client.notes || '',
+        })
+
+        // Pre-fill checklist from source client's templates
+        if (client.checklist_templates?.length) {
+          const sorted = [...client.checklist_templates].sort(
+            (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
+          )
+          setChecklistItems(sorted.map((t: { name: string }) => ({ name: t.name })))
+        }
+      } catch {
+        // Silently fall back to empty form
+      } finally {
+        setDuplicating(false)
+      }
+    }
+
+    fetchSource()
+  }, [searchParams])
+
+  const formatDateStr = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
+  // ─── Auto-fill pay period dates when frequency + pay day change ──
+
+  useEffect(() => {
+    if (!formData.pay_frequency) return
+    // Annually uses pay_day as a specific date, not a dropdown option
+    if (formData.pay_frequency === 'annually') {
+      if (!formData.pay_day) return
+      // For annually, period is the tax year containing the pay date
+      const payDate = new Date(formData.pay_day + 'T00:00:00')
+      const { periodStart, periodEnd } = calculatePeriodDates('annually', payDate)
+      setFormData((prev) => ({
+        ...prev,
+        period_start: formatDateStr(periodStart),
+        period_end: formatDateStr(periodEnd),
+      }))
+      return
+    }
+    if (!formData.pay_day) return
+
+    try {
+      const freq = formData.pay_frequency as PayFrequency
+      const today = new Date()
+      const nextPayDate = calculateNextPayDate(freq, formData.pay_day, today)
+      const { periodStart, periodEnd } = calculatePeriodDates(freq, nextPayDate)
+
+      setFormData((prev) => ({
+        ...prev,
+        period_start: formatDateStr(periodStart),
+        period_end: formatDateStr(periodEnd),
+      }))
+    } catch {
+      // Ignore calculation errors for unsupported combos
+    }
+  }, [formData.pay_frequency, formData.pay_day])
+
+  // ─── Auto-fill period end when period start is changed manually ──
+
+  const calculatePeriodEnd = (frequency: string, startDate: string): string | null => {
+    if (!startDate || !frequency) return null
+    const start = new Date(startDate + 'T00:00:00')
+    if (isNaN(start.getTime())) return null
+
+    let end: Date
+    switch (frequency) {
+      case 'weekly':
+        end = new Date(start)
+        end.setDate(end.getDate() + 6)
+        break
+      case 'two_weekly':
+        end = new Date(start)
+        end.setDate(end.getDate() + 13)
+        break
+      case 'four_weekly':
+        end = new Date(start)
+        end.setDate(end.getDate() + 27)
+        break
+      case 'monthly': {
+        // Xth to (X-1)th of next month
+        // e.g. 1st Mar → 31st Mar, 5th Mar → 4th Apr
+        end = new Date(start)
+        end.setMonth(end.getMonth() + 1)
+        end.setDate(end.getDate() - 1)
+        break
+      }
+      case 'annually': {
+        end = new Date(start)
+        end.setFullYear(end.getFullYear() + 1)
+        end.setDate(end.getDate() - 1)
+        break
+      }
+      default:
+        return null
+    }
+    return formatDateStr(end)
+  }
+
+  const handlePeriodStartChange = (value: string) => {
+    updateField('period_start', value)
+    if (formData.pay_frequency && value) {
+      const endDate = calculatePeriodEnd(formData.pay_frequency, value)
+      if (endDate) {
+        updateField('period_end', endDate)
+      }
+    }
+  }
 
   // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -185,7 +381,7 @@ export default function AddClientPage() {
         errors.pay_frequency = 'Pay frequency is required'
       }
       if (!formData.pay_day) {
-        errors.pay_day = 'Pay day is required'
+        errors.pay_day = formData.pay_frequency === 'annually' ? 'Annual pay date is required' : 'Pay day is required'
       }
     }
 
@@ -275,14 +471,17 @@ export default function AddClientPage() {
           : undefined,
         pay_frequency: formData.pay_frequency,
         pay_day: formData.pay_day,
-        tax_period_start: formData.tax_period_start || undefined,
+        period_start: formData.period_start || undefined,
+        period_end: formData.period_end || undefined,
+        payroll_software: formData.payroll_software || undefined,
+        employment_allowance: formData.employment_allowance === 'yes' ? true : formData.employment_allowance === 'no' ? false : undefined,
         pension_provider: formData.pension_provider || undefined,
         pension_staging_date: formData.pension_staging_date || undefined,
+        pension_reenrolment_date: formData.pension_reenrolment_date || undefined,
+        declaration_of_compliance_deadline: formData.declaration_of_compliance_deadline || undefined,
         contact_name: formData.contact_name || undefined,
         contact_email: formData.contact_email || undefined,
         contact_phone: formData.contact_phone || undefined,
-        email: formData.email || undefined,
-        phone: formData.phone || undefined,
         notes: formData.notes || undefined,
         checklist_items: checklistItems
           .filter((item) => item.name.trim())
@@ -314,12 +513,12 @@ export default function AddClientPage() {
   // ─── Shared input styles ────────────────────────────────────────
 
   const inputStyle = {
-    background: colors.glass.surface,
+    background: isDark ? 'rgba(255,255,255,0.05)' : '#fff',
     color: colors.text.primary,
-    border: `1px solid ${colors.borderElevated}`,
+    border: `1px solid ${colors.border}`,
   }
 
-  const inputClassName = 'mt-2 rounded-xl border-0 shadow-lg transition-all duration-300'
+  const inputClassName = 'mt-2 rounded-lg border-0'
 
   // ─── Render helpers ──────────────────────────────────────────────
 
@@ -370,11 +569,17 @@ export default function AddClientPage() {
           <Input
             id="accounts_office_ref"
             value={formData.accounts_office_ref}
-            onChange={(e) => updateField('accounts_office_ref', e.target.value)}
+            onChange={(e) => {
+              if (e.target.value.length <= 13) updateField('accounts_office_ref', e.target.value)
+            }}
             placeholder="123PA00012345"
+            maxLength={13}
             className={inputClassName}
             style={inputStyle}
           />
+          <p className="mt-1 text-xs" style={{ color: colors.text.muted }}>
+            {formData.accounts_office_ref.length}/13 characters
+          </p>
         </div>
       </div>
 
@@ -446,7 +651,7 @@ export default function AddClientPage() {
   // ─── Step 2: Payroll Configuration ───────────────────────────────
 
   const renderStep2 = () => {
-    const isMonthly = formData.pay_frequency === 'monthly'
+    const showMonthlyOptions = ['monthly'].includes(formData.pay_frequency)
 
     return (
       <div className="space-y-6">
@@ -458,8 +663,9 @@ export default function AddClientPage() {
             value={formData.pay_frequency}
             onValueChange={(value) => {
               updateField('pay_frequency', value)
-              // Reset pay_day when frequency changes
               updateField('pay_day', '')
+              updateField('period_start', '')
+              updateField('period_end', '')
             }}
           >
             <SelectTrigger className={inputClassName} style={inputStyle}>
@@ -467,29 +673,29 @@ export default function AddClientPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="fortnightly">Fortnightly</SelectItem>
-              <SelectItem value="four_weekly">4-Weekly</SelectItem>
+              <SelectItem value="two_weekly">Two Weekly</SelectItem>
+              <SelectItem value="four_weekly">Four Weekly</SelectItem>
               <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="annually">Annually</SelectItem>
             </SelectContent>
           </Select>
           {renderFieldError('pay_frequency')}
         </div>
 
-        {formData.pay_frequency && (
+        {formData.pay_frequency && formData.pay_frequency !== 'annually' && (
           <div>
             <Label className="font-semibold" style={{ color: colors.text.primary }}>
-              {isMonthly ? 'Pay Day (day of month or last weekday)' : 'Pay Day (day of week)'}{' '}
-              <span style={{ color: colors.error }}>*</span>
+              Pay Date <span style={{ color: colors.error }}>*</span>
             </Label>
             <Select
               value={formData.pay_day}
               onValueChange={(value) => updateField('pay_day', value)}
             >
               <SelectTrigger className={inputClassName} style={inputStyle}>
-                <SelectValue placeholder={isMonthly ? 'Select day of month' : 'Select day of week'} />
+                <SelectValue placeholder={showMonthlyOptions ? 'Select pay date' : 'Select day of week'} />
               </SelectTrigger>
               <SelectContent>
-                {isMonthly
+                {showMonthlyOptions
                   ? MONTHLY_PAY_DAYS.map((day) => (
                       <SelectItem key={day.value} value={day.value}>
                         {day.label}
@@ -506,18 +712,130 @@ export default function AddClientPage() {
           </div>
         )}
 
-        <div className="max-w-xs">
-          <Label htmlFor="tax_period_start" className="font-semibold" style={{ color: colors.text.primary }}>
-            Tax Period Start
+        {formData.pay_frequency === 'annually' && (
+          <div>
+            <Label htmlFor="annual_pay_date" className="font-semibold" style={{ color: colors.text.primary }}>
+              Annual Pay Date <span style={{ color: colors.error }}>*</span>
+            </Label>
+            <Input
+              id="annual_pay_date"
+              type="date"
+              value={formData.pay_day}
+              onChange={(e) => updateField('pay_day', e.target.value)}
+              className={inputClassName}
+              style={inputStyle}
+            />
+            {renderFieldError('pay_day')}
+          </div>
+        )}
+
+        {formData.pay_frequency !== 'annually' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="period_start" className="font-semibold" style={{ color: colors.text.primary }}>
+                Pay Period Start
+              </Label>
+              <Input
+                id="period_start"
+                type="date"
+                value={formData.period_start}
+                onChange={(e) => handlePeriodStartChange(e.target.value)}
+                className={inputClassName}
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <Label htmlFor="period_end" className="font-semibold" style={{ color: colors.text.primary }}>
+                Pay Period End
+              </Label>
+              <Input
+                id="period_end"
+                type="date"
+                value={formData.period_end}
+                readOnly
+                className={inputClassName}
+                style={{
+                  ...inputStyle,
+                  opacity: 0.6,
+                  cursor: 'not-allowed',
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {formData.pay_frequency && formData.pay_day && formData.pay_frequency !== 'annually' && (() => {
+          try {
+            // Use period start as reference so the pay date falls within the chosen period
+            const referenceDate = formData.period_start
+              ? new Date(formData.period_start + 'T00:00:00')
+              : new Date()
+            const adjustedRef = new Date(referenceDate)
+            adjustedRef.setDate(adjustedRef.getDate() - 1)
+            const nextDate = calculateNextPayDate(
+              formData.pay_frequency as PayFrequency,
+              formData.pay_day,
+              adjustedRef
+            )
+            return (
+              <div
+                className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm"
+                style={{
+                  background: `${colors.primary}08`,
+                  border: `1px solid ${colors.primary}25`,
+                }}
+              >
+                <span className="font-medium" style={{ color: colors.text.secondary }}>
+                  First Pay Date:
+                </span>
+                <span className="font-bold" style={{ color: colors.primary }}>
+                  {nextDate.toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </span>
+              </div>
+            )
+          } catch {
+            return null
+          }
+        })()}
+
+        <div>
+          <Label htmlFor="payroll_software" className="font-semibold" style={{ color: colors.text.primary }}>
+            Payroll Software
           </Label>
           <Input
-            id="tax_period_start"
-            type="date"
-            value={formData.tax_period_start}
-            onChange={(e) => updateField('tax_period_start', e.target.value)}
+            id="payroll_software"
+            value={formData.payroll_software}
+            onChange={(e) => updateField('payroll_software', e.target.value)}
+            placeholder="e.g. BrightPay, Sage, Moneysoft, IRIS..."
+            list="payroll-software-list"
             className={inputClassName}
             style={inputStyle}
           />
+          <datalist id="payroll-software-list">
+            {['BrightPay', 'Sage 50', 'Moneysoft', 'IRIS', 'Xero Payroll', 'QuickBooks Payroll', 'Staffology', 'Paycircle', 'Brain', 'Buddy', 'FreeAgent'].map((sw) => (
+              <option key={sw} value={sw} />
+            ))}
+          </datalist>
+        </div>
+
+        <div>
+          <Label className="font-semibold" style={{ color: colors.text.primary }}>
+            Entitled to Employment Allowance
+          </Label>
+          <Select value={formData.employment_allowance} onValueChange={(value) => updateField('employment_allowance', value)}>
+            <SelectTrigger className={inputClassName} style={inputStyle}>
+              <SelectValue placeholder="Select..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="yes">Yes</SelectItem>
+              <SelectItem value="no">No</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
     )
@@ -525,7 +843,9 @@ export default function AddClientPage() {
 
   // ─── Step 3: Pension ─────────────────────────────────────────────
 
-  const renderStep3 = () => (
+  const renderStep3 = () => {
+    const isPensionExempt = formData.pension_provider.toLowerCase() === 'exempt'
+    return (
     <div className="space-y-6">
       <div>
         <Label htmlFor="pension_provider" className="font-semibold" style={{ color: colors.text.primary }}>
@@ -545,26 +865,64 @@ export default function AddClientPage() {
             <option key={provider} value={provider} />
           ))}
         </datalist>
-        <p className="mt-1 text-xs" style={{ color: colors.text.muted }}>
-          Common providers: {PENSION_PROVIDERS.join(', ')}
-        </p>
+        {isPensionExempt && (
+          <p className="mt-2 text-sm font-medium" style={{ color: colors.text.muted }}>
+            Client is exempt from pension — date fields are hidden.
+          </p>
+        )}
       </div>
 
-      <div className="max-w-xs">
-        <Label htmlFor="pension_staging_date" className="font-semibold" style={{ color: colors.text.primary }}>
-          Pension Staging Date
-        </Label>
-        <Input
-          id="pension_staging_date"
-          type="date"
-          value={formData.pension_staging_date}
-          onChange={(e) => updateField('pension_staging_date', e.target.value)}
-          className={inputClassName}
-          style={inputStyle}
-        />
+      {!isPensionExempt && (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <Label htmlFor="pension_staging_date" className="font-semibold" style={{ color: colors.text.primary }}>
+            Pension Staging Date
+          </Label>
+          <Input
+            id="pension_staging_date"
+            type="date"
+            value={formData.pension_staging_date}
+            onChange={(e) => updateField('pension_staging_date', e.target.value)}
+            className={inputClassName}
+            style={inputStyle}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="pension_reenrolment_date" className="font-semibold" style={{ color: colors.text.primary }}>
+            Re-Enrolment Date
+          </Label>
+          <Input
+            id="pension_reenrolment_date"
+            type="date"
+            value={formData.pension_reenrolment_date}
+            onChange={(e) => updateField('pension_reenrolment_date', e.target.value)}
+            className={inputClassName}
+            style={inputStyle}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="declaration_of_compliance_deadline" className="font-semibold" style={{ color: colors.text.primary }}>
+            Declaration of Compliance
+          </Label>
+          <Input
+            id="declaration_of_compliance_deadline"
+            type="date"
+            value={formData.declaration_of_compliance_deadline}
+            onChange={(e) => updateField('declaration_of_compliance_deadline', e.target.value)}
+            className={inputClassName}
+            style={inputStyle}
+          />
+          <p className="mt-1 text-xs" style={{ color: colors.text.muted }}>
+            TPR deadline for declaration
+          </p>
+        </div>
       </div>
+      )}
     </div>
-  )
+    )
+  }
 
   // ─── Step 4: Contact Info ────────────────────────────────────────
 
@@ -614,44 +972,6 @@ export default function AddClientPage() {
         />
       </div>
 
-      <div
-        className="pt-6 border-t space-y-6"
-        style={{ borderColor: colors.borderElevated }}
-      >
-        <h4 className="text-sm font-bold uppercase tracking-wide" style={{ color: colors.text.muted }}>
-          Company Contact Details
-        </h4>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <Label htmlFor="email" className="font-semibold" style={{ color: colors.text.primary }}>
-              Company Email
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => updateField('email', e.target.value)}
-              placeholder="info@company.com"
-              className={inputClassName}
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <Label htmlFor="phone" className="font-semibold" style={{ color: colors.text.primary }}>
-              Company Phone
-            </Label>
-            <Input
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => updateField('phone', e.target.value)}
-              placeholder="+44 20 1234 5678"
-              className={inputClassName}
-              style={inputStyle}
-            />
-          </div>
-        </div>
-      </div>
-
       <div>
         <Label htmlFor="notes" className="font-semibold" style={{ color: colors.text.primary }}>
           Notes
@@ -671,11 +991,44 @@ export default function AddClientPage() {
 
   // ─── Step 5: Checklist Template ──────────────────────────────────
 
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplateId(templateId)
+    if (templateId === 'custom') return
+    const tpl = availableTemplates.find((t) => t.id === templateId)
+    if (tpl) {
+      setChecklistItems(tpl.steps.map((s) => ({ name: s.name })))
+    }
+  }
+
   const renderStep5 = () => (
     <div className="space-y-4">
       <p className="text-sm" style={{ color: colors.text.secondary }}>
         Define the payroll processing steps for this client. These will be used as a checklist for each pay run.
       </p>
+
+      {availableTemplates.length > 0 && !searchParams.get('duplicate') && (
+        <div>
+          <Label className="font-semibold text-sm" style={{ color: colors.text.primary }}>
+            Template
+          </Label>
+          <Select value={selectedTemplateId} onValueChange={handleTemplateSelect}>
+            <SelectTrigger
+              className="mt-1.5 rounded-lg border-0"
+              style={inputStyle}
+            >
+              <SelectValue placeholder="Choose a template..." />
+            </SelectTrigger>
+            <SelectContent>
+              {availableTemplates.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}{t.is_default ? ' (Default)' : ''}
+                </SelectItem>
+              ))}
+              <SelectItem value="custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {checklistItems.map((item, index) => (
         <div
@@ -685,9 +1038,9 @@ export default function AddClientPage() {
           <span
             className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
             style={{
-              background: colors.glass.surfaceActive,
+              background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
               color: colors.text.muted,
-              border: `1px solid ${colors.borderElevated}`,
+              border: `1px solid ${colors.border}`,
             }}
           >
             {index + 1}
@@ -696,7 +1049,7 @@ export default function AddClientPage() {
             value={item.name}
             onChange={(e) => updateChecklistItem(index, e.target.value)}
             placeholder="Step name..."
-            className="flex-1 rounded-xl border-0 shadow-lg transition-all duration-300"
+            className="flex-1 rounded-lg border-0"
             style={inputStyle}
           />
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -742,11 +1095,10 @@ export default function AddClientPage() {
         type="button"
         variant="outline"
         onClick={addChecklistItem}
-        className="w-full rounded-xl font-semibold transition-all duration-300 hover:scale-[1.01]"
+        className="w-full rounded-lg font-semibold text-[0.85rem]"
         style={{
-          borderColor: colors.borderElevated,
+          borderColor: colors.border,
           color: colors.text.secondary,
-          backgroundColor: colors.glass.surface,
         }}
       >
         <Plus className="w-4 h-4 mr-2" />
@@ -778,10 +1130,10 @@ export default function AddClientPage() {
 
   if (!mounted) {
     return (
-      <div className="space-y-8 animate-pulse max-w-4xl mx-auto">
-        <div className="h-20 rounded-xl bg-gray-200" />
-        <div className="h-16 rounded-xl bg-gray-200" />
-        <div className="h-96 rounded-xl bg-gray-200" />
+      <div className="space-y-6 animate-pulse max-w-4xl mx-auto">
+        <div className="h-16 rounded-lg" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
+        <div className="h-14 rounded-lg" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
+        <div className="h-80 rounded-lg" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
       </div>
     )
   }
@@ -789,34 +1141,26 @@ export default function AddClientPage() {
   // ─── Render ──────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1
-            className="text-3xl md:text-4xl font-bold transition-colors duration-300"
-            style={{ color: colors.text.primary }}
-          >
-            Onboard New Client
+          <h1 className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>
+            {searchParams.get('duplicate') ? 'Duplicate Client' : 'Onboard New Client'}
           </h1>
-          <p
-            className="text-base md:text-lg transition-colors duration-300 mt-2"
-            style={{ color: colors.text.secondary }}
-          >
-            Step {currentStep + 1} of {STEPS.length} &mdash; {STEPS[currentStep].label}
+          <p className="text-[0.82rem] mt-0.5" style={{ color: colors.text.muted }}>
+            {duplicating
+              ? 'Loading client data...'
+              : <>Step {currentStep + 1} of {STEPS.length} &mdash; {STEPS[currentStep].label}</>
+            }
           </p>
         </div>
 
         <Button
           variant="outline"
           onClick={() => router.push('/dashboard/clients')}
-          className="rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg self-start sm:self-auto"
-          style={{
-            borderColor: colors.borderElevated,
-            color: colors.text.secondary,
-            backgroundColor: colors.glass.surface,
-            backdropFilter: 'blur(10px)',
-          }}
+          className="font-semibold py-2 px-4 rounded-lg text-[0.85rem]"
+          style={{ borderColor: colors.border, color: colors.text.primary }}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Clients
@@ -824,123 +1168,104 @@ export default function AddClientPage() {
       </div>
 
       {/* Step Indicator */}
-      <div
-        className="rounded-2xl p-4 md:p-6 shadow-xl"
+      <Card
+        className="border-0"
         style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 10px 25px ${colors.shadow.medium}`
-            : `0 6px 15px ${colors.shadow.light}`,
+          backgroundColor: colors.surface,
+          borderRadius: '12px',
+          border: `1px solid ${colors.border}`,
         }}
       >
-        <div className="flex items-center justify-between">
-          {STEPS.map((step, index) => {
-            const StepIcon = step.icon
-            const isCompleted = index < currentStep
-            const isCurrent = index === currentStep
+        <CardContent className="p-4 md:p-5">
+          <div className="flex items-center justify-between">
+            {STEPS.map((step, index) => {
+              const StepIcon = step.icon
+              const isCompleted = index < currentStep
+              const isCurrent = index === currentStep
 
-            return (
-              <div key={index} className="flex items-center flex-1 last:flex-initial">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={cn(
-                      'w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg',
-                      isCurrent && 'scale-110'
-                    )}
-                    style={{
-                      background: isCompleted || isCurrent
-                        ? `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`
-                        : colors.glass.surfaceActive,
-                      boxShadow:
-                        isCompleted || isCurrent
-                          ? `0 6px 20px ${colors.primary}40`
+              return (
+                <div key={index} className="flex items-center flex-1 last:flex-initial">
+                  <div className="flex flex-col items-center">
+                    <div
+                      className="w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center"
+                      style={{
+                        background: isCompleted || isCurrent
+                          ? `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`
+                          : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                        border: !isCompleted && !isCurrent
+                          ? `1px solid ${colors.border}`
                           : 'none',
-                      border:
-                        !isCompleted && !isCurrent
-                          ? `1px solid ${colors.borderElevated}`
-                          : 'none',
-                    }}
-                  >
-                    {isCompleted ? (
-                      <Check className="w-5 h-5 md:w-6 md:h-6 text-white" />
-                    ) : (
-                      <StepIcon
-                        className="w-5 h-5 md:w-6 md:h-6"
-                        style={{
-                          color: isCurrent ? '#FFFFFF' : colors.text.muted,
-                        }}
-                      />
-                    )}
+                      }}
+                    >
+                      {isCompleted ? (
+                        <Check className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                      ) : (
+                        <StepIcon
+                          className="w-4 h-4 md:w-5 md:h-5"
+                          style={{ color: isCurrent ? '#FFFFFF' : colors.text.muted }}
+                        />
+                      )}
+                    </div>
+                    <span
+                      className="mt-1.5 text-[0.68rem] md:text-xs font-medium text-center hidden sm:block"
+                      style={{
+                        color: isCurrent
+                          ? colors.text.primary
+                          : isCompleted
+                          ? colors.primary
+                          : colors.text.muted,
+                      }}
+                    >
+                      {step.label}
+                    </span>
                   </div>
-                  <span
-                    className="mt-2 text-xs md:text-sm font-medium text-center hidden sm:block"
-                    style={{
-                      color: isCurrent
-                        ? colors.text.primary
-                        : isCompleted
-                        ? colors.primary
-                        : colors.text.muted,
-                    }}
-                  >
-                    {step.label}
-                  </span>
-                </div>
 
-                {/* Connector line */}
-                {index < STEPS.length - 1 && (
-                  <div
-                    className="flex-1 h-0.5 mx-2 md:mx-4 rounded-full mt-[-20px] sm:mt-[-28px]"
-                    style={{
-                      background:
-                        index < currentStep
-                          ? `linear-gradient(90deg, ${colors.primary}, ${colors.secondary})`
-                          : colors.borderElevated,
-                    }}
-                  />
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
+                  {/* Connector line */}
+                  {index < STEPS.length - 1 && (
+                    <div
+                      className="flex-1 h-0.5 mx-2 md:mx-3 rounded-full mt-[-18px] sm:mt-[-24px]"
+                      style={{
+                        background: index < currentStep
+                          ? colors.primary
+                          : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                      }}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Form Card */}
       <Card
-        className="border-0 shadow-xl"
+        className="border-0"
         style={{
-          backgroundColor: colors.glass.card,
-          backdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${colors.borderElevated}`,
-          boxShadow: isDark
-            ? `0 15px 35px ${colors.shadow.medium}`
-            : `0 10px 25px ${colors.shadow.light}`,
+          backgroundColor: colors.surface,
+          borderRadius: '12px',
+          border: `1px solid ${colors.border}`,
         }}
       >
-        <CardHeader className="pb-6">
+        <CardHeader className="pb-4">
           <CardTitle
-            className="flex items-center text-xl md:text-2xl font-bold transition-colors duration-300"
+            className="flex items-center text-base md:text-lg font-bold"
             style={{ color: colors.text.primary }}
           >
             <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mr-4 shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                boxShadow: `0 8px 25px ${colors.primary}30`,
-              }}
+              className="w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center mr-3"
+              style={{ backgroundColor: `${colors.primary}10` }}
             >
               {(() => {
                 const CurrentIcon = STEPS[currentStep].icon
-                return <CurrentIcon className="w-6 h-6 text-white" />
+                return <CurrentIcon className="w-4 h-4 md:w-5 md:h-5" style={{ color: colors.primary }} />
               })()}
             </div>
             {STEPS[currentStep].label}
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="p-6 md:p-8">
+        <CardContent className="p-4 md:p-6">
           {/* Global error */}
           {error && (
             <div
@@ -959,19 +1284,18 @@ export default function AddClientPage() {
 
           {/* Navigation */}
           <div
-            className="flex justify-between items-center gap-4 pt-8 mt-8 border-t"
-            style={{ borderColor: colors.borderElevated }}
+            className="flex justify-between items-center gap-4 pt-6 mt-6 border-t"
+            style={{ borderColor: colors.border }}
           >
             <Button
               type="button"
               variant="outline"
               onClick={goBack}
               disabled={currentStep === 0}
-              className="rounded-xl font-semibold transition-all duration-300 hover:scale-[1.02]"
+              className="rounded-lg font-semibold text-[0.85rem]"
               style={{
-                borderColor: colors.borderElevated,
-                color: currentStep === 0 ? colors.text.muted : colors.text.secondary,
-                backgroundColor: colors.glass.surface,
+                borderColor: colors.border,
+                color: currentStep === 0 ? colors.text.muted : colors.text.primary,
                 opacity: currentStep === 0 ? 0.5 : 1,
               }}
             >
@@ -983,10 +1307,9 @@ export default function AddClientPage() {
               <Button
                 type="button"
                 onClick={goNext}
-                className="text-white font-semibold py-3 px-8 rounded-xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+                className="text-white font-semibold py-2 px-5 rounded-lg border-0 text-[0.85rem]"
                 style={{
-                  background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-                  boxShadow: `0 10px 25px ${colors.primary}30`,
+                  background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
                 }}
               >
                 Next
@@ -997,10 +1320,10 @@ export default function AddClientPage() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="text-white font-semibold py-3 px-8 rounded-xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+                className="text-white font-semibold py-2 px-5 rounded-lg border-0 text-[0.85rem]"
                 style={{
-                  background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
-                  boxShadow: `0 10px 25px ${colors.primary}30`,
+                  background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+                  opacity: submitting ? 0.7 : 1,
                 }}
               >
                 {submitting ? (

@@ -1,10 +1,16 @@
 // src/app/api/clients/[id]/route.ts - Individual Client Operations
 
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { writeAuditLog, diffChanges } from '@/lib/audit'
 
 // Validation schema for client updates (all fields optional)
+const checklistTemplateSchema = z.object({
+  name: z.string().min(1).max(255),
+  sort_order: z.number().int().min(0),
+})
+
 const clientUpdateSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   company_number: z.string().max(20).optional(),
@@ -20,15 +26,21 @@ const clientUpdateSchema = z.object({
   status: z.enum(['active', 'inactive', 'prospect']).optional(),
   notes: z.string().optional(),
   paye_reference: z.string().optional(),
-  accounts_office_ref: z.string().optional(),
-  pay_frequency: z.enum(['weekly', 'fortnightly', 'four_weekly', 'monthly']).optional(),
+  accounts_office_ref: z.string().max(13).optional(),
+  pay_frequency: z.enum(['weekly', 'two_weekly', 'four_weekly', 'monthly', 'annually']).optional(),
   pay_day: z.string().optional(),
-  tax_period_start: z.string().optional(),
+  period_start: z.string().optional(),
+  period_end: z.string().optional(),
+  payroll_software: z.string().optional(),
+  employment_allowance: z.boolean().optional(),
   pension_provider: z.string().optional(),
   pension_staging_date: z.string().optional(),
+  pension_reenrolment_date: z.string().optional(),
+  declaration_of_compliance_deadline: z.string().optional(),
   contact_name: z.string().optional(),
   contact_email: z.string().email().optional().or(z.literal('')),
   contact_phone: z.string().optional(),
+  checklist_templates: z.array(checklistTemplateSchema).optional(),
 })
 
 // GET /api/clients/[id] - Fetch single client with details
@@ -38,19 +50,18 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const supabase = createServerSupabaseClient()
-
-    // Verify authentication
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const authUser = await getAuthUser()
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const supabase = createServerSupabaseClient()
 
     // Get user to verify tenant ownership
     const { data: user } = await supabase
       .from('users')
       .select('tenant_id')
-      .eq('id', session.user.id)
+      .eq('id', authUser.id)
       .single()
 
     if (!user) {
@@ -70,10 +81,20 @@ export async function GET(
         return NextResponse.json({ error: 'Client not found' }, { status: 404 })
       }
       console.error('Database error fetching client:', error)
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to fetch client' }, { status: 400 })
     }
 
-    return NextResponse.json(client)
+    // Fetch payroll runs for this client
+    const { data: payrollRuns } = await supabase
+      .from('payroll_runs')
+      .select('id, period_start, period_end, pay_date, status, rti_due_date, eps_due_date, created_at, updated_at')
+      .eq('client_id', id)
+      .order('pay_date', { ascending: false })
+
+    return NextResponse.json({
+      ...client,
+      payroll_runs: payrollRuns || [],
+    })
   } catch (error) {
     console.error('Server error in GET /api/clients/[id]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -87,23 +108,37 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    const supabase = createServerSupabaseClient()
-
-    // Verify authentication
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const authUser = await getAuthUser()
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const supabase = createServerSupabaseClient()
 
     // Parse and validate request body
     const body = await request.json()
     const validatedData = clientUpdateSchema.parse(body)
 
-    // Check if client exists and belongs to user's tenant
+    // Separate checklist_templates from client fields
+    const { checklist_templates, ...clientFields } = validatedData
+
+    // Get user's tenant_id
+    const { data: user } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', authUser.id)
+      .single()
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Fetch existing client for audit diff
     const { data: existingClient } = await supabase
       .from('clients')
-      .select('id')
+      .select('*')
       .eq('id', id)
+      .eq('tenant_id', user.tenant_id)
       .single()
 
     if (!existingClient) {
@@ -114,16 +149,69 @@ export async function PUT(
     const { data: client, error } = await supabase
       .from('clients')
       .update({
-        ...validatedData,
+        ...clientFields,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
+      .eq('tenant_id', user.tenant_id)
       .select()
       .single()
 
     if (error) {
       console.error('Database error updating client:', error)
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to update client' }, { status: 400 })
+    }
+
+    // Audit log: client updated
+    const changes = diffChanges(
+      existingClient as unknown as Record<string, unknown>,
+      client as unknown as Record<string, unknown>
+    )
+    if (changes) {
+      writeAuditLog({
+        tenantId: user.tenant_id,
+        userId: authUser.id,
+        userEmail: authUser.email!,
+        action: 'UPDATE',
+        resourceType: 'client',
+        resourceId: id,
+        resourceName: client.name,
+        changes,
+        request,
+      })
+    }
+
+    // Update checklist templates if provided
+    if (checklist_templates) {
+      // Delete existing templates
+      const { error: deleteError } = await supabase
+        .from('checklist_templates')
+        .delete()
+        .eq('client_id', id)
+
+      if (deleteError) {
+        console.error('Database error deleting checklist templates:', deleteError)
+        return NextResponse.json({ error: 'Failed to update checklist templates' }, { status: 400 })
+      }
+
+      // Insert new templates
+      if (checklist_templates.length > 0) {
+        const { error: insertError } = await supabase
+          .from('checklist_templates')
+          .insert(
+            checklist_templates.map((t) => ({
+              name: t.name,
+              sort_order: t.sort_order,
+              client_id: id,
+              is_active: true,
+            }))
+          )
+
+        if (insertError) {
+          console.error('Database error inserting checklist templates:', insertError)
+          return NextResponse.json({ error: 'Failed to save checklist templates' }, { status: 400 })
+        }
+      }
     }
 
     return NextResponse.json(client)
@@ -150,24 +238,59 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const supabase = createServerSupabaseClient()
-
-    // Verify authentication
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const authUser = await getAuthUser()
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Delete client (related records will cascade)
+    const supabase = createServerSupabaseClient()
+
+    // Get user to verify tenant ownership
+    const { data: user } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', authUser.id)
+      .single()
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Fetch client name before deletion for audit log
+    const { data: clientToDelete } = await supabase
+      .from('clients')
+      .select('name')
+      .eq('id', id)
+      .eq('tenant_id', user.tenant_id)
+      .single()
+
+    if (!clientToDelete) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 })
+    }
+
+    // Delete client (related records will cascade) - scoped to tenant
     const { error } = await supabase
       .from('clients')
       .delete()
       .eq('id', id)
+      .eq('tenant_id', user.tenant_id)
 
     if (error) {
       console.error('Database error deleting client:', error)
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: 'Failed to delete client' }, { status: 400 })
     }
+
+    // Audit log: client deleted
+    writeAuditLog({
+      tenantId: user.tenant_id,
+      userId: authUser.id,
+      userEmail: authUser.email!,
+      action: 'DELETE',
+      resourceType: 'client',
+      resourceId: id,
+      resourceName: clientToDelete.name,
+      request,
+    })
 
     return NextResponse.json({
       message: 'Client deleted successfully',
