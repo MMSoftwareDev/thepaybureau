@@ -86,9 +86,8 @@ npx playwright test  # E2E tests
 
 ## Known Issues
 
-- **Duplicate migration numbering**: `001_enable_rls_policies.sql` and `001_add_annually_and_pension_fields.sql` share the `001_` prefix — should be renumbered.
 - **Incomplete domain migration**: 15+ `app.thepaybureau.com` references remain in email templates, fallback URLs, CI config, and Supabase config (see Session 11).
-- **Missing migration 014**: Vector search fix migration referenced in Session 10 was never committed.
+- **Missing migration**: Vector search fix migration referenced in Session 10 was never committed.
 
 ## Current Status & Roadmap
 
@@ -122,7 +121,7 @@ npx playwright test  # E2E tests
 - Global auth context for reactive user tracking
 - Reduce SWR `dedupingInterval` or add explicit revalidation on login
 - Complete `app.thepaybureau.com` → `thepaybureau.com` domain migration
-- Renumber duplicate `001_` migration files
+- ~~Renumber duplicate `001_` migration files~~ (fixed: renamed to `014_`)
 - Create missing `014_fix_vector_search.sql` migration (or verify fixes applied directly)
 
 ## Workflow Orchestration
