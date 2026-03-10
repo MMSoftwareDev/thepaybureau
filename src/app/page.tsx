@@ -1,7 +1,8 @@
-// src/app/page.tsx — Marketing landing page (ClickUp-inspired redesign)
+// src/app/page.tsx — Marketing landing page (new design language)
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Metadata } from 'next'
+import { HeroBadge, HeroStats, SectionHeader } from '@/components/marketing'
 
 export const metadata: Metadata = {
   title: 'ThePayBureau - Never Miss Another Payroll Deadline',
@@ -223,31 +224,30 @@ export default function LandingPage() {
       </nav>
 
       {/* ═══ HERO SECTION ═══ */}
-      <section className="relative w-full pt-20 pb-0 md:pt-24">
+      <section className="relative w-full pt-20 pb-0 md:pt-24 overflow-hidden">
         {/* Subtle brand gradient wash */}
-        <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, white, ${brand.cream}, white)` }} />
+        <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, #fdfeff 0%, ${brand.cream} 30%, #ffffff 70%, #fafbfe 100%)` }} />
+        {/* Decorative radials */}
+        <div className="absolute -top-1/2 -right-[20%] w-full h-[200%] bg-[radial-gradient(ellipse,rgba(64,29,108,0.04)_0%,transparent_60%)] rotate-[15deg] animate-[marketing-float_30s_ease-in-out_infinite] pointer-events-none" />
+        <div className="absolute -bottom-[30%] -left-[20%] w-4/5 h-[150%] bg-[radial-gradient(ellipse,rgba(236,56,93,0.03)_0%,transparent_60%)] -rotate-[10deg] animate-[marketing-float_35s_ease-in-out_infinite_reverse] pointer-events-none" />
 
         <div className="relative z-10 flex flex-col items-center text-center">
           {/* Eyebrow badge */}
-          <div className="animated-border-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold mb-6" style={{ background: brand.cream, color: brand.textPrimary, fontFamily: 'var(--font-inter)' }}>
-            <span className="relative z-[2] flex items-center gap-1">
-              For Bureau Owners &amp; Specialists
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke={brand.purpleLight} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </span>
-          </div>
+          <HeroBadge>For Bureau Owners &amp; Specialists</HeroBadge>
 
           {/* Main title — DM Serif Display for display heading */}
-          <h1 className="gradient-text-hero max-w-[760px] mx-auto mb-6 px-5 md:px-0 font-bold text-[40px] md:text-[76px] leading-[1.05] tracking-[-0.04em]" style={{ fontFamily: 'var(--font-display), DM Serif Display, serif' }}>
-            Never Miss Another Payroll Deadline
+          <h1 className="max-w-[760px] mx-auto mb-6 px-5 md:px-0 font-extrabold text-[clamp(2.4rem,4.5vw,3.8rem)] leading-[1.08] tracking-[-0.035em] text-gray-900" style={{ fontFamily: 'var(--font-display), DM Serif Display, serif' }}>
+            Never Miss Another<br />
+            <span className="text-[#EC385D]">Payroll Deadline</span>
           </h1>
 
           {/* Subtitle */}
-          <p className="max-w-[560px] mx-auto mb-8 px-5 text-base md:text-lg leading-relaxed" style={{ color: brand.textSecondary, fontFamily: 'var(--font-inter)' }}>
+          <p className="max-w-[560px] mx-auto mb-8 px-5 text-[1.05rem] leading-[1.7] text-gray-500" style={{ fontFamily: 'var(--font-inter)' }}>
             The professional dashboard for UK payroll specialists. Track HMRC deadlines, manage clients, and stay compliant — all in one place.
           </p>
 
           {/* CTA buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 items-center mb-14">
+          <div className="flex flex-col sm:flex-row gap-4 items-center mb-8">
             <Link
               href="/signup"
               className="inline-flex items-center justify-center h-12 px-6 rounded-xl text-white font-semibold text-lg tracking-tight hover:opacity-90 transition-opacity duration-100"
@@ -263,6 +263,17 @@ export default function LandingPage() {
               Learn more
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 12l4-4-4-4" stroke={brand.purpleLight} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </Link>
+          </div>
+
+          {/* Hero stats */}
+          <div className="mb-14">
+            <HeroStats
+              stats={[
+                { value: '58s', label: 'Setup Time' },
+                { value: '0', label: 'Missed Deadlines' },
+                { value: '500+', label: 'Specialists' },
+              ]}
+            />
           </div>
         </div>
 
@@ -324,13 +335,12 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row gap-10 md:gap-16 items-center">
             {/* Text */}
             <div className="md:w-[40%] text-center md:text-left">
-              <span className="mono-accent text-xs font-semibold tracking-wider" style={{ color: brand.purpleLight }}>CLIENT MANAGEMENT</span>
-              <h2 className="mt-3 font-bold text-[28px] md:text-[40px] leading-[1.15] tracking-[-0.03em]" style={{ color: brand.textPrimary, fontFamily: 'var(--font-display), DM Serif Display, serif' }}>
-                Every Client, One View
-              </h2>
-              <p className="mt-4 text-base leading-relaxed" style={{ color: brand.textSecondary, fontFamily: 'var(--font-inter)' }}>
-                Add clients in seconds. Set their payroll frequency, pay date, and pension details. The system auto-generates every deadline and checklist for you.
-              </p>
+              <SectionHeader
+                eyebrow="Client Management"
+                title="Every Client, One View"
+                description="Add clients in seconds. Set their payroll frequency, pay date, and pension details. The system auto-generates every deadline and checklist for you."
+                className="mb-0"
+              />
             </div>
 
             {/* Mockup */}
@@ -510,13 +520,12 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row-reverse gap-10 md:gap-16 items-center">
             {/* Text */}
             <div className="md:w-[40%] text-center md:text-left">
-              <span className="mono-accent text-xs font-semibold tracking-wider" style={{ color: brand.pink }}>DEADLINE TRACKING</span>
-              <h2 className="mt-3 font-bold text-[28px] md:text-[40px] leading-[1.15] tracking-[-0.03em]" style={{ color: brand.textPrimary, fontFamily: 'var(--font-display), DM Serif Display, serif' }}>
-                HMRC Deadlines, Sorted
-              </h2>
-              <p className="mt-4 text-base leading-relaxed" style={{ color: brand.textSecondary, fontFamily: 'var(--font-inter)' }}>
-                Every RTI, FPS, and EPS deadline auto-calculated from your pay dates. Colour-coded traffic lights so you never miss a submission.
-              </p>
+              <SectionHeader
+                eyebrow="Deadline Tracking"
+                title="HMRC Deadlines, Sorted"
+                description="Every RTI, FPS, and EPS deadline auto-calculated from your pay dates. Colour-coded traffic lights so you never miss a submission."
+                className="mb-0"
+              />
             </div>
 
             {/* Mockup */}
@@ -566,14 +575,13 @@ export default function LandingPage() {
       <section className="relative w-full py-20 md:py-24" style={{ background: brand.cream }}>
         <div className="dot-pattern-dark absolute inset-0 opacity-30" />
         <div className="relative max-w-[900px] mx-auto px-5 text-center">
-          <div className="flex flex-col items-center gap-6 mb-14">
-            <span className="mono-accent text-sm font-semibold tracking-wider" style={{ color: brand.pink }}>THE DAILY STRUGGLE</span>
-            <h2 className="font-bold text-[32px] md:text-[56px] leading-[1.1] tracking-[-0.03em]" style={{ color: brand.textPrimary, fontFamily: 'var(--font-display), DM Serif Display, serif' }}>
-              Sound Familiar?
-            </h2>
-            <p className="text-base md:text-lg max-w-[480px]" style={{ color: brand.textMuted, fontFamily: 'var(--font-inter)' }}>
-              Every payroll specialist knows these moments of panic...
-            </p>
+          <div className="flex flex-col items-center mb-14">
+            <SectionHeader
+              eyebrow="The Daily Struggle"
+              title="Sound Familiar?"
+              description="Every payroll specialist knows these moments of panic..."
+              className="text-center mb-0 [&_p]:mx-auto"
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -595,13 +603,12 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row gap-10 md:gap-16 items-center">
             {/* Text */}
             <div className="md:w-[40%] text-center md:text-left">
-              <span className="mono-accent text-xs font-semibold tracking-wider" style={{ color: brand.peach }}>CHECKLISTS</span>
-              <h2 className="mt-3 font-bold text-[28px] md:text-[40px] leading-[1.15] tracking-[-0.03em]" style={{ color: brand.textPrimary, fontFamily: 'var(--font-display), DM Serif Display, serif' }}>
-                Tick Off Every Step
-              </h2>
-              <p className="mt-4 text-base leading-relaxed" style={{ color: brand.textSecondary, fontFamily: 'var(--font-inter)' }}>
-                Pre-built checklists for every payroll cycle. Monthly, weekly, 4-weekly — including year-end, new starters, and leavers. Never forget a step.
-              </p>
+              <SectionHeader
+                eyebrow="Checklists"
+                title="Tick Off Every Step"
+                description="Pre-built checklists for every payroll cycle. Monthly, weekly, 4-weekly — including year-end, new starters, and leavers. Never forget a step."
+                className="mb-0"
+              />
             </div>
 
             {/* Mockup */}
@@ -648,14 +655,13 @@ export default function LandingPage() {
       <section className="relative w-full py-20 md:py-24" style={{ background: brand.cream }}>
         <div className="dot-pattern-dark absolute inset-0 opacity-40" />
         <div className="relative max-w-[1000px] mx-auto px-5 text-center">
-          <div className="flex flex-col items-center gap-6 mb-14">
-            <span className="mono-accent text-sm font-semibold tracking-wider" style={{ color: brand.purpleLight }}>YOUR NEW REALITY</span>
-            <h2 className="font-bold text-[32px] md:text-[56px] leading-[1.1] tracking-[-0.03em]" style={{ color: brand.textPrimary, fontFamily: 'var(--font-display), DM Serif Display, serif' }}>
-              This Could Be Your Day
-            </h2>
-            <p className="text-base md:text-lg max-w-[480px]" style={{ color: brand.textMuted, fontFamily: 'var(--font-inter)' }}>
-              How organised payroll specialists work
-            </p>
+          <div className="flex flex-col items-center mb-14">
+            <SectionHeader
+              eyebrow="Your New Reality"
+              title="This Could Be Your Day"
+              description="How organised payroll specialists work"
+              className="text-center mb-0 [&_p]:mx-auto"
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -699,14 +705,13 @@ export default function LandingPage() {
       {/* ═══ HOW IT WORKS ═══ */}
       <section className="relative w-full py-20 md:py-24">
         <div className="max-w-[800px] mx-auto px-5 text-center">
-          <div className="flex flex-col items-center gap-6 mb-14">
-            <span className="mono-accent text-sm font-semibold tracking-wider" style={{ color: brand.purpleLight }}>QUICK START</span>
-            <h2 className="font-bold text-[32px] md:text-[56px] leading-[1.1] tracking-[-0.03em]" style={{ color: brand.textPrimary, fontFamily: 'var(--font-display), DM Serif Display, serif' }}>
-              Set Up in 60 Seconds
-            </h2>
-            <p className="text-base md:text-lg" style={{ color: brand.textMuted, fontFamily: 'var(--font-inter)' }}>
-              Be organised in literally one minute
-            </p>
+          <div className="flex flex-col items-center mb-14">
+            <SectionHeader
+              eyebrow="Quick Start"
+              title="Set Up in 60 Seconds"
+              description="Be organised in literally one minute"
+              className="text-center mb-0 [&_p]:mx-auto"
+            />
           </div>
 
           <div className="flex flex-col gap-0">
@@ -730,21 +735,21 @@ export default function LandingPage() {
       <section className="relative w-full py-20 md:py-24" style={{ background: brand.cream }}>
         <div className="dot-pattern-dark absolute inset-0 opacity-20" />
         <div className="relative max-w-[1000px] mx-auto px-5 text-center">
-          <div className="flex flex-col items-center gap-6 mb-14">
-            <span className="mono-accent text-sm font-semibold tracking-wider" style={{ color: brand.purpleLight }}>REAL STORIES</span>
-            <h2 className="font-bold text-[32px] md:text-[56px] leading-[1.1] tracking-[-0.03em]" style={{ color: brand.textPrimary, fontFamily: 'var(--font-display), DM Serif Display, serif' }}>
-              From Chaos to Control
-            </h2>
-            <p className="text-base md:text-lg" style={{ color: brand.textMuted, fontFamily: 'var(--font-inter)' }}>
-              How payroll specialists transformed their work life
-            </p>
+          <div className="flex flex-col items-center mb-14">
+            <SectionHeader
+              eyebrow="Real Stories"
+              title="From Chaos to Control"
+              description="How payroll specialists transformed their work life"
+              className="text-center mb-0 [&_p]:mx-auto"
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="glass-card-light rounded-3xl p-7 text-left hover-lift">
-                <div className="text-3xl mb-3" style={{ color: brand.border }}>&ldquo;</div>
-                <p className="text-[15px] leading-relaxed mb-6" style={{ color: brand.textSecondary, fontFamily: 'var(--font-inter)' }}>{t.quote}</p>
+              <div key={t.name} className="bg-white border border-gray-200 rounded-2xl p-7 text-left relative overflow-hidden transition-[transform,box-shadow] duration-200 hover:-translate-y-[3px] hover:shadow-[0_12px_40px_rgba(64,29,108,0.09)]">
+                <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#401D6C]" />
+                <div className="text-[#FF8073] text-4xl font-serif leading-none mb-3">&ldquo;</div>
+                <p className="text-[15px] leading-relaxed mb-6 text-gray-500" style={{ fontFamily: 'var(--font-inter)' }}>{t.quote}</p>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ background: `linear-gradient(135deg, ${brand.purple}, ${brand.pink})` }}>
                     {t.initials}
@@ -830,23 +835,30 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ FOOTER ═══ */}
-      <footer className="bg-white py-8 px-5 border-t" style={{ borderColor: brand.border }}>
-        <div className="max-w-[1440px] mx-auto">
+      <footer className="bg-gray-900 py-9 px-10 max-[880px]:px-5 max-[880px]:py-7">
+        <div className="max-w-[1160px] mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-2.5">
+              <Image src="/logo.png" alt="ThePayBureau" width={30} height={30} className="h-[30px] w-[30px] rounded-[7px]" />
+              <div>
+                <div className="text-[0.85rem] font-bold text-white">ThePayBureau</div>
+                <div className="text-[0.62rem] font-semibold uppercase tracking-[0.1em] text-white/35">
+                  The UK&apos;s First Payroll CRM Powered by AI
+                </div>
+              </div>
+            </div>
             <div className="flex items-center gap-6 flex-wrap justify-center">
-              <Link href="/terms" className="text-sm transition-colors hover:opacity-70" style={{ color: brand.textMuted, fontFamily: 'var(--font-inter)' }}>Terms</Link>
-              <Link href="/privacy" className="text-sm transition-colors hover:opacity-70" style={{ color: brand.textMuted, fontFamily: 'var(--font-inter)' }}>Privacy</Link>
-              <a href="mailto:support@thepaybureau.com" className="text-sm transition-colors hover:opacity-70" style={{ color: brand.textMuted, fontFamily: 'var(--font-inter)' }}>Support</a>
-              <Link href="/login" className="text-sm transition-colors hover:opacity-70" style={{ color: brand.textMuted, fontFamily: 'var(--font-inter)' }}>Log in</Link>
+              <Link href="/terms" className="text-[0.72rem] text-white/60 font-semibold no-underline hover:text-white/90 transition-colors">Terms</Link>
+              <Link href="/privacy" className="text-[0.72rem] text-white/60 font-semibold no-underline hover:text-white/90 transition-colors">Privacy</Link>
+              <a href="mailto:support@thepaybureau.com" className="text-[0.72rem] text-white/60 font-semibold no-underline hover:text-white/90 transition-colors">Support</a>
+              <Link href="/roadmap" className="text-[0.72rem] text-white/60 font-semibold no-underline hover:text-white/90 transition-colors">Roadmap</Link>
+              <Link href="/login" className="text-[0.72rem] text-white/60 font-semibold no-underline hover:text-white/90 transition-colors">Log in</Link>
             </div>
-            <div className="text-center md:text-right">
-              <p className="text-xs" style={{ color: brand.border, fontFamily: 'var(--font-inter)' }}>
-                &copy; {new Date().getFullYear()} ThePayBureau Ltd. Built by payroll specialists, for payroll specialists.
-              </p>
-              <p className="text-[11px]" style={{ color: brand.border, fontFamily: 'var(--font-inter)' }}>
-                ThePayBureau Ltd — Registered in England and Wales
-              </p>
-            </div>
+          </div>
+          <div className="mt-6 pt-4 border-t border-white/10 text-center md:text-right">
+            <p className="text-[0.64rem] text-white/25">
+              &copy; {new Date().getFullYear()} ThePayBureau Ltd. Registered in England and Wales.
+            </p>
           </div>
         </div>
       </footer>
