@@ -185,6 +185,107 @@ npx playwright test  # E2E tests
 - Dates: use `date-fns` for formatting/manipulation.
 - Keep all Supabase migrations numbered sequentially in `supabase/migrations/`.
 
+## Design Consistency & Brand Standards
+
+**This section is MANDATORY for all Claude Code work.** Every page, component, and feature must follow these standards to maintain a cohesive, premium SaaS experience. No exceptions.
+
+### Brand Colors
+
+| Role | Name | Hex | CSS Variable | Usage |
+|------|------|-----|--------------|-------|
+| **Primary** | Purple | `#401D6C` | `--login-purple` | Navigation, primary buttons, headings, active states, focus rings |
+| **Secondary** | Pink | `#EC385D` | `--login-pink` | CTAs, alerts, badges, destructive actions, hover accents |
+| **Accent** | Peach | `#FF8073` | `--login-peach` | Status indicators, progress bars, notifications, decorative elements |
+
+**Color rules:**
+- Always use CSS variables (`--login-purple`, `--login-pink`, `--login-peach`) or `getThemeColors(isDark)` from `src/contexts/ThemeContext.tsx` — **never hardcode hex values in components**
+- Dark mode variants are mandatory — every color must work in both themes
+- Gradient direction: always purple → pink → peach (left-to-right or top-to-bottom)
+- Additional CSS variables available: `--login-purple-d` (dark), `--login-purple-l` (light), `--login-cream`, `--login-surface`, `--login-border`, `--login-text` — see `src/app/globals.css`
+
+### Typography
+
+| Font | CSS Variable | Usage |
+|------|-------------|-------|
+| **Inter** | `--font-inter` | UI chrome: buttons, labels, nav items, form inputs, table headers, badges |
+| **Plus Jakarta Sans** | `--font-body` | Body text: paragraphs, descriptions, card content, list items |
+| **DM Serif Display** | `--font-display` | Display only: hero headlines, marketing page titles, empty state headings |
+
+**Typography rules:**
+- Never introduce new fonts — these three cover all use cases
+- Font sizes: follow Tailwind scale (`text-xs` through `text-4xl`)
+- Font weight hierarchy: `400` body, `500` labels/nav, `600` headings, `700` emphasis/bold
+- Line height: `leading-relaxed` for body text, `leading-tight` for headings
+- Fonts are loaded via `<link>` tags in `src/app/layout.tsx` with `preconnect` — never use `next/font` (broken in this project, see Session 6)
+
+### Component Standards
+
+**Use existing infrastructure — do not reinvent:**
+- `shadcn/ui` components (`src/components/ui/`) are the base — never build custom buttons, cards, dialogs, inputs, etc.
+- `cn()` from `src/lib/utils.ts` for all className composition
+- `CVA` (class-variance-authority) for component variants — follow the pattern in `src/components/ui/button.tsx`
+- `useTheme()` from `src/contexts/ThemeContext.tsx` for theme-aware dynamic styling
+
+**DO:**
+- Use Tailwind classes for layout, spacing, sizing, hover states
+- Use CSS variables (`var(--login-purple)`) for brand colors in Tailwind arbitrary values
+- Use shadcn/ui Card, Button, Dialog, Select, etc. for all UI patterns
+- Use `hover:` and `focus:` Tailwind modifiers for interactive states
+
+**DON'T:**
+- Create inline `style={{}}` objects for colors or backgrounds — use Tailwind or CSS variables
+- Use `onMouseEnter`/`onMouseLeave` to set `.style` properties — use Tailwind `hover:` classes
+- Hardcode hex color values (`#401D6C`, `#EC385D`, etc.) in component files
+- Mix styling approaches on the same page (e.g., inline styles + Tailwind for the same concern)
+- Build custom components when a shadcn/ui primitive exists
+
+### Visual Consistency
+
+- **Border radius:** `rounded-xl` (12px) for cards/panels, `rounded-lg` (8px) for inputs/buttons, `rounded-full` for avatars/badges
+- **Shadows:** `shadow-sm` for cards, `shadow-md` for dropdowns/modals — no inline shadow definitions
+- **Spacing:** 4px grid — use Tailwind scale (`p-1` = 4px, `p-2` = 8px, `p-4` = 16px, `p-6` = 24px, `p-8` = 32px)
+- **Cards:** White bg (light) / `var(--login-surface)` (dark), 1px border via `var(--login-border)`, `rounded-xl`, `shadow-sm`
+- **Page layout:** `max-w-7xl mx-auto` with `px-4 sm:px-6 lg:px-8` padding
+- **Empty states:** Centered icon + heading (`font-display`) + description + CTA button
+- **Tables:** Alternating row backgrounds, sticky headers, consistent `px-4 py-3` cell padding
+- **Dividers:** Use `border-b` with `var(--login-border)` — never raw gray values
+
+### Performance & UX
+
+- **Core Web Vitals targets:** LCP < 2.5s, FID < 100ms, CLS < 0.1 — Vercel Analytics + Speed Insights are integrated in `layout.tsx`
+- **Loading states:** Use skeleton placeholders (pulsing rectangles matching content shape) for data loading — spinners only for user-triggered actions (form submit, button click)
+- **Transitions:** `transition-colors duration-150` for hover/focus — keep interaction animations under 200ms
+- **Images:** Always use `next/image` with `width`/`height`. Add `priority` to above-the-fold images. Use `loading="lazy"` for below-fold
+- **Dynamic imports:** Use `next/dynamic` for heavy components not needed on initial render (AI chat widget, chart libraries, rich editors)
+- **Perceived speed:** Optimistic UI updates via SWR `mutate()` for instant feedback on user actions
+- **Bundle discipline:** Never add new dependencies without justification. Prefer Tailwind over CSS-in-JS. Prefer native browser APIs over utility libraries
+- **Sentry:** Error monitoring configured — 10% trace sampling, 100% error replay. Don't swallow errors silently
+
+### Responsive Design & Accessibility
+
+- **Mobile-first:** Design for 320px minimum, use Tailwind responsive prefixes (`sm:`, `md:`, `lg:`, `xl:`)
+- **Touch targets:** Minimum 44x44px for interactive elements on mobile
+- **Color contrast:** WCAG AA minimum — 4.5:1 for normal text, 3:1 for large text (18px+ bold or 24px+)
+- **Focus indicators:** Visible focus rings using `ring-2 ring-[var(--login-purple)]/20` pattern
+- **Reduced motion:** Respect `prefers-reduced-motion` — use `motion-safe:` Tailwind modifier for animations
+- **Semantic HTML:** Proper heading hierarchy (`h1` → `h2` → `h3`), landmark elements (`main`, `nav`, `aside`), ARIA labels on icon-only buttons
+- **Keyboard navigation:** All interactive elements must be keyboard-accessible in logical tab order
+
+### Page Design Checklist
+
+Every new page or component **must** satisfy all of these before it's considered complete:
+
+1. Uses the brand color palette exclusively — no off-brand colors
+2. Uses the correct font for each text type (Inter = UI, Plus Jakarta = body, DM Serif = display)
+3. Follows the 4px spacing grid
+4. Has skeleton/placeholder loading states for all async data
+5. Works correctly in both light and dark mode
+6. Is responsive from 320px to 1920px+
+7. Uses shadcn/ui primitives — no custom implementations of solved UI patterns
+8. Has consistent page padding (`px-4 sm:px-6 lg:px-8`) and max-width (`max-w-7xl`)
+9. All interactive elements have hover, focus, and active states
+10. Passes WCAG AA color contrast requirements
+
 ## Session Log
 
 _Add notes from each Claude Code session below so context carries forward._
