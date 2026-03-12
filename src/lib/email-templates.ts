@@ -269,3 +269,128 @@ export function payrollIncompleteEmail({
     `),
   }
 }
+
+export function feedbackNotificationEmail({
+  userName,
+  userEmail,
+  category,
+  message,
+  pageUrl,
+}: {
+  userName: string
+  userEmail: string
+  category: 'bug' | 'improvement' | 'other'
+  message: string
+  pageUrl?: string | null
+}): { subject: string; html: string } {
+  const categoryLabels: Record<string, { label: string; color: string }> = {
+    bug: { label: 'Bug Report', color: '#DC2626' },
+    improvement: { label: 'Improvement', color: BRAND_DEEP },
+    other: { label: 'Other', color: '#6b7280' },
+  }
+  const cat = categoryLabels[category] || categoryLabels.other
+
+  return {
+    subject: `New ${cat.label} from ${userName || userEmail}`,
+    html: layout(`
+                <!-- Headline -->
+                <tr>
+                  <td style="padding-bottom:12px;">
+                    <h1 style="margin:0;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.03em;line-height:1.2;">
+                      New Feedback Received
+                    </h1>
+                  </td>
+                </tr>
+                <!-- Body -->
+                <tr>
+                  <td style="padding-bottom:16px;">
+                    <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#374151;">
+                      <strong>${userName || 'A user'}</strong> (${userEmail}) submitted feedback.
+                    </p>
+                  </td>
+                </tr>
+                <!-- Details box -->
+                <tr>
+                  <td style="padding-bottom:16px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">
+                      <tr>
+                        <td style="padding:20px;">
+                          <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Category</p>
+                          <p style="margin:0 0 16px;font-size:15px;font-weight:600;color:${cat.color};">${cat.label}</p>
+                          <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Message</p>
+                          <p style="margin:0;font-size:14px;line-height:1.65;color:#374151;white-space:pre-wrap;">${message}</p>
+                          ${pageUrl ? `<p style="margin:16px 0 0;font-size:13px;color:#6b7280;">Page: <a href="${pageUrl}" style="color:${BRAND_DEEP};text-decoration:none;">${pageUrl}</a></p>` : ''}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <!-- Button -->
+                <tr>
+                  <td style="padding-bottom:40px;">
+                    <a href="https://app.thepaybureau.com/dashboard"
+                       style="display:inline-block;background:${BRAND_PINK};color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:-0.01em;">
+                      Go to Dashboard
+                    </a>
+                  </td>
+                </tr>
+    `),
+  }
+}
+
+export function featureRequestNotificationEmail({
+  userName,
+  userEmail,
+  title,
+  description,
+}: {
+  userName: string
+  userEmail: string
+  title: string
+  description?: string | null
+}): { subject: string; html: string } {
+  return {
+    subject: `New Feature Request: ${title}`,
+    html: layout(`
+                <!-- Headline -->
+                <tr>
+                  <td style="padding-bottom:12px;">
+                    <h1 style="margin:0;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.03em;line-height:1.2;">
+                      New Feature Request
+                    </h1>
+                  </td>
+                </tr>
+                <!-- Body -->
+                <tr>
+                  <td style="padding-bottom:16px;">
+                    <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#374151;">
+                      <strong>${userName || 'A user'}</strong> (${userEmail}) submitted a feature request.
+                    </p>
+                  </td>
+                </tr>
+                <!-- Details box -->
+                <tr>
+                  <td style="padding-bottom:16px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">
+                      <tr>
+                        <td style="padding:20px;">
+                          <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Title</p>
+                          <p style="margin:0;font-size:16px;font-weight:600;color:${BRAND_DEEP};">${title}</p>
+                          ${description ? `<p style="margin:16px 0 8px;font-size:13px;color:#6b7280;">Description</p><p style="margin:0;font-size:14px;line-height:1.65;color:#374151;white-space:pre-wrap;">${description}</p>` : ''}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <!-- Button -->
+                <tr>
+                  <td style="padding-bottom:40px;">
+                    <a href="https://app.thepaybureau.com/dashboard/feature-requests"
+                       style="display:inline-block;background:${BRAND_PINK};color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:-0.01em;">
+                      View Feature Requests
+                    </a>
+                  </td>
+                </tr>
+    `),
+  }
+}
