@@ -2,6 +2,8 @@ import { getAuthUser, createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { sendEmail, SUPPORT_EMAIL } from '@/lib/resend'
+import { featureRequestNotificationEmail } from '@/lib/email-templates'
 
 const createSchema = z.object({
   title: z.string().min(1).max(200),
@@ -114,6 +116,17 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: 'Failed to create feature request' }, { status: 500 })
   }
+
+  // Fire-and-forget email notification to support
+  const { subject, html } = featureRequestNotificationEmail({
+    title: parsed.data.title,
+    description: parsed.data.description || null,
+    userName: userRecord?.name || authUser.email || 'Anonymous',
+    userEmail: authUser.email || '',
+  })
+  sendEmail({ to: SUPPORT_EMAIL, subject, html }).catch((err) =>
+    console.error('Failed to send feature request notification email:', err)
+  )
 
   return NextResponse.json({ request: { ...created, vote_count: 0, user_has_voted: false } }, { status: 201 })
 }

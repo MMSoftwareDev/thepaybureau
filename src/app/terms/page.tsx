@@ -136,8 +136,8 @@ export default function TermsPage() {
             <section className="mt-10 pt-6 border-t border-gray-200">
               <p className="text-sm text-gray-500">
                 If you have any questions about these Terms of Service, please contact us at{' '}
-                <a href="mailto:support@thepaybureau.co.uk" className="text-[#401D6C] font-semibold hover:underline">
-                  support@thepaybureau.co.uk
+                <a href="mailto:support@thepaybureau.com" className="text-[#401D6C] font-semibold hover:underline">
+                  support@thepaybureau.com
                 </a>
               </p>
             </section>

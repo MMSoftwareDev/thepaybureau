@@ -13,6 +13,7 @@ export function getResend(): Resend {
 }
 
 export const EMAIL_FROM = 'ThePayBureau <noreply@mail.thepaybureau.com>'
+export const SUPPORT_EMAIL = 'support@thepaybureau.com'
 
 export async function sendEmail({
   to,

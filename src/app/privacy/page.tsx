@@ -29,8 +29,8 @@ export default function PrivacyPage() {
               </p>
               <p>
                 For any data protection queries, contact us at{' '}
-                <a href="mailto:privacy@thepaybureau.co.uk" className="text-[#401D6C] font-semibold hover:underline">
-                  privacy@thepaybureau.co.uk
+                <a href="mailto:support@thepaybureau.com" className="text-[#401D6C] font-semibold hover:underline">
+                  support@thepaybureau.com
                 </a>
               </p>
             </section>
@@ -138,8 +138,8 @@ export default function PrivacyPage() {
               </ul>
               <p className="mt-3">
                 To exercise any of these rights, contact us at{' '}
-                <a href="mailto:privacy@thepaybureau.co.uk" className="text-[#401D6C] font-semibold hover:underline">
-                  privacy@thepaybureau.co.uk
+                <a href="mailto:support@thepaybureau.com" className="text-[#401D6C] font-semibold hover:underline">
+                  support@thepaybureau.com
                 </a>
                 . We will respond within 30 days.
               </p>
@@ -179,8 +179,8 @@ export default function PrivacyPage() {
             <section className="mt-10 pt-6 border-t border-gray-200">
               <p className="text-sm text-gray-500">
                 For any privacy-related questions or concerns, contact our data protection team at{' '}
-                <a href="mailto:privacy@thepaybureau.co.uk" className="text-[#401D6C] font-semibold hover:underline">
-                  privacy@thepaybureau.co.uk
+                <a href="mailto:support@thepaybureau.com" className="text-[#401D6C] font-semibold hover:underline">
+                  support@thepaybureau.com
                 </a>
               </p>
             </section>

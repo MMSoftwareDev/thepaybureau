@@ -2,6 +2,8 @@ import { getAuthUser, createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { sendEmail, SUPPORT_EMAIL } from '@/lib/resend'
+import { feedbackNotificationEmail } from '@/lib/email-templates'
 
 const feedbackSchema = z.object({
   category: z.enum(['bug', 'improvement', 'other']),
@@ -53,6 +55,18 @@ export async function POST(request: NextRequest) {
     console.error('Error saving feedback:', error)
     return NextResponse.json({ error: 'Failed to save feedback' }, { status: 500 })
   }
+
+  // Fire-and-forget email notification to support
+  const { subject, html } = feedbackNotificationEmail({
+    category: parsed.data.category,
+    message: parsed.data.message,
+    userName: userRecord?.name || null,
+    userEmail: authUser.email || '',
+    pageUrl: parsed.data.page_url || null,
+  })
+  sendEmail({ to: SUPPORT_EMAIL, subject, html }).catch((err) =>
+    console.error('Failed to send feedback notification email:', err)
+  )
 
   return NextResponse.json({ success: true }, { status: 201 })
 }

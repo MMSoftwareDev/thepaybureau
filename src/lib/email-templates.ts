@@ -1,4 +1,4 @@
-// src/lib/email-templates.ts — HTML email templates for automated reminders
+// src/lib/email-templates.ts — HTML email templates for automated reminders and notifications
 // Design matches the Supabase auth emails (supabase/templates/*.html)
 
 const BRAND_PINK = '#EC385D'
@@ -31,6 +31,9 @@ function layout(content: string): string {
                     <p style="margin:0 0 12px;font-size:13px;line-height:1.65;color:#9ca3af;">
                       This is an automated reminder from ThePayBureau. Replace your payroll spreadsheet with something you'll actually enjoy using.
                       <a href="https://thepaybureau.com" style="color:${BRAND_DEEP};text-decoration:none;font-weight:500;">Learn more</a>.
+                    </p>
+                    <p style="margin:0 0 12px;font-size:12px;color:#d1d5db;">
+                      Need help? <a href="mailto:support@thepaybureau.com" style="color:${BRAND_DEEP};text-decoration:none;font-weight:500;">support@thepaybureau.com</a>
                     </p>
                     <p style="margin:0;font-size:12px;color:#d1d5db;">Designed and built in the UK</p>
                   </td>
@@ -263,6 +266,116 @@ export function payrollIncompleteEmail({
                     <a href="https://app.thepaybureau.com/dashboard/payrolls"
                        style="display:inline-block;background:${BRAND_PINK};color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:-0.01em;">
                       View Payroll Runs
+                    </a>
+                  </td>
+                </tr>
+    `),
+  }
+}
+
+export function feedbackNotificationEmail({
+  category,
+  message,
+  userName,
+  userEmail,
+  pageUrl,
+}: {
+  category: string
+  message: string
+  userName: string | null
+  userEmail: string
+  pageUrl: string | null
+}): { subject: string; html: string } {
+  const categoryLabel = category.charAt(0).toUpperCase() + category.slice(1)
+  return {
+    subject: `New Feedback: ${categoryLabel} — from ${userName || userEmail}`,
+    html: layout(`
+                <!-- Headline -->
+                <tr>
+                  <td style="padding-bottom:12px;">
+                    <h1 style="margin:0;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.03em;line-height:1.2;">
+                      New Feedback Received
+                    </h1>
+                  </td>
+                </tr>
+                <!-- Body -->
+                <tr>
+                  <td style="padding-bottom:16px;">
+                    <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Category</p>
+                    <p style="margin:0 0 16px;font-size:15px;font-weight:600;color:${BRAND_DEEP};">${categoryLabel}</p>
+                    <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">From</p>
+                    <p style="margin:0 0 16px;font-size:15px;color:#374151;">${userName || 'Unknown'} &lt;${userEmail}&gt;</p>
+                    ${pageUrl ? `<p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Page</p><p style="margin:0 0 16px;font-size:14px;color:#6b7280;">${pageUrl}</p>` : ''}
+                  </td>
+                </tr>
+                <!-- Message box -->
+                <tr>
+                  <td style="padding-bottom:32px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">
+                      <tr>
+                        <td style="padding:20px;">
+                          <p style="margin:0;font-size:14px;line-height:1.65;color:#374151;white-space:pre-wrap;">${message}</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+    `),
+  }
+}
+
+export function featureRequestNotificationEmail({
+  title,
+  description,
+  userName,
+  userEmail,
+}: {
+  title: string
+  description: string | null
+  userName: string
+  userEmail: string
+}): { subject: string; html: string } {
+  return {
+    subject: `New Feature Request: ${title}`,
+    html: layout(`
+                <!-- Headline -->
+                <tr>
+                  <td style="padding-bottom:12px;">
+                    <h1 style="margin:0;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.03em;line-height:1.2;">
+                      New Feature Request
+                    </h1>
+                  </td>
+                </tr>
+                <!-- Body -->
+                <tr>
+                  <td style="padding-bottom:16px;">
+                    <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Requested by</p>
+                    <p style="margin:0 0 16px;font-size:15px;color:#374151;">${userName} &lt;${userEmail}&gt;</p>
+                    <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Title</p>
+                    <p style="margin:0 0 16px;font-size:16px;font-weight:600;color:${BRAND_DEEP};">${title}</p>
+                  </td>
+                </tr>
+                ${description ? `
+                <!-- Description box -->
+                <tr>
+                  <td style="padding-bottom:32px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">
+                      <tr>
+                        <td style="padding:20px;">
+                          <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Description</p>
+                          <p style="margin:0;font-size:14px;line-height:1.65;color:#374151;white-space:pre-wrap;">${description}</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                ` : ''}
+                <!-- Button -->
+                <tr>
+                  <td style="padding-bottom:40px;">
+                    <a href="https://app.thepaybureau.com/dashboard/feature-requests"
+                       style="display:inline-block;background:${BRAND_PINK};color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:-0.01em;">
+                      View Feature Requests
                     </a>
                   </td>
                 </tr>
