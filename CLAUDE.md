@@ -84,6 +84,11 @@ npx playwright test  # E2E tests
 - `feature_requests` RLS UPDATE/DELETE policies need tightening (currently `USING (true)` — admin check only in API layer).
 - Some API routes use `SELECT *` — consider explicit column selection for list endpoints.
 
+## Known Issues
+
+- **Incomplete domain migration**: 15+ `app.thepaybureau.com` references remain in email templates, fallback URLs, CI config, and Supabase config (see Session 11).
+- **Missing migration**: Vector search fix migration referenced in Session 10 was never committed.
+
 ## Current Status & Roadmap
 
 ### Completed
@@ -104,7 +109,7 @@ npx playwright test  # E2E tests
 - Duplicate/copy client workflow
 - GDPR compliance: account deletion + data export
 - Marketing landing page + `/roadmap` page with design system
-- Domain migration: `app.thepaybureau.com` → `thepaybureau.com`
+- Domain migration: `app.thepaybureau.com` → `thepaybureau.com` (partial — fallback URLs and email templates still reference `app.` subdomain)
 - AI assistant RAG pipeline debugging & fixes
 - SWR cache isolation fix on logout
 - Deployment build fixes (fonts, Sentry)
@@ -115,6 +120,9 @@ npx playwright test  # E2E tests
 - Reorder pension tasks after payroll run in checklists
 - Global auth context for reactive user tracking
 - Reduce SWR `dedupingInterval` or add explicit revalidation on login
+- Complete `app.thepaybureau.com` → `thepaybureau.com` domain migration
+- ~~Renumber duplicate `001_` migration files~~ (fixed: renamed to `014_`)
+- Create missing `014_fix_vector_search.sql` migration (or verify fixes applied directly)
 
 ## Workflow Orchestration
 
@@ -207,7 +215,7 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Training & CPD page**, **Admin analytics dashboard** (restricted to admin email)
 - **Marketing landing page** at root `/`
 - **Auth**: Google/Microsoft OAuth wired (Coming Soon), Change Password in settings
-- **Security**: Fixed 14 vulnerabilities, blocked disposable emails, MX validation, Redis rate limiting, CSP headers
+- **Security**: Fixed 14 vulnerabilities, blocked disposable emails (hardcoded domain blocklist), Redis rate limiting, CSP headers
 - **Email**: Branded templates via Resend SMTP on `mail.thepaybureau.com`, multiple redesigns
 - **UX**: SWR caching, debounced search, optimistic updates, Vercel Speed Insights, health check + Traffic Light widget, error boundaries, loading states, 404 page
 - **Pre-Release Audit**: Fixed critical security/UX/build issues
@@ -245,11 +253,11 @@ _Add notes from each Claude Code session below so context carries forward._
 - No code changes — instructional/documentation session only
 
 ### Session 8 — GDPR Compliance: Account Deletion
-- Created `/api/user/delete-account` endpoint with rate limiting (3 req/15 min), auth, audit logging
+- Created `/api/account/delete` endpoint with rate limiting (3 req/15 min), auth, audit logging
 - Handles sole-admin edge case by cascading tenant deletion
 - Added "Danger Zone" section to Settings with two-step confirmation (type "DELETE")
 - Investigated Recharts lazy loading — correctly rejected (shared internal context breaks with dynamic imports)
-- Confirmed `/api/user/export-data` already existed from prior session
+- Confirmed `/api/account/export` already existed from prior session
 - Branch: `claude/security-quality-audit-k6zjy`
 
 ### Session 9 — Production Readiness Audit & Performance Optimizations
@@ -265,14 +273,15 @@ _Add notes from each Claude Code session below so context carries forward._
   3. Prompt too long (207K > 200K limit) — reduced to 5 chunks + 80K char budget
   4. Vector search returning zero results — IVFFlat `probes=1` → `probes=10`, threshold `0.3` → `0.1`
 - Fixed SSE line buffer in ChatWidget, improved error propagation
-- Migration: `014_fix_vector_search.sql`
+- Migration `014_fix_vector_search.sql` was planned but not committed (vector search fixes were applied inline to `013_ai_assistant.sql` or via direct DB changes)
 - Branch: `claude/payroll-ai-chatbot-VHTuX`
 
 ### Session 11 — Replace app.thepaybureau.com with thepaybureau.com
-- Removed all `app.thepaybureau.com` references across 11 files
-- Updated CI workflow, Supabase config, 5 email templates, `email-templates.ts`, `layout.tsx`, `sitemap.ts`, `robots.ts`
-- Left `mail.thepaybureau.com` and `support@thepaybureau.com` unchanged
+- Partially migrated `app.thepaybureau.com` references — some files updated but many remain
+- **Still referencing `app.thepaybureau.com`**: `email-templates.ts` (4 URLs), `layout.tsx`, `sitemap.ts`, `robots.ts` (as fallbacks), CI workflow, `supabase/config.toml`, 4 Supabase email templates
+- Left `mail.thepaybureau.com` and `support@thepaybureau.com` unchanged (correct)
 - Note: `NEXT_PUBLIC_APP_URL` env var in Vercel should also be updated
+- **TODO**: Complete the domain migration across remaining files
 - Branch: `claude/add-version-control-Ur1Ox`
 
 ### Session 12 — Marketing Design System & Roadmap Page
@@ -295,3 +304,11 @@ _Add notes from each Claude Code session below so context carries forward._
 - Created CLAUDE.md with project overview, tech stack, structure, architecture patterns, security notes, roadmap
 - Added workflow orchestration rules, task management, core principles, conventions
 - Compiled session logs from Sessions 1–13 into this file
+
+### Session 15 — Domain Strategy Discussion (2026-03-12)
+- Discussed Vercel domain verification for `thepaybureau.com` — needs TXT record (`_vercel`) in GoDaddy DNS
+- **Decision**: Keep `app.thepaybureau.com` as the primary domain for everything (no code changes needed)
+- **Decision**: `thepaybureau.com` will be the marketing website (separate concern, to be revisited later)
+- Evaluated security tradeoffs: separate deployments (marketing vs app) recommended long-term, single deployment acceptable for pre-launch
+- **No code changes made** — current codebase already correctly references `app.thepaybureau.com` throughout
+- **TODO**: Revisit `thepaybureau.com` domain setup once Vercel access is confirmed
