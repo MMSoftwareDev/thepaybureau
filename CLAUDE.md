@@ -187,104 +187,209 @@ npx playwright test  # E2E tests
 
 ## Design Consistency & Brand Standards
 
-**This section is MANDATORY for all Claude Code work.** Every page, component, and feature must follow these standards to maintain a cohesive, premium SaaS experience. No exceptions.
+**This section is MANDATORY for all Claude Code work.** Every page, component, and feature must comply with these standards. The visual identity is: clean, modern, premium SaaS — think Linear/Notion. White space is generous, borders are subtle, shadows are minimal. No exceptions. Deviations require explicit user approval.
 
 ### Brand Colors
 
-| Role | Name | Hex | CSS Variable | Usage |
-|------|------|-----|--------------|-------|
-| **Primary** | Purple | `#401D6C` | `--login-purple` | Navigation, primary buttons, headings, active states, focus rings |
-| **Secondary** | Pink | `#EC385D` | `--login-pink` | CTAs, alerts, badges, destructive actions, hover accents |
-| **Accent** | Peach | `#FF8073` | `--login-peach` | Status indicators, progress bars, notifications, decorative elements |
+| Token | Light Mode | Dark Mode | CSS Variable | Usage |
+|-------|-----------|-----------|--------------|-------|
+| **Primary (Purple)** | `#401D6C` | `#7C5CBF` | `--login-purple` | Navigation, primary buttons, headings, active states, focus rings |
+| **Secondary (Pink)** | `#EC385D` | `#F06082` | `--login-pink` | CTAs, alerts, badges, destructive actions, hover accents |
+| **Accent (Peach)** | `#FF8073` | `#FFA599` | `--login-peach` | Status indicators, progress bars, notifications, decorative elements |
+| Surface | `#FFFFFF` | `#1A1B2E` | `--login-surface` | Card backgrounds, page backgrounds |
+| Light BG | `#FAF7FF` | `#0F0F23` | `--login-cream` | Page-level background (subtle purple tint) |
+| Text Primary | `#1A1225` | `#F1F5F9` | `--login-text` | Headings, body text |
+| Text Secondary | `#5E5470` | `#CBD5E1` | `--login-text-2` | Descriptions, labels, secondary content |
+| Text Muted | `#8E849A` | `#64748B` | `--login-text-3` | Placeholders, timestamps, metadata |
+| Border | `#E8E2F0` | `rgba(255,255,255,0.08)` | `--login-border` | Card borders, dividers |
+| Success | `#188038` | `#10B981` | `--login-success` | Completed states, positive feedback |
+| Error | `#D93025` | `#EF4444` | `--login-error` | Errors, destructive actions, failures |
 
 **Color rules:**
-- Always use CSS variables (`--login-purple`, `--login-pink`, `--login-peach`) or `getThemeColors(isDark)` from `src/contexts/ThemeContext.tsx` — **never hardcode hex values in components**
+- **Never hardcode hex values in components** — use CSS variables or `getThemeColors(isDark)` from `src/contexts/ThemeContext.tsx`
 - Dark mode variants are mandatory — every color must work in both themes
+- All grays are purple-tinted (compare `#8E849A` vs generic `#6B7280`) — never use raw Tailwind grays
 - Gradient direction: always purple → pink → peach (left-to-right or top-to-bottom)
-- Additional CSS variables available: `--login-purple-d` (dark), `--login-purple-l` (light), `--login-cream`, `--login-surface`, `--login-border`, `--login-text` — see `src/app/globals.css`
+- Brand gradient: `linear-gradient(135deg, primary, secondary)` — used for primary CTAs and hero accents
+- Additional CSS variables: `--login-purple-d` (dark), `--login-purple-l` (light), `--login-border-f` (focus border) — see `src/app/globals.css`
+
+**Three styling zones (intentional, follow the correct one):**
+
+| Zone | Pages | Color Source | Reason |
+|------|-------|-------------|--------|
+| **Auth** | `src/app/(auth)/` | CSS variables (`var(--login-*)`) | Server-compatible, no JS needed |
+| **Dashboard** | `src/app/(dashboard)/` | `getThemeColors(isDark)` inline styles | Dynamic theme, client-side |
+| **Marketing** | `src/app/page.tsx`, `/roadmap` | `brand` const + CVA variants | Server-rendered, no ThemeContext |
 
 ### Typography
 
-| Font | CSS Variable | Usage |
-|------|-------------|-------|
-| **Inter** | `--font-inter` | UI chrome: buttons, labels, nav items, form inputs, table headers, badges |
-| **Plus Jakarta Sans** | `--font-body` | Body text: paragraphs, descriptions, card content, list items |
-| **DM Serif Display** | `--font-display` | Display only: hero headlines, marketing page titles, empty state headings |
+| Font | CSS Variable | Tailwind Usage | Purpose |
+|------|-------------|----------------|---------|
+| **Inter** | `--font-inter` | `font-[family-name:var(--font-inter)]` | UI chrome: buttons, labels, nav, form inputs, table headers, badges |
+| **Plus Jakarta Sans** | `--font-body` | `font-[family-name:var(--font-body)]` | Body text: paragraphs, descriptions, card content, list items |
+| **DM Serif Display** | `--font-display` | `font-[family-name:var(--font-display)]` | Display only: marketing headlines, auth hero text. **NEVER in dashboard** |
+
+**Dashboard typography scale:**
+
+| Element | Size | Weight | Font |
+|---------|------|--------|------|
+| Page title (h1) | `text-xl md:text-2xl` | `font-bold` | Inter |
+| Section heading (h2) | `text-lg` | `font-bold` | Inter |
+| Card title | `text-sm` / `text-[0.85rem]` | `font-semibold` | Inter |
+| Body text | `text-sm` / `text-[0.85rem]` | `font-normal` | Plus Jakarta Sans |
+| Muted/meta | `text-xs` / `text-[0.8rem]` | `font-medium` | Inter |
+| KPI number | `text-2xl` | `font-bold` | Inter |
+| Table header | `text-xs` | `font-medium uppercase tracking-wider` | Inter |
 
 **Typography rules:**
 - Never introduce new fonts — these three cover all use cases
-- Font sizes: follow Tailwind scale (`text-xs` through `text-4xl`)
-- Font weight hierarchy: `400` body, `500` labels/nav, `600` headings, `700` emphasis/bold
+- Dashboard text is compact — `text-sm` is the baseline, not `text-base`
+- Use `tracking-tight` on headings, `tracking-wider` on uppercase labels
+- Font weight hierarchy: `400` body, `500` labels/nav, `600` headings, `700` emphasis
 - Line height: `leading-relaxed` for body text, `leading-tight` for headings
-- Fonts are loaded via `<link>` tags in `src/app/layout.tsx` with `preconnect` — never use `next/font` (broken in this project, see Session 6)
+- Fonts loaded via `<link>` tags in `src/app/layout.tsx` with `preconnect` — never use `next/font` (broken, see Session 6)
 
 ### Component Standards
 
 **Use existing infrastructure — do not reinvent:**
-- `shadcn/ui` components (`src/components/ui/`) are the base — never build custom buttons, cards, dialogs, inputs, etc.
+- `shadcn/ui` components (`src/components/ui/`) — never build custom buttons, cards, dialogs, inputs
 - `cn()` from `src/lib/utils.ts` for all className composition
-- `CVA` (class-variance-authority) for component variants — follow the pattern in `src/components/ui/button.tsx`
+- `CVA` (class-variance-authority) for component variants — follow `src/components/ui/button.tsx`
 - `useTheme()` from `src/contexts/ThemeContext.tsx` for theme-aware dynamic styling
+- Icons: `lucide-react` — import individual icons (`import { Users } from 'lucide-react'`), size with `className="w-4 h-4"` or `"w-5 h-5"`
 
 **DO:**
 - Use Tailwind classes for layout, spacing, sizing, hover states
 - Use CSS variables (`var(--login-purple)`) for brand colors in Tailwind arbitrary values
-- Use shadcn/ui Card, Button, Dialog, Select, etc. for all UI patterns
+- Use shadcn/ui Card, Button, Dialog, Select, Badge, Tabs, Sheet, Popover, Calendar, etc.
 - Use `hover:` and `focus:` Tailwind modifiers for interactive states
+- Use SWR hooks from `src/lib/swr.ts` for client-side data — never raw `fetch()` in components
 
 **DON'T:**
-- Create inline `style={{}}` objects for colors or backgrounds — use Tailwind or CSS variables
+- Create inline `style={{}}` objects for colors/backgrounds — use Tailwind or CSS variables (exception: dashboard pages using `getThemeColors()` — follow existing pattern until CSS variable migration)
 - Use `onMouseEnter`/`onMouseLeave` to set `.style` properties — use Tailwind `hover:` classes
-- Hardcode hex color values (`#401D6C`, `#EC385D`, etc.) in component files
-- Mix styling approaches on the same page (e.g., inline styles + Tailwind for the same concern)
+- Hardcode hex color values in component files
+- Mix styling approaches on the same page
 - Build custom components when a shadcn/ui primitive exists
+- Use emoji as icons — use Lucide React
+- Use browser `alert()` — use `useToast()` from `@/components/ui/toast`
 
-### Visual Consistency
+### Spacing & Layout
 
+**Dashboard layout constants:**
+- Sidebar width: `252px` (`w-[252px]`)
+- Navbar height: `52px` (`h-[52px]`)
+- Page content padding: `p-4 md:p-6`
+- Card padding: `p-4` to `p-6`
+- Card gap in grids: `gap-3 md:gap-4`
+- Section vertical spacing: `space-y-5`
+
+**Visual consistency:**
 - **Border radius:** `rounded-xl` (12px) for cards/panels, `rounded-lg` (8px) for inputs/buttons, `rounded-full` for avatars/badges
 - **Shadows:** `shadow-sm` for cards, `shadow-md` for dropdowns/modals — no inline shadow definitions
 - **Spacing:** 4px grid — use Tailwind scale (`p-1` = 4px, `p-2` = 8px, `p-4` = 16px, `p-6` = 24px, `p-8` = 32px)
 - **Cards:** White bg (light) / `var(--login-surface)` (dark), 1px border via `var(--login-border)`, `rounded-xl`, `shadow-sm`
 - **Page layout:** `max-w-7xl mx-auto` with `px-4 sm:px-6 lg:px-8` padding
-- **Empty states:** Centered icon + heading (`font-display`) + description + CTA button
 - **Tables:** Alternating row backgrounds, sticky headers, consistent `px-4 py-3` cell padding
 - **Dividers:** Use `border-b` with `var(--login-border)` — never raw gray values
+- **Empty states:** Centered icon (in rounded container with `${colors.primary}12` background) + heading + description + CTA button
+
+### Animations & Transitions
+
+| Class | Duration | Use For |
+|-------|----------|---------|
+| `transition-colors duration-150` | 150ms | Hover/focus state color changes |
+| `transition-all duration-300` | 300ms | Theme change transitions |
+| `animate-fadeIn` | 300ms ease-out | Page content appearance |
+| `animate-pulse` | default | Skeleton loading states |
+| `animate-spin` | default | Spinner icons (Loader2) |
+
+**Rules:**
+- Keep interaction animations under 200ms — users should never wait for animations
+- Respect `prefers-reduced-motion` — motion-sensitive animations have `@media` overrides in `globals.css`
+- Animate `transform` and `opacity` — never animate layout properties (`width`, `height`, `top`, `left`)
+- Don't add new `@keyframes` without approval — use existing utility classes
 
 ### Performance & UX
 
-- **Core Web Vitals targets:** LCP < 2.5s, FID < 100ms, CLS < 0.1 — Vercel Analytics + Speed Insights are integrated in `layout.tsx`
-- **Loading states:** Use skeleton placeholders (pulsing rectangles matching content shape) for data loading — spinners only for user-triggered actions (form submit, button click)
-- **Transitions:** `transition-colors duration-150` for hover/focus — keep interaction animations under 200ms
+- **Core Web Vitals targets:** LCP < 2.5s, FID < 100ms, CLS < 0.1 — Vercel Analytics + Speed Insights integrated in `layout.tsx`
+- **Loading states:** Skeleton placeholders (pulsing rectangles matching content shape) for data loading — spinners (`Loader2`) only for user-triggered actions (form submit, button click). Follow pattern in `src/app/(dashboard)/dashboard/page.tsx`
 - **Images:** Always use `next/image` with `width`/`height`. Add `priority` to above-the-fold images. Use `loading="lazy"` for below-fold
-- **Dynamic imports:** Use `next/dynamic` for heavy components not needed on initial render (AI chat widget, chart libraries, rich editors)
-- **Perceived speed:** Optimistic UI updates via SWR `mutate()` for instant feedback on user actions
-- **Bundle discipline:** Never add new dependencies without justification. Prefer Tailwind over CSS-in-JS. Prefer native browser APIs over utility libraries
+- **Dynamic imports:** Use `next/dynamic` with `{ ssr: false }` for heavy client components (AI chat widget, Recharts, rich editors, anything > 50KB not above-the-fold)
+- **Data fetching:** Use SWR hooks from `src/lib/swr.ts` — handles caching, dedup, and revalidation. Don't use `useEffect` + `fetch()` for data
+- **Perceived speed:** Optimistic UI updates via SWR `mutate()` for instant feedback
+- **Bundle discipline:** Never add new dependencies without justification. Prefer Tailwind over CSS-in-JS. Import icons individually (`import { Users } from 'lucide-react'` — never import the full library)
 - **Sentry:** Error monitoring configured — 10% trace sampling, 100% error replay. Don't swallow errors silently
+- **Error display:** Wrap errors in a Card with error styling — never show raw error text
 
 ### Responsive Design & Accessibility
 
 - **Mobile-first:** Design for 320px minimum, use Tailwind responsive prefixes (`sm:`, `md:`, `lg:`, `xl:`)
+- **Breakpoints:** Mobile = base, Tablet/sidebar appears = `md:` (768px), Full desktop = `lg:` (1024px)
 - **Touch targets:** Minimum 44x44px for interactive elements on mobile
-- **Color contrast:** WCAG AA minimum — 4.5:1 for normal text, 3:1 for large text (18px+ bold or 24px+)
-- **Focus indicators:** Visible focus rings using `ring-2 ring-[var(--login-purple)]/20` pattern
-- **Reduced motion:** Respect `prefers-reduced-motion` — use `motion-safe:` Tailwind modifier for animations
-- **Semantic HTML:** Proper heading hierarchy (`h1` → `h2` → `h3`), landmark elements (`main`, `nav`, `aside`), ARIA labels on icon-only buttons
-- **Keyboard navigation:** All interactive elements must be keyboard-accessible in logical tab order
+- **Color contrast:** WCAG AA minimum — 4.5:1 for normal text, 3:1 for large text. Color must not be the only indicator of state — use icons or text alongside color
+- **Focus indicators:** Visible focus rings using `ring-2 ring-[var(--login-purple)]/20` (shadcn handles this via `focus-visible:ring`)
+- **Reduced motion:** Use `motion-safe:` Tailwind modifier for animations
+- **Semantic HTML:** Proper heading hierarchy (`h1` → `h2` → `h3`), landmarks (`main`, `nav`, `aside`), ARIA labels on icon-only buttons
+- **Keyboard navigation:** All interactive elements keyboard-accessible in logical tab order. No `<div onClick>` without `role="button"`, `tabIndex={0}`, and keyboard handler
+- **Responsive patterns:** Stack KPI cards with `grid-cols-2 md:grid-cols-3 lg:grid-cols-5`. Use `text-xl md:text-2xl` for responsive headings. Don't hide critical info on mobile — restructure, don't remove
+
+### Dashboard Page Architecture
+
+Every new dashboard page **must** follow this structure:
+
+```tsx
+'use client'
+// 1. Import useTheme + getThemeColors
+const { isDark } = useTheme()
+const colors = getThemeColors(isDark)
+
+// 2. Hydration guard
+const [mounted, setMounted] = useState(false)
+useEffect(() => setMounted(true), [])
+
+// 3. Show skeleton while !mounted or isLoading
+if (!mounted || isLoading) return <SkeletonUI />
+
+// 4. Show empty state when data is empty
+if (data.length === 0) return <EmptyState />
+
+// 5. Render with theme colors + responsive layout
+return <div className="p-4 md:p-6">...</div>
+```
 
 ### Page Design Checklist
 
 Every new page or component **must** satisfy all of these before it's considered complete:
 
-1. Uses the brand color palette exclusively — no off-brand colors
-2. Uses the correct font for each text type (Inter = UI, Plus Jakarta = body, DM Serif = display)
-3. Follows the 4px spacing grid
+1. Uses the brand color palette exclusively — no off-brand grays or colours
+2. Uses the correct font for each text type (Inter = UI, Plus Jakarta = body, DM Serif = display/marketing only)
+3. Follows the 4px spacing grid and dashboard layout constants
 4. Has skeleton/placeholder loading states for all async data
-5. Works correctly in both light and dark mode
+5. Works correctly in both light and dark mode (tested visually)
 6. Is responsive from 320px to 1920px+
 7. Uses shadcn/ui primitives — no custom implementations of solved UI patterns
-8. Has consistent page padding (`px-4 sm:px-6 lg:px-8`) and max-width (`max-w-7xl`)
+8. Has consistent page padding and max-width constraints
 9. All interactive elements have hover, focus, and active states
 10. Passes WCAG AA color contrast requirements
+11. Follows the dashboard page architecture pattern (`mounted` guard, skeleton, empty state)
+12. Uses SWR for data fetching, not raw `fetch()` in effects
+
+### File Reference Quick Index
+
+| Purpose | File Path |
+|---------|-----------|
+| Theme colors & dark mode | `src/contexts/ThemeContext.tsx` |
+| CSS variables & animations | `src/app/globals.css` |
+| Root layout (fonts, analytics) | `src/app/layout.tsx` |
+| shadcn/ui config | `components.json` |
+| Class merge utility | `src/lib/utils.ts` (`cn()`) |
+| SWR data hooks | `src/lib/swr.ts` |
+| Zod schemas | `src/lib/validations.ts` |
+| Dashboard reference page | `src/app/(dashboard)/dashboard/page.tsx` |
+| Auth reference page | `src/app/(auth)/login/page.tsx` |
+| Marketing components | `src/components/marketing/` |
+| Landing page reference | `src/app/page.tsx` |
 
 ## Session Log
 
