@@ -114,6 +114,7 @@ npx playwright test  # E2E tests
 - SWR cache isolation fix on logout
 - Deployment build fixes (fonts, Sentry)
 - Production performance optimizations (non-blocking badges, dashboard date filter, import batching)
+- Google Workspace email (`support@thepaybureau.com`) integrated across platform — feedback/feature request notifications, legal pages, email footers
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Show frequency name in payroll run summary rows
@@ -518,3 +519,15 @@ _Add notes from each Claude Code session below so context carries forward._
 - Evaluated security tradeoffs: separate deployments (marketing vs app) recommended long-term, single deployment acceptable for pre-launch
 - **No code changes made** — current codebase already correctly references `app.thepaybureau.com` throughout
 - **TODO**: Revisit `thepaybureau.com` domain setup once Vercel access is confirmed
+
+### Session 16 — Add support@thepaybureau.com Across Platform (2026-03-12)
+- **Decision**: Google Workspace set up — `support@thepaybureau.com` is the single support inbox for all queries (support, privacy, feedback)
+- **Decision**: No separate `privacy@` address — everything goes to `support@thepaybureau.com`
+- Added `SUPPORT_EMAIL` constant in `src/lib/resend.ts` for consistent usage
+- **Feedback notifications**: `/api/feedback` now sends fire-and-forget email to `support@thepaybureau.com` on submission (category, message, user info, page URL)
+- **Feature request notifications**: `/api/feature-requests` POST now sends fire-and-forget email to `support@thepaybureau.com` (title, description, submitter)
+- **Email footer**: Added "Need help? support@thepaybureau.com" link to shared email template footer (`src/lib/email-templates.ts`)
+- **Legal pages fixed**: `src/app/terms/page.tsx` — `support@thepaybureau.co.uk` → `support@thepaybureau.com`; `src/app/privacy/page.tsx` — `privacy@thepaybureau.co.uk` → `support@thepaybureau.com` (3 occurrences)
+- Notification email templates use color-coded categories (red for bugs, purple for improvements) and include dashboard buttons
+- Resolved merge conflicts with main (main had `PLATFORM_ADMIN_EMAILS` approach, we switched to `SUPPORT_EMAIL`)
+- Branch: `claude/add-support-email-gFtP2`
