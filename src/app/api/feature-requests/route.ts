@@ -2,7 +2,7 @@ import { getAuthUser, createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
-import { sendEmail } from '@/lib/resend'
+import { sendEmail, SUPPORT_EMAIL } from '@/lib/resend'
 import { featureRequestNotificationEmail } from '@/lib/email-templates'
 
 const createSchema = z.object({
@@ -117,25 +117,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create feature request' }, { status: 500 })
   }
 
-  // Notify admin(s) via email (fire-and-forget)
-  const adminEmails = (process.env.PLATFORM_ADMIN_EMAILS || '')
-    .split(',')
-    .map(e => e.trim().toLowerCase())
-    .filter(Boolean)
-
-  if (adminEmails.length > 0) {
-    const email = featureRequestNotificationEmail({
-      userName: userRecord?.name || authUser.email || 'Anonymous',
-      userEmail: authUser.email || '',
-      title: parsed.data.title,
-      description: parsed.data.description,
-    })
-    for (const adminEmail of adminEmails) {
-      sendEmail({ to: adminEmail, ...email }).catch(err =>
-        console.error('Failed to send feature request notification:', err)
-      )
-    }
-  }
+  // Fire-and-forget email notification to support
+  const email = featureRequestNotificationEmail({
+    userName: userRecord?.name || authUser.email || 'Anonymous',
+    userEmail: authUser.email || '',
+    title: parsed.data.title,
+    description: parsed.data.description,
+  })
+  sendEmail({ to: SUPPORT_EMAIL, ...email }).catch((err) =>
+    console.error('Failed to send feature request notification email:', err)
+  )
 
   return NextResponse.json({ request: { ...created, vote_count: 0, user_has_voted: false } }, { status: 201 })
 }

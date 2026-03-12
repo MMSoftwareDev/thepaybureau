@@ -1,4 +1,4 @@
-// src/lib/email-templates.ts — HTML email templates for automated reminders
+// src/lib/email-templates.ts — HTML email templates for automated reminders and notifications
 // Design matches the Supabase auth emails (supabase/templates/*.html)
 
 const BRAND_PINK = '#EC385D'
@@ -31,6 +31,9 @@ function layout(content: string): string {
                     <p style="margin:0 0 12px;font-size:13px;line-height:1.65;color:#9ca3af;">
                       This is an automated reminder from ThePayBureau. Replace your payroll spreadsheet with something you'll actually enjoy using.
                       <a href="https://thepaybureau.com" style="color:${BRAND_DEEP};text-decoration:none;font-weight:500;">Learn more</a>.
+                    </p>
+                    <p style="margin:0 0 12px;font-size:12px;color:#d1d5db;">
+                      Need help? <a href="mailto:support@thepaybureau.com" style="color:${BRAND_DEEP};text-decoration:none;font-weight:500;">support@thepaybureau.com</a>
                     </p>
                     <p style="margin:0;font-size:12px;color:#d1d5db;">Designed and built in the UK</p>
                   </td>
