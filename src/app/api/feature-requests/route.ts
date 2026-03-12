@@ -117,16 +117,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create feature request' }, { status: 500 })
   }
 
-  // Fire-and-forget email notification to support
+  // Send email notification to support (awaited to prevent serverless termination)
   const email = featureRequestNotificationEmail({
     userName: userRecord?.name || authUser.email || 'Anonymous',
     userEmail: authUser.email || '',
     title: parsed.data.title,
     description: parsed.data.description,
   })
-  sendEmail({ to: SUPPORT_EMAIL, ...email }).catch((err) =>
+  try {
+    await sendEmail({ to: SUPPORT_EMAIL, ...email })
+  } catch (err) {
     console.error('Failed to send feature request notification email:', err)
-  )
+  }
 
   return NextResponse.json({ request: { ...created, vote_count: 0, user_has_voted: false } }, { status: 201 })
 }
