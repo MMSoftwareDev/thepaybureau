@@ -118,13 +118,13 @@ export async function POST(request: NextRequest) {
   }
 
   // Fire-and-forget email notification to support
-  const { subject, html } = featureRequestNotificationEmail({
-    title: parsed.data.title,
-    description: parsed.data.description || null,
+  const email = featureRequestNotificationEmail({
     userName: userRecord?.name || authUser.email || 'Anonymous',
     userEmail: authUser.email || '',
+    title: parsed.data.title,
+    description: parsed.data.description,
   })
-  sendEmail({ to: SUPPORT_EMAIL, subject, html }).catch((err) =>
+  sendEmail({ to: SUPPORT_EMAIL, ...email }).catch((err) =>
     console.error('Failed to send feature request notification email:', err)
   )
 

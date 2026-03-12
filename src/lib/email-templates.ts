@@ -274,21 +274,27 @@ export function payrollIncompleteEmail({
 }
 
 export function feedbackNotificationEmail({
-  category,
-  message,
   userName,
   userEmail,
+  category,
+  message,
   pageUrl,
 }: {
-  category: string
-  message: string
-  userName: string | null
+  userName: string
   userEmail: string
-  pageUrl: string | null
+  category: 'bug' | 'improvement' | 'other'
+  message: string
+  pageUrl?: string | null
 }): { subject: string; html: string } {
-  const categoryLabel = category.charAt(0).toUpperCase() + category.slice(1)
+  const categoryLabels: Record<string, { label: string; color: string }> = {
+    bug: { label: 'Bug Report', color: '#DC2626' },
+    improvement: { label: 'Improvement', color: BRAND_DEEP },
+    other: { label: 'Other', color: '#6b7280' },
+  }
+  const cat = categoryLabels[category] || categoryLabels.other
+
   return {
-    subject: `New Feedback: ${categoryLabel} — from ${userName || userEmail}`,
+    subject: `New ${cat.label} from ${userName || userEmail}`,
     html: layout(`
                 <!-- Headline -->
                 <tr>
@@ -301,23 +307,34 @@ export function feedbackNotificationEmail({
                 <!-- Body -->
                 <tr>
                   <td style="padding-bottom:16px;">
-                    <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Category</p>
-                    <p style="margin:0 0 16px;font-size:15px;font-weight:600;color:${BRAND_DEEP};">${categoryLabel}</p>
-                    <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">From</p>
-                    <p style="margin:0 0 16px;font-size:15px;color:#374151;">${userName || 'Unknown'} &lt;${userEmail}&gt;</p>
-                    ${pageUrl ? `<p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Page</p><p style="margin:0 0 16px;font-size:14px;color:#6b7280;">${pageUrl}</p>` : ''}
+                    <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#374151;">
+                      <strong>${userName || 'A user'}</strong> (${userEmail}) submitted feedback.
+                    </p>
                   </td>
                 </tr>
-                <!-- Message box -->
+                <!-- Details box -->
                 <tr>
-                  <td style="padding-bottom:32px;">
+                  <td style="padding-bottom:16px;">
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">
                       <tr>
                         <td style="padding:20px;">
+                          <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Category</p>
+                          <p style="margin:0 0 16px;font-size:15px;font-weight:600;color:${cat.color};">${cat.label}</p>
+                          <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Message</p>
                           <p style="margin:0;font-size:14px;line-height:1.65;color:#374151;white-space:pre-wrap;">${message}</p>
+                          ${pageUrl ? `<p style="margin:16px 0 0;font-size:13px;color:#6b7280;">Page: <a href="${pageUrl}" style="color:${BRAND_DEEP};text-decoration:none;">${pageUrl}</a></p>` : ''}
                         </td>
                       </tr>
                     </table>
+                  </td>
+                </tr>
+                <!-- Button -->
+                <tr>
+                  <td style="padding-bottom:40px;">
+                    <a href="https://app.thepaybureau.com/dashboard"
+                       style="display:inline-block;background:${BRAND_PINK};color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:-0.01em;">
+                      Go to Dashboard
+                    </a>
                   </td>
                 </tr>
     `),
@@ -325,15 +342,15 @@ export function feedbackNotificationEmail({
 }
 
 export function featureRequestNotificationEmail({
-  title,
-  description,
   userName,
   userEmail,
+  title,
+  description,
 }: {
-  title: string
-  description: string | null
   userName: string
   userEmail: string
+  title: string
+  description?: string | null
 }): { subject: string; html: string } {
   return {
     subject: `New Feature Request: ${title}`,
@@ -349,27 +366,25 @@ export function featureRequestNotificationEmail({
                 <!-- Body -->
                 <tr>
                   <td style="padding-bottom:16px;">
-                    <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Requested by</p>
-                    <p style="margin:0 0 16px;font-size:15px;color:#374151;">${userName} &lt;${userEmail}&gt;</p>
-                    <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Title</p>
-                    <p style="margin:0 0 16px;font-size:16px;font-weight:600;color:${BRAND_DEEP};">${title}</p>
+                    <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#374151;">
+                      <strong>${userName || 'A user'}</strong> (${userEmail}) submitted a feature request.
+                    </p>
                   </td>
                 </tr>
-                ${description ? `
-                <!-- Description box -->
+                <!-- Details box -->
                 <tr>
-                  <td style="padding-bottom:32px;">
+                  <td style="padding-bottom:16px;">
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">
                       <tr>
                         <td style="padding:20px;">
-                          <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Description</p>
-                          <p style="margin:0;font-size:14px;line-height:1.65;color:#374151;white-space:pre-wrap;">${description}</p>
+                          <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">Title</p>
+                          <p style="margin:0;font-size:16px;font-weight:600;color:${BRAND_DEEP};">${title}</p>
+                          ${description ? `<p style="margin:16px 0 8px;font-size:13px;color:#6b7280;">Description</p><p style="margin:0;font-size:14px;line-height:1.65;color:#374151;white-space:pre-wrap;">${description}</p>` : ''}
                         </td>
                       </tr>
                     </table>
                   </td>
                 </tr>
-                ` : ''}
                 <!-- Button -->
                 <tr>
                   <td style="padding-bottom:40px;">

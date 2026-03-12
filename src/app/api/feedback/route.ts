@@ -57,14 +57,14 @@ export async function POST(request: NextRequest) {
   }
 
   // Fire-and-forget email notification to support
-  const { subject, html } = feedbackNotificationEmail({
+  const email = feedbackNotificationEmail({
+    userName: userRecord?.name || '',
+    userEmail: authUser.email || '',
     category: parsed.data.category,
     message: parsed.data.message,
-    userName: userRecord?.name || null,
-    userEmail: authUser.email || '',
-    pageUrl: parsed.data.page_url || null,
+    pageUrl: parsed.data.page_url,
   })
-  sendEmail({ to: SUPPORT_EMAIL, subject, html }).catch((err) =>
+  sendEmail({ to: SUPPORT_EMAIL, ...email }).catch((err) =>
     console.error('Failed to send feedback notification email:', err)
   )
 
