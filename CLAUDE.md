@@ -304,3 +304,11 @@ _Add notes from each Claude Code session below so context carries forward._
 - Created CLAUDE.md with project overview, tech stack, structure, architecture patterns, security notes, roadmap
 - Added workflow orchestration rules, task management, core principles, conventions
 - Compiled session logs from Sessions 1–13 into this file
+
+### Session 15 — Domain Strategy Discussion (2026-03-12)
+- Discussed Vercel domain verification for `thepaybureau.com` — needs TXT record (`_vercel`) in GoDaddy DNS
+- **Decision**: Keep `app.thepaybureau.com` as the primary domain for everything (no code changes needed)
+- **Decision**: `thepaybureau.com` will be the marketing website (separate concern, to be revisited later)
+- Evaluated security tradeoffs: separate deployments (marketing vs app) recommended long-term, single deployment acceptable for pre-launch
+- **No code changes made** — current codebase already correctly references `app.thepaybureau.com` throughout
+- **TODO**: Revisit `thepaybureau.com` domain setup once Vercel access is confirmed
