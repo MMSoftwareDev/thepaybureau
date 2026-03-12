@@ -2,7 +2,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { createClientSupabaseClient } from '@/lib/supabase'
@@ -85,7 +84,6 @@ export default function Navbar({ onMenuToggle, user, avatarUrl }: NavbarProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
-  const router = useRouter()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
   const supabase = createClientSupabaseClient()
@@ -110,7 +108,7 @@ export default function Navbar({ onMenuToggle, user, avatarUrl }: NavbarProps) {
     try {
       clearSWRCache()
       await supabase.auth.signOut()
-      router.push('/login')
+      window.location.href = '/login'
     } catch (error) {
       console.error('Error signing out:', error)
     }
