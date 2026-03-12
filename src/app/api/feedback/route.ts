@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to save feedback' }, { status: 500 })
   }
 
-  // Fire-and-forget email notification to support
+  // Send email notification to support (awaited to prevent serverless termination)
   const email = feedbackNotificationEmail({
     userName: userRecord?.name || '',
     userEmail: authUser.email || '',
@@ -64,9 +64,11 @@ export async function POST(request: NextRequest) {
     message: parsed.data.message,
     pageUrl: parsed.data.page_url,
   })
-  sendEmail({ to: SUPPORT_EMAIL, ...email }).catch((err) =>
+  try {
+    await sendEmail({ to: SUPPORT_EMAIL, ...email })
+  } catch (err) {
     console.error('Failed to send feedback notification email:', err)
-  )
+  }
 
   return NextResponse.json({ success: true }, { status: 201 })
 }
