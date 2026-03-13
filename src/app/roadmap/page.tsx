@@ -171,7 +171,7 @@ export default function RoadmapPage() {
                 <div className="pt-6 flex justify-center max-[880px]:hidden">
                   <StatCard
                     phase="v2"
-                    value={16}
+                    value={14}
                     label="bureau &amp; team<br>features unlock"
                     note="Pricing TBC"
                   />
@@ -193,7 +193,7 @@ export default function RoadmapPage() {
                     {
                       label: 'Business tier (additional)',
                       tier: 'business',
-                      features: ['Time Tracking', 'Client Onboarding', 'Forms', 'Custom Fields', 'Invoicing', 'Contracts & Engagement Letters', 'E-signatures', 'White Labelling', 'Bureau Comparison', 'Team Performance Reviews'],
+                      features: ['Time Tracking', 'Client Onboarding', 'Forms', 'Custom Fields', 'Invoicing', 'Contracts & Engagement Letters', 'E-signatures'],
                     },
                   ]}
                 />
@@ -214,7 +214,7 @@ export default function RoadmapPage() {
                     {
                       label: 'Enterprise features',
                       tier: 'enterprise',
-                      features: ['AML / KYC Checks', 'Deep Analytics', 'Capacity Forecasting', 'Churn Risk Scoring', 'Revenue Forecasting', 'Fee Management', 'Referral Tracking'],
+                      features: ['AML / KYC Checks', 'Deep Analytics', 'Capacity Forecasting', 'Churn Risk Scoring', 'Revenue Forecasting', 'Fee Management', 'Referral Tracking', 'White Labelling', 'Bureau Comparison', 'Team Performance Reviews'],
                     },
                   ]}
                 />
@@ -223,9 +223,9 @@ export default function RoadmapPage() {
                 <div className="pt-6 flex justify-center max-[880px]:hidden">
                   <StatCard
                     phase="v3"
-                    value={7}
+                    value={10}
                     label="enterprise-grade<br>intelligence features"
-                    note="Compliance · Analytics<br>Forecasting · Moat-building"
+                    note="Compliance · Analytics<br>Forecasting · Branding · Benchmarking"
                   />
                 </div>
               }
