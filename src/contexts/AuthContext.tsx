@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase'
-import { clearSWRCache } from '@/lib/swr'
+import { clearSWRCache, revalidateAllSWR } from '@/lib/swr'
 import type { User } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -73,8 +73,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAdmin(false)
         setPlan('free')
       } else if (event === 'SIGNED_IN' && session?.user) {
-        // Clear stale cache from any previous session
+        // Clear stale cache from any previous session, then force refetch
         clearSWRCache()
+        revalidateAllSWR()
         setUser(session.user)
         fetchUserData(session.user)
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {

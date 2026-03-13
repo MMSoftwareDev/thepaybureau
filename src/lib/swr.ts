@@ -39,6 +39,10 @@ export function clearSWRCache() {
   mutate(() => true, undefined, { revalidate: false })
 }
 
+export function revalidateAllSWR() {
+  mutate(() => true)
+}
+
 export function useConversations() {
   return useSWR('/api/ai-assistant/conversations', fetcher, defaultConfig)
 }
