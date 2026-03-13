@@ -683,3 +683,13 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Test deps installed**: `jest`, `ts-jest`, `@types/jest`, `@testing-library/react`, `@testing-library/jest-dom`, `jest-environment-jsdom`
 - **Files changed**: `swr.ts`, `AuthContext.tsx`, 2 new test files, `package.json`/`package-lock.json`
 - Branch: `claude/swr-deduping-tests-YqF0W`
+
+### Session 24 — CLAUDE.md Merge Conflict Resolution & Cleanup (2026-03-13)
+- **Problem**: 3 unresolved git merge conflicts in `CLAUDE.md` between `claude/update-client-page-fields-Q1fqU` and `main`
+- **Resolution**: All 3 conflicts resolved by keeping main's version (superset in every case):
+  - "Also Completed" section — main had 8 detailed bullets vs branch's 2
+  - Conventions section — main had 5 conventions vs branch's 2
+  - Session logs — main included Sessions 20–22 + SWR session vs branch's Session 20 only
+- **Session renumbering**: Duplicate "Session 22" (SWR Login Revalidation) renumbered to Session 23
+- **Files changed**: `CLAUDE.md`
+- Branch: `claude/review-claude-md-JQ571`
