@@ -28,19 +28,23 @@ import FeedbackWidget from '@/components/ui/FeedbackWidget'
 import SidebarStatusIndicator from '@/components/ui/SidebarStatusIndicator'
 import { APP_VERSION, CURRENT_STAGE, CURRENT_STAGE_COLOR } from '@/config/version'
 
+interface NavItem {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
+  pro?: boolean
+}
+
 interface NavSection {
   label: string
-  items: {
-    name: string
-    href: string
-    icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
-  }[]
+  items: NavItem[]
 }
 
 interface SidebarProps {
   user?: { email?: string; user_metadata?: { name?: string } } | null
   avatarUrl?: string | null
   isAdmin?: boolean
+  plan?: string
   mobileOpen?: boolean
   onMobileClose?: () => void
 }
@@ -69,14 +73,14 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'DEVELOPMENT',
     items: [
-      { name: 'Training & CPD', href: '/dashboard/training', icon: GraduationCap },
+      { name: 'Training & CPD', href: '/dashboard/training', icon: GraduationCap, pro: true },
     ],
   },
   {
     label: 'AI',
     items: [
-      { name: 'AI Assistant', href: '/dashboard/ai-assistant', icon: Bot },
-      { name: 'Knowledge Base', href: '/dashboard/ai-assistant/documents', icon: BookOpen },
+      { name: 'AI Assistant', href: '/dashboard/ai-assistant', icon: Bot, pro: true },
+      { name: 'Knowledge Base', href: '/dashboard/ai-assistant/documents', icon: BookOpen, pro: true },
     ],
   },
   {
@@ -93,7 +97,8 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ]
 
-export default function Sidebar({ isAdmin = false, mobileOpen = false, onMobileClose }: SidebarProps) {
+export default function Sidebar({ isAdmin = false, plan = 'free', mobileOpen = false, onMobileClose }: SidebarProps) {
+  const isFreePlan = plan === 'free' || plan === 'trial'
   const router = useRouter()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
@@ -247,30 +252,32 @@ export default function Sidebar({ isAdmin = false, mobileOpen = false, onMobileC
             {section.items.map((item) => {
               const isActive = isActiveRoute(item.href)
               const Icon = item.icon
+              const isGated = item.pro && isFreePlan
               return (
                 <button
                   key={item.name}
                   onClick={() => navigate(item.href)}
                   className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-px transition-all duration-150 relative"
                   style={{
-                    background: isActive
+                    background: isActive && !isGated
                       ? isDark ? 'rgba(255,255,255,0.08)' : `${colors.primary}08`
                       : 'transparent',
-                    color: isActive ? colors.text.primary : colors.text.secondary,
+                    color: isGated ? colors.text.muted : isActive ? colors.text.primary : colors.text.secondary,
+                    opacity: isGated ? 0.6 : 1,
                   }}
                   onMouseEnter={(e) => {
-                    if (!isActive) {
+                    if (!isActive || isGated) {
                       e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : colors.lightBg
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (!isActive) {
+                    if (!isActive || isGated) {
                       e.currentTarget.style.background = 'transparent'
                     }
                   }}
                 >
                   {/* Active indicator bar */}
-                  {isActive && (
+                  {isActive && !isGated && (
                     <div
                       className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
                       style={{ background: `linear-gradient(180deg, ${colors.primary}, ${colors.secondary})` }}
@@ -278,11 +285,22 @@ export default function Sidebar({ isAdmin = false, mobileOpen = false, onMobileC
                   )}
                   <Icon
                     className="w-4 h-4 flex-shrink-0"
-                    style={{ color: isActive ? colors.primary : colors.text.muted }}
+                    style={{ color: isGated ? colors.text.muted : isActive ? colors.primary : colors.text.muted }}
                   />
-                  <span className={`text-[0.8rem] ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                  <span className={`text-[0.8rem] ${isActive && !isGated ? 'font-semibold' : 'font-medium'} flex-1 text-left`}>
                     {item.name}
                   </span>
+                  {isGated && (
+                    <span
+                      className="text-[0.6rem] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide"
+                      style={{
+                        background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+                        color: '#fff',
+                      }}
+                    >
+                      Pro
+                    </span>
+                  )}
                 </button>
               )
             })}

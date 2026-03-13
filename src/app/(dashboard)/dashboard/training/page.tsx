@@ -6,8 +6,9 @@ import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { useToast } from '@/components/ui/toast'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { useTrainingRecords } from '@/lib/swr'
+import { useTrainingRecords, useSubscription } from '@/lib/swr'
 import { useDebounce } from '@/hooks/useDebounce'
+import UpgradePrompt from '@/components/ui/UpgradePrompt'
 import {
   GraduationCap,
   Plus,
@@ -68,7 +69,24 @@ function formatDate(dateStr: string): string {
 
 // ─── Component ───────────────────────────────────────────────────────
 
-export default function TrainingPage() {
+export default function TrainingPageWrapper() {
+  const { data: subscriptionData } = useSubscription()
+  const currentPlan = subscriptionData?.plan || 'free'
+
+  if (currentPlan === 'free' || currentPlan === 'trial') {
+    return (
+      <UpgradePrompt
+        feature="Training & CPD"
+        description="Track your professional development, HMRC webinars, CIPP courses, and CPD hours. Upgrade to Unlimited to unlock Training & CPD tracking."
+        icon={GraduationCap}
+      />
+    )
+  }
+
+  return <TrainingPage />
+}
+
+function TrainingPage() {
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
   const { toast } = useToast()

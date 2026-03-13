@@ -39,4 +39,8 @@ export function useConversation(id: string | null) {
   return useSWR(id ? `/api/ai-assistant/conversations/${id}` : null, fetcher, defaultConfig)
 }
 
+export function useSubscription() {
+  return useSWR('/api/stripe/subscription', fetcher, defaultConfig)
+}
+
 export { fetcher, defaultConfig }

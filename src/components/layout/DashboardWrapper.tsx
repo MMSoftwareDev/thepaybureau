@@ -14,9 +14,10 @@ interface DashboardWrapperProps {
   user: { email?: string; user_metadata?: { name?: string } } | null
   avatarUrl?: string | null
   isAdmin?: boolean
+  plan?: string
 }
 
-export default function DashboardWrapper({ children, user, avatarUrl, isAdmin }: DashboardWrapperProps) {
+export default function DashboardWrapper({ children, user, avatarUrl, isAdmin, plan }: DashboardWrapperProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const { isDark } = useTheme()
@@ -61,6 +62,7 @@ export default function DashboardWrapper({ children, user, avatarUrl, isAdmin }:
         user={user}
         avatarUrl={avatarUrl}
         isAdmin={isAdmin}
+        plan={plan}
         mobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
       />

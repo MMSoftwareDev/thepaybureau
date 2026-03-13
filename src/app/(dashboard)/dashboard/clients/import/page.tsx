@@ -17,8 +17,11 @@ import {
   Download,
   Loader2,
   Trash2,
+  Crown,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
+import { useClients, useSubscription } from '@/lib/swr'
+import { PLANS } from '@/lib/stripe'
 
 // CSV column mapping: header name -> field key
 const COLUMN_MAP: Record<string, string> = {
@@ -201,6 +204,14 @@ export default function ImportClientsPage() {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const { data: clients = [] } = useClients()
+  const { data: subscriptionData } = useSubscription()
+  const currentPlan = (subscriptionData?.plan || 'free') as keyof typeof PLANS
+  const clientLimit = PLANS[currentPlan]?.clients ?? PLANS.free.clients
+  const clientCount = Array.isArray(clients) ? clients.length : 0
+  const remaining = clientLimit === Infinity ? Infinity : clientLimit - clientCount
+  const isAtLimit = clientLimit !== Infinity && clientCount >= clientLimit
+
   const [fileName, setFileName] = useState<string | null>(null)
   const [validated, setValidated] = useState<RowValidation[]>([])
   const [unmappedColumns, setUnmappedColumns] = useState<string[]>([])
@@ -360,6 +371,37 @@ export default function ImportClientsPage() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
+      {/* Client limit banner */}
+      {isAtLimit && (
+        <Card className="border-0" style={{ backgroundColor: `${colors.error}08`, border: `1px solid ${colors.error}30`, borderRadius: '12px' }}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: colors.error }} />
+            <div className="flex-1">
+              <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>Client limit reached ({clientCount}/{clientLimit})</p>
+              <p className="text-xs" style={{ color: colors.text.muted }}>Upgrade to Unlimited to import more clients.</p>
+            </div>
+            <Button
+              onClick={() => router.push('/dashboard/subscription')}
+              className="rounded-lg font-semibold text-white border-0 text-xs px-3 py-1.5"
+              style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+            >
+              <Crown className="w-3.5 h-3.5 mr-1.5" />
+              Upgrade
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+      {!isAtLimit && remaining !== Infinity && (
+        <Card className="border-0" style={{ backgroundColor: `${colors.primary}06`, border: `1px solid ${colors.primary}20`, borderRadius: '12px' }}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: colors.primary }} />
+            <p className="text-sm" style={{ color: colors.text.primary }}>
+              You can import up to <span className="font-semibold">{remaining}</span> more client{remaining === 1 ? '' : 's'} ({clientCount}/{clientLimit} used).
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button
