@@ -8,7 +8,7 @@ import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import {
   LayoutDashboard,
   Users,
-  UserPlus,
+
   ClipboardCheck,
   Shield,
   CreditCard,
@@ -60,13 +60,13 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'CLIENTS',
     items: [
       { name: 'All Clients', href: '/dashboard/clients', icon: Users },
-      { name: 'Add Client', href: '/dashboard/clients/add', icon: UserPlus },
     ],
   },
   {
     label: 'PAYROLL',
     items: [
-      { name: 'Payroll Runs', href: '/dashboard/payrolls', icon: ClipboardCheck },
+      { name: 'Payrolls', href: '/dashboard/payrolls', icon: ClipboardCheck },
+      { name: 'Payroll Runs', href: '/dashboard/payrolls/runs', icon: ClipboardCheck },
       { name: 'Pension Declarations', href: '/dashboard/pensions', icon: Shield },
     ],
   },

@@ -184,10 +184,79 @@ export interface Database {
           contact_phone?: string | null
         }
       }
+      payrolls: {
+        Row: {
+          id: string
+          tenant_id: string
+          client_id: string
+          name: string
+          paye_reference: string | null
+          accounts_office_ref: string | null
+          pay_frequency: string | null
+          pay_day: string | null
+          period_start: string | null
+          period_end: string | null
+          payroll_software: string | null
+          employment_allowance: boolean | null
+          pension_provider: string | null
+          pension_staging_date: string | null
+          pension_reenrolment_date: string | null
+          declaration_of_compliance_deadline: string | null
+          status: string
+          created_by: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          client_id: string
+          name: string
+          paye_reference?: string | null
+          accounts_office_ref?: string | null
+          pay_frequency?: string | null
+          pay_day?: string | null
+          period_start?: string | null
+          period_end?: string | null
+          payroll_software?: string | null
+          employment_allowance?: boolean | null
+          pension_provider?: string | null
+          pension_staging_date?: string | null
+          pension_reenrolment_date?: string | null
+          declaration_of_compliance_deadline?: string | null
+          status?: string
+          created_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          client_id?: string
+          name?: string
+          paye_reference?: string | null
+          accounts_office_ref?: string | null
+          pay_frequency?: string | null
+          pay_day?: string | null
+          period_start?: string | null
+          period_end?: string | null
+          payroll_software?: string | null
+          employment_allowance?: boolean | null
+          pension_provider?: string | null
+          pension_staging_date?: string | null
+          pension_reenrolment_date?: string | null
+          declaration_of_compliance_deadline?: string | null
+          status?: string
+          created_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+      }
       checklist_templates: {
         Row: {
           id: string
           client_id: string
+          payroll_id: string | null
           name: string
           sort_order: number
           is_active: boolean
@@ -196,6 +265,7 @@ export interface Database {
         Insert: {
           id?: string
           client_id: string
+          payroll_id?: string | null
           name: string
           sort_order?: number
           is_active?: boolean
@@ -204,6 +274,7 @@ export interface Database {
         Update: {
           id?: string
           client_id?: string
+          payroll_id?: string | null
           name?: string
           sort_order?: number
           is_active?: boolean
@@ -215,6 +286,7 @@ export interface Database {
           id: string
           client_id: string
           tenant_id: string
+          payroll_id: string | null
           period_start: string
           period_end: string
           pay_date: string
@@ -229,6 +301,7 @@ export interface Database {
           id?: string
           client_id: string
           tenant_id: string
+          payroll_id?: string | null
           period_start: string
           period_end: string
           pay_date: string
@@ -243,6 +316,7 @@ export interface Database {
           id?: string
           client_id?: string
           tenant_id?: string
+          payroll_id?: string | null
           period_start?: string
           period_end?: string
           pay_date?: string

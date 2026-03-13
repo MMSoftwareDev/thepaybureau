@@ -80,9 +80,75 @@ export const clientOnboardingSchema = z.object({
   })).min(1, 'At least one checklist item is required')
 })
 
-// Payroll run generation
+// Client creation schema — simplified (no payroll fields)
+export const createClientSchema = z.object({
+  name: z.string().min(1, 'Company name is required').max(255),
+  company_number: z.string().max(20).optional(),
+  industry: z.string().optional(),
+  employee_count: z.number().int().positive().optional(),
+  status: z.enum(['active', 'inactive', 'prospect']).optional(),
+  address: z.object({
+    street: z.string().optional(),
+    city: z.string().optional(),
+    postcode: z.string().optional(),
+    country: z.string().optional()
+  }).optional(),
+  contact_name: z.string().optional(),
+  contact_email: z.string().email().optional().or(z.literal('')),
+  contact_phone: z.string().optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  phone: z.string().optional(),
+  notes: z.string().optional(),
+})
+
+// Payroll creation schema
+export const createPayrollSchema = z.object({
+  name: z.string().min(1, 'Payroll name is required').max(255),
+  client_id: z.string().uuid('Client is required'),
+  pay_frequency: z.enum(['weekly', 'two_weekly', 'four_weekly', 'monthly', 'annually']),
+  pay_day: z.string().min(1, 'Pay day is required'),
+  paye_reference: z.string().optional(),
+  accounts_office_ref: z.string().max(13).optional(),
+  period_start: z.string().optional(),
+  period_end: z.string().optional(),
+  payroll_software: z.string().optional(),
+  employment_allowance: z.boolean().optional(),
+  pension_provider: z.string().optional(),
+  pension_staging_date: z.string().optional(),
+  pension_reenrolment_date: z.string().optional(),
+  declaration_of_compliance_deadline: z.string().optional(),
+  checklist_items: z.array(z.object({
+    name: z.string().min(1, 'Step name is required'),
+    sort_order: z.number().int()
+  })).min(1, 'At least one checklist item is required')
+})
+
+// Payroll update schema
+export const updatePayrollSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  client_id: z.string().uuid().optional(),
+  pay_frequency: z.enum(['weekly', 'two_weekly', 'four_weekly', 'monthly', 'annually']).optional(),
+  pay_day: z.string().min(1).optional(),
+  paye_reference: z.string().optional(),
+  accounts_office_ref: z.string().max(13).optional(),
+  period_start: z.string().optional(),
+  period_end: z.string().optional(),
+  payroll_software: z.string().optional(),
+  employment_allowance: z.boolean().optional(),
+  pension_provider: z.string().optional(),
+  pension_staging_date: z.string().optional(),
+  pension_reenrolment_date: z.string().optional(),
+  declaration_of_compliance_deadline: z.string().optional(),
+  status: z.enum(['active', 'inactive']).optional(),
+  checklist_templates: z.array(z.object({
+    name: z.string().min(1),
+    sort_order: z.number().int()
+  })).optional()
+})
+
+// Payroll run generation — now uses payroll_id
 export const generatePayrollRunSchema = z.object({
-  client_id: z.string().uuid()
+  payroll_id: z.string().uuid()
 })
 
 // Named checklist templates (tenant-level)

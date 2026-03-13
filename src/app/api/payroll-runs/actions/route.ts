@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         // Verify run belongs to tenant
         const { data: run } = await supabase
           .from('payroll_runs')
-          .select('id, tenant_id, client_id, clients(name)')
+          .select('id, tenant_id, client_id, payroll_id, clients(name)')
           .eq('id', item.payroll_run_id)
           .eq('tenant_id', user.tenant_id)
           .single()
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
       case 'mark_all_complete': {
         const { data: run } = await supabase
           .from('payroll_runs')
-          .select('id, tenant_id, client_id, clients(name)')
+          .select('id, tenant_id, client_id, payroll_id, clients(name)')
           .eq('id', data.payroll_run_id)
           .eq('tenant_id', user.tenant_id)
           .single()
