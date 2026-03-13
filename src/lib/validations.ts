@@ -116,7 +116,6 @@ export const createClientSchema = z.object({
   // Company Details
   company_type: z.enum(['ltd', 'llp', 'sole_trader', 'charity', 'public_sector', 'partnership']).optional(),
   incorporation_date: z.string().optional(),
-  director_name: z.string().optional(),
   // Billing
   fee: z.string().optional(),
   billing_frequency: z.enum(['monthly', 'per_run', 'quarterly', 'annually']).optional(),
