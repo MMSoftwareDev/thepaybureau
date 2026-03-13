@@ -32,7 +32,7 @@ export async function searchDocuments(
   const { data, error } = await supabase.rpc('match_document_chunks', {
     query_embedding: JSON.stringify(queryEmbedding),
     match_count: matchCount,
-    match_threshold: 0.3,
+    match_threshold: 0.1,
   })
 
   if (error) {

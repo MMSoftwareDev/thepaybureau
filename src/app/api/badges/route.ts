@@ -26,12 +26,12 @@ export async function GET() {
     const [badgesResult, statsResult] = await Promise.all([
       supabase
         .from('user_badges')
-        .select('*')
+        .select('id, user_id, badge_key, badge_tier, earned_at')
         .eq('user_id', authUser.id)
         .order('earned_at', { ascending: false }),
       supabase
         .from('user_stats')
-        .select('*')
+        .select('id, user_id, payrolls_completed, early_completions, steps_completed, early_steps, current_streak_weeks, longest_streak_weeks, perfect_months, consecutive_perfect_months, zero_overdue_months, last_activity_date, updated_at')
         .eq('user_id', authUser.id)
         .single(),
     ])

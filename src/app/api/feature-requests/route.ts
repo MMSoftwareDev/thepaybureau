@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const statusFilter = request.nextUrl.searchParams.get('status')
 
   // Fetch all feature requests
-  let query = supabase.from('feature_requests').select('*')
+  let query = supabase.from('feature_requests').select('id, title, description, status, created_by_user_id, created_by_email, created_by_name, created_at, updated_at')
 
   if (statusFilter && statusFilter !== 'all') {
     query = query.eq('status', statusFilter)
