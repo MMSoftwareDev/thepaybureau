@@ -127,7 +127,7 @@ export default function Navbar({ onMenuToggle, user, avatarUrl }: NavbarProps) {
   if (!mounted) {
     return (
       <nav
-        className="h-[52px] border-b"
+        className="h-[60px] border-b"
         style={{ background: colors.surface, borderColor: colors.border }}
       />
     )
@@ -137,7 +137,7 @@ export default function Navbar({ onMenuToggle, user, avatarUrl }: NavbarProps) {
 
   return (
     <nav
-      className="h-[52px] flex items-center px-4 md:px-5 gap-3 transition-colors duration-200"
+      className="h-[60px] flex items-center px-4 md:px-5 gap-3 transition-colors duration-200"
       style={{
         background: colors.surface,
         borderBottom: `1px solid ${colors.border}`,
