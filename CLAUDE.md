@@ -78,6 +78,7 @@ npx playwright test  # E2E tests
 - **Cron routes:** Protected by `CRON_SECRET` bearer token.
 - **Admin routes:** Protected by `PLATFORM_ADMIN_EMAILS` env check.
 - **Clients vs Payrolls:** Separate tables — one client can have multiple payrolls. Payroll config fields (frequency, pay day, PAYE ref, pension) live on `payrolls` table, not `clients`. Payroll runs reference `payroll_id`.
+- **Client data model:** 45+ fields across identity, company details, address, 3 contact types (primary, secondary, payroll), accountant, registered address, tax/compliance (VAT, UTR, CIS, HMRC 64-8, TPAS, AE status), billing/contract, and metadata (tags, assigned_to, referral_source, etc.).
 
 ## Security Notes (from audit 2026-03-07)
 
@@ -125,6 +126,8 @@ npx playwright test  # E2E tests
 - Full-width responsive dashboard layout (removed `max-w-6xl` constraint from `DashboardWrapper.tsx`)
 - 7 new client fields: domain, secondary contact (name/email/phone), accountant (name/email/phone)
 - CSV export endpoint for clients (`/api/clients/export`) with rate limiting
+- 25 additional client fields for full payroll bureau CRM (tax/compliance, billing, contacts, categorisation — see Session 19)
+- `/api/users` endpoint for tenant user listing (used by Assigned To dropdown)
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Reorder pension tasks after payroll run in checklists
@@ -409,6 +412,8 @@ Every new page or component **must** satisfy all of these before it's considered
 | Payrolls config page | `src/app/(dashboard)/dashboard/payrolls/page.tsx` |
 | Payroll runs page | `src/app/(dashboard)/dashboard/payrolls/runs/page.tsx` |
 | Client CSV export API | `src/app/api/clients/export/route.ts` |
+| Client CSV import API | `src/app/api/clients/import/route.ts` |
+| Tenant users API | `src/app/api/users/route.ts` |
 | Dashboard layout wrapper | `src/components/layout/DashboardWrapper.tsx` |
 
 ## Session Log
@@ -579,3 +584,18 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Design conventions established**: ChangePen as primary UI reference for tables; flat table style; full-width dashboard layout; sidebar Sheet pattern for add/edit forms
 - **Files changed (13 modified, 4 new)**: migrations 015/016, `database.ts`, `validations.ts`, `swr.ts`, payroll API routes, client API routes, clients page, payrolls page, payroll runs page, `DashboardWrapper.tsx`, `Sidebar.tsx`, AlertDialog component
 - Branch: `claude/add-clients-payrolls-pages-G0Jum`
+
+### Session 19 — Audit & Expand Client Fields for Payroll Bureau CRM (2026-03-13)
+- **Audit**: Reviewed all 20 existing client fields against UK payroll bureau/consultant needs — identified 27 missing fields
+- **Added 25 new fields** across 5 categories (excluded `risk_rating` and `last_contacted_at` per user decision):
+  - **Tax & Compliance (6)**: `vat_number`, `utr`, `cis_registered`, `hmrc_agent_authorised`, `tpas_authorised`, `auto_enrolment_status` (enum: enrolled/exempt/postponed)
+  - **Company Details (3)**: `company_type` (enum: ltd/llp/sole_trader/charity/public_sector/partnership), `director_name`, `sic_code`
+  - **Billing & Contract (5)**: `fee`, `billing_frequency` (enum: monthly/per_run/quarterly/annually), `payment_method` (enum: bacs/standing_order/card/invoice/direct_debit), `start_date`, `contract_end_date`
+  - **Payroll Contact (3)**: `payroll_contact_name`, `payroll_contact_email`, `payroll_contact_phone`
+  - **Additional (8)**: `registered_address` (JSON), `incorporation_date`, `assigned_to` (FK → users), `referral_source`, `bacs_bureau_number`, `tags` (text[]), `document_storage_url`, `portal_access_enabled`
+- **Migration 017**: `ALTER TABLE clients ADD COLUMN` with CHECK constraints for all enum fields, array default for tags
+- **Clients page expanded**: 10 sidebar form sections (5 new: Payroll Contact, Registered Address, Tax & Compliance, Billing & Contract, Additional Details), 3 new table columns (Company Type, Start Date, Assigned To)
+- **New API route**: `/api/users` — returns tenant users (id, name, email) for Assigned To dropdown
+- **CSV export/import**: All 25 fields added to both export and import routes
+- **Files changed (8)**: migration 017 (new), `database.ts`, `validations.ts`, `clients/[id]/route.ts`, `clients/page.tsx`, `users/route.ts` (new), `clients/export/route.ts`, `clients/import/route.ts`
+- Branch: `claude/audit-client-fields-UcXzT`
