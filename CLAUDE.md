@@ -114,6 +114,7 @@ npx playwright test  # E2E tests
 - SWR cache isolation fix on logout
 - Deployment build fixes (fonts, Sentry)
 - Production performance optimizations (non-blocking badges, dashboard date filter, import batching)
+- Profile image auto-resize on upload (client-side Canvas API, 256x256 square, WebP output)
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Show frequency name in payroll run summary rows
@@ -390,6 +391,7 @@ Every new page or component **must** satisfy all of these before it's considered
 | Auth reference page | `src/app/(auth)/login/page.tsx` |
 | Marketing components | `src/components/marketing/` |
 | Landing page reference | `src/app/page.tsx` |
+| Image processing utils | `src/lib/image-utils.ts` (`processAvatarImage()`) |
 
 ## Session Log
 
@@ -518,3 +520,16 @@ _Add notes from each Claude Code session below so context carries forward._
 - Evaluated security tradeoffs: separate deployments (marketing vs app) recommended long-term, single deployment acceptable for pre-launch
 - **No code changes made** — current codebase already correctly references `app.thepaybureau.com` throughout
 - **TODO**: Revisit `thepaybureau.com` domain setup once Vercel access is confirmed
+
+### Session 16 — Auto-Resize Profile Images on Upload (2026-03-13)
+- **Problem**: Profile images uploaded at full size (up to 2MB) with no processing; planned use across multiple platform areas (feedback, consultant ID, training logs) would cause performance issues
+- **Decision**: Client-side Canvas API resize — zero dependencies, processing before upload
+- **Built**: `src/lib/image-utils.ts` with `processAvatarImage()` utility
+  - Center-crops to square, resizes to 256×256px
+  - Outputs WebP (0.85 quality) with JPEG fallback for older browsers
+  - Handles transparency (preserved in WebP, white fill for JPEG)
+  - Typical output: ~10-20KB vs raw 2MB max
+- **Updated**: `src/app/(dashboard)/dashboard/settings/page.tsx` — integrated `processAvatarImage()` into `handleAvatarUpload` (~4 lines changed)
+- **No changes needed**: Supabase bucket already accepts WebP/JPEG; Navbar/Sidebar display unchanged; CSP headers already allow `blob:`/`data:`
+- **Future use cases discussed**: User feedback attribution, consultant identification in payroll runs (v2), training & CPD log
+- Branch: `claude/auto-resize-profile-images-lPoEO`
