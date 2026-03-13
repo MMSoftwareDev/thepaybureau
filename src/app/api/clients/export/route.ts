@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('clients')
-      .select('name, status, company_number, company_type, industry, domain, employee_count, director_name, sic_code, contact_name, contact_email, contact_phone, secondary_contact_name, secondary_contact_email, secondary_contact_phone, accountant_name, accountant_email, accountant_phone, address, notes, vat_number, utr, cis_registered, hmrc_agent_authorised, auto_enrolment_status, fee, billing_frequency, payment_method, contract_type, start_date, contract_end_date, notice_period_value, notice_period_unit, assigned_to, referral_source, bacs_bureau_number, tags, document_storage_url, portal_access_enabled, incorporation_date, created_at')
+      .select('name, status, company_number, company_type, industry, domain, employee_count, sic_code, contact_name, contact_email, contact_phone, secondary_contact_name, secondary_contact_email, secondary_contact_phone, accountant_name, accountant_email, accountant_phone, address, notes, vat_number, utr, cis_registered, hmrc_agent_authorised, auto_enrolment_status, fee, billing_frequency, payment_method, contract_type, start_date, contract_end_date, notice_period_value, notice_period_unit, assigned_to, referral_source, bacs_bureau_number, tags, document_storage_url, portal_access_enabled, incorporation_date, created_at')
       .eq('tenant_id', user.tenant_id)
       .order('name', { ascending: true })
       .limit(5000)
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     const headers = [
       'Name', 'Status', 'Company Number', 'Company Type', 'Industry', 'Domain', 'Employee Count',
-      'Director Name', 'SIC Code',
+      'SIC Code',
       'Contact Name', 'Contact Email', 'Contact Phone',
       'Secondary Contact Name', 'Secondary Contact Email', 'Secondary Contact Phone',
       'Accountant Name', 'Accountant Email', 'Accountant Phone',
@@ -91,7 +91,6 @@ export async function GET(request: NextRequest) {
         client.industry || '',
         client.domain || '',
         client.employee_count?.toString() || '',
-        client.director_name || '',
         client.sic_code || '',
         client.contact_name || '',
         client.contact_email || '',

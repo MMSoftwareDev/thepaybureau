@@ -97,7 +97,6 @@ interface Client {
   // Company Details
   company_type?: string | null
   incorporation_date?: string | null
-  director_name?: string | null
   // Billing
   fee?: string | null
   billing_frequency?: string | null
@@ -148,6 +147,41 @@ const COMPANY_TYPE_LABELS: Record<string, string> = {
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   bacs: 'BACS', standing_order: 'Standing Order', card: 'Card',
   invoice: 'Invoice', direct_debit: 'Direct Debit',
+}
+
+const UK_INDUSTRIES = [
+  'Agriculture',
+  'Charity & Non-Profit',
+  'Construction',
+  'Education',
+  'Energy & Utilities',
+  'Finance & Insurance',
+  'Healthcare',
+  'Hospitality & Leisure',
+  'IT & Technology',
+  'Legal Services',
+  'Manufacturing',
+  'Media & Creative',
+  'Mining & Quarrying',
+  'Professional Services',
+  'Public Sector & Defence',
+  'Real Estate & Property',
+  'Recreation & Sport',
+  'Retail & Wholesale',
+  'Transport & Logistics',
+  'Other',
+]
+
+// Deterministic avatar color from name
+const AVATAR_COLORS = [
+  '#6366F1', '#8B5CF6', '#A855F7', '#D946EF', '#EC4899',
+  '#F43F5E', '#EF4444', '#F97316', '#EAB308', '#84CC16',
+  '#22C55E', '#14B8A6', '#06B6D4', '#3B82F6', '#2563EB',
+]
+function getAvatarColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
 const ALL_COLUMNS: ColumnDef[] = [
@@ -333,7 +367,6 @@ export default function ClientsPage() {
   // Company Details
   const [formCompanyType, setFormCompanyType] = useState('')
   const [formIncorporationDate, setFormIncorporationDate] = useState('')
-  const [formDirectorName, setFormDirectorName] = useState('')
   // Billing
   const [formFee, setFormFee] = useState('')
   const [formBillingFrequency, setFormBillingFrequency] = useState('')
@@ -442,7 +475,6 @@ export default function ClientsPage() {
     setFormAutoEnrolmentStatus('')
     setFormCompanyType('')
     setFormIncorporationDate('')
-    setFormDirectorName('')
     setFormFee('')
     setFormBillingFrequency('')
     setFormPaymentMethod('')
@@ -495,7 +527,6 @@ export default function ClientsPage() {
     setFormAutoEnrolmentStatus(client.auto_enrolment_status || '')
     setFormCompanyType(client.company_type || '')
     setFormIncorporationDate(client.incorporation_date || '')
-    setFormDirectorName(client.director_name || '')
     setFormFee(client.fee || '')
     setFormBillingFrequency(client.billing_frequency || '')
     setFormPaymentMethod(client.payment_method || '')
@@ -553,7 +584,6 @@ export default function ClientsPage() {
         // Company Details
         company_type: formCompanyType || undefined,
         incorporation_date: formIncorporationDate || undefined,
-        director_name: formDirectorName.trim() || undefined,
         // Billing
         fee: formFee.trim() || undefined,
         billing_frequency: formBillingFrequency || undefined,
@@ -963,63 +993,82 @@ export default function ClientsPage() {
         <>
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10">
                 <TableRow style={{ backgroundColor: colors.lightBg, borderBottom: `1px solid ${colors.border}` }}>
                   <SortableHeader label="Client Name" field="name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} />
                   {activeColumns.map((col) => (
                     col.sortField ? (
                       <SortableHeader key={col.id} label={col.label} field={col.sortField} currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} />
                     ) : (
-                      <TableHead key={col.id} className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>{col.label}</TableHead>
+                      <TableHead key={col.id} className="px-4 py-2.5 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>{col.label}</TableHead>
                     )
                   ))}
-                  <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Actions</TableHead>
+                  <TableHead className="px-4 py-2.5 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedClients.map((client) => (
-                  <TableRow
-                    key={client.id}
-                    className="cursor-pointer transition-colors hover:bg-[var(--login-purple)]/[0.03]"
-                    style={{ borderBottom: `1px solid ${colors.border}` }}
-                    onClick={() => openEdit(client)}
-                  >
-                    <TableCell className="px-4 py-3 font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
-                      {client.name}
-                    </TableCell>
-                    {activeColumns.map((col) => (
-                      <TableCell key={col.id} className="px-4 py-3 text-sm font-[family-name:var(--font-body)]" style={{ color: col.id === 'created_at' ? colors.text.muted : colors.text.secondary }}>
-                        {col.id === 'status' ? statusBadge(client.status) : col.getValue(client, tenantUsers)}
+                {paginatedClients.map((client) => {
+                  const avatarBg = getAvatarColor(client.name)
+                  return (
+                    <TableRow
+                      key={client.id}
+                      className="cursor-pointer transition-colors group"
+                      style={{ borderBottom: `1px solid ${colors.border}` }}
+                      onClick={() => openEdit(client)}
+                    >
+                      <TableCell className="px-4 py-2.5 font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                        <div className="flex items-center gap-2.5" style={{ borderLeft: '3px solid transparent' }}>
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0 group-hover:ring-2 group-hover:ring-offset-1 transition-shadow"
+                            style={{ backgroundColor: avatarBg, ['--tw-ring-color' as string]: `${colors.primary}30` }}
+                          >
+                            {client.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="truncate max-w-[200px]">{client.name}</span>
+                        </div>
                       </TableCell>
-                    ))}
-                    <TableCell className="px-4 py-3">
-                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          title="Edit client"
-                          onClick={() => openEdit(client)}
-                        >
-                          <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          disabled={deletingId === client.id}
-                          onClick={() => setClientToDelete(client)}
-                        >
-                          {deletingId === client.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.text.muted }} />
-                          ) : (
-                            <Trash2 className="w-3.5 h-3.5" style={{ color: colors.error }} />
-                          )}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      {activeColumns.map((col) => {
+                        const needsTruncate = ['contact_email', 'domain', 'contact_name'].includes(col.id)
+                        return (
+                          <TableCell
+                            key={col.id}
+                            className={`px-4 py-2.5 text-sm font-[family-name:var(--font-body)] ${needsTruncate ? 'max-w-[200px] truncate' : ''}`}
+                            style={{ color: col.id === 'created_at' ? colors.text.muted : colors.text.secondary }}
+                            title={needsTruncate ? col.getValue(client, tenantUsers) : undefined}
+                          >
+                            {col.id === 'status' ? statusBadge(client.status) : col.getValue(client, tenantUsers)}
+                          </TableCell>
+                        )
+                      })}
+                      <TableCell className="px-4 py-2.5">
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Edit client"
+                            onClick={() => openEdit(client)}
+                          >
+                            <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            disabled={deletingId === client.id}
+                            onClick={() => setClientToDelete(client)}
+                          >
+                            {deletingId === client.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.text.muted }} />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" style={{ color: colors.error }} />
+                            )}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>
@@ -1237,11 +1286,14 @@ export default function ClientsPage() {
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Industry</Label>
-                <Input value={formIndustry} onChange={(e) => setFormIndustry(e.target.value)} placeholder="e.g. Construction" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
-              </div>
-              <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Director Name</Label>
-                <Input value={formDirectorName} onChange={(e) => setFormDirectorName(e.target.value)} placeholder="e.g. John Smith" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+                <Select value={formIndustry} onValueChange={setFormIndustry}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue placeholder="Select industry..." /></SelectTrigger>
+                  <SelectContent>
+                    {UK_INDUSTRIES.map((ind) => (
+                      <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>SIC Code</Label>
