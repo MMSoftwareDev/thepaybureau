@@ -54,7 +54,7 @@ interface ClientDetail {
   phone: string | null
   address: { street?: string; city?: string; postcode?: string } | null
   employee_count: number | null
-  status: 'active' | 'inactive' | 'prospect'
+  status: 'active' | 'inactive'
   notes: string | null
   paye_reference: string | null
   accounts_office_ref: string | null
@@ -81,7 +81,6 @@ const PAY_FREQUENCY_LABELS: Record<string, string> = {
 
 const STATUS_CONFIG: Record<string, { label: string; color: (c: ReturnType<typeof getThemeColors>) => string }> = {
   active: { label: 'Active', color: (c) => c.success },
-  prospect: { label: 'Prospect', color: (c) => c.primary },
   inactive: { label: 'Inactive', color: (c) => c.text.muted },
 }
 

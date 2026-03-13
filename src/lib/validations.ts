@@ -86,7 +86,7 @@ export const createClientSchema = z.object({
   company_number: z.string().max(20).optional(),
   industry: z.string().optional(),
   employee_count: z.number().int().positive().optional(),
-  status: z.enum(['active', 'inactive', 'prospect']).optional(),
+  status: z.enum(['active', 'inactive']).optional(),
   address: z.object({
     street: z.string().optional(),
     city: z.string().optional(),
@@ -99,6 +99,13 @@ export const createClientSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   notes: z.string().optional(),
+  domain: z.string().optional(),
+  secondary_contact_name: z.string().optional(),
+  secondary_contact_email: z.string().email().optional().or(z.literal('')),
+  secondary_contact_phone: z.string().optional(),
+  accountant_name: z.string().optional(),
+  accountant_email: z.string().email().optional().or(z.literal('')),
+  accountant_phone: z.string().optional(),
 })
 
 // Payroll creation schema

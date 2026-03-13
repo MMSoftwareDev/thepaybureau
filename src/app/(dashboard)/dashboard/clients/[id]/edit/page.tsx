@@ -59,7 +59,7 @@ interface ClientData {
   email: string | null
   phone: string | null
   notes: string | null
-  status: 'active' | 'inactive' | 'prospect'
+  status: 'active' | 'inactive'
   checklist_templates: ChecklistTemplate[]
 }
 
@@ -83,7 +83,7 @@ interface FormData {
   contact_email: string
   contact_phone: string
   notes: string
-  status: 'active' | 'inactive' | 'prospect'
+  status: 'active' | 'inactive'
 }
 
 const TABS = [
@@ -509,7 +509,6 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="prospect">Prospect</SelectItem>
               <SelectItem value="inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
