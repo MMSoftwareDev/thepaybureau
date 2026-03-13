@@ -88,6 +88,7 @@ npx playwright test  # E2E tests
 
 - **Incomplete domain migration**: 15+ `app.thepaybureau.com` references remain in email templates, fallback URLs, CI config, and Supabase config (see Session 11).
 - **Missing migration**: Vector search fix migration referenced in Session 10 was never committed.
+- **Serverless fire-and-forget caveat**: Never use unawaited promises for critical side effects (emails, webhooks) in Vercel serverless routes — the runtime may terminate before they complete. Always `await` or use `waitUntil()`. Fixed for feedback/feature-request emails in Session 16; audit other routes if adding new email sends.
 
 ## Current Status & Roadmap
 
@@ -521,6 +522,13 @@ _Add notes from each Claude Code session below so context carries forward._
 - **No code changes made** — current codebase already correctly references `app.thepaybureau.com` throughout
 - **TODO**: Revisit `thepaybureau.com` domain setup once Vercel access is confirmed
 
+### Session 16 — Fix Email Delivery for Feature Requests & Feedback (2026-03-12)
+- **Bug**: No emails arriving at `support@thepaybureau.com` when users submit feature requests or feedback
+- **Root cause**: Both `/api/feedback` and `/api/feature-requests` routes used fire-and-forget `sendEmail().catch()` — on Vercel serverless, the runtime terminates after the response is sent, killing the pending Resend API call before it completes
+- **Fix**: Changed both routes to `await sendEmail()` wrapped in try/catch — ensures the Resend API call finishes before the function returns
+- **Files modified**: `src/app/api/feedback/route.ts`, `src/app/api/feature-requests/route.ts`
+- **Note**: If emails still don't arrive after deploy, check Resend dashboard (API key, `mail.thepaybureau.com` domain verification)
+- Branch: `claude/fix-email-delivery-Z7vOS`
 ### Session 16 — Auto-Resize Profile Images on Upload (2026-03-13)
 - **Problem**: Profile images uploaded at full size (up to 2MB) with no processing; planned use across multiple platform areas (feedback, consultant ID, training logs) would cause performance issues
 - **Decision**: Client-side Canvas API resize — zero dependencies, processing before upload
