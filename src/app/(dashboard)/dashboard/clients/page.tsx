@@ -385,7 +385,7 @@ export default function ClientsPage() {
 
   if (!mounted || isLoading) {
     return (
-      <div className="p-4 md:p-6 space-y-5">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div className="h-8 w-32 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
           <div className="h-9 w-28 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
@@ -408,7 +408,7 @@ export default function ClientsPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h1

@@ -78,7 +78,7 @@ export default function DashboardWrapper({ children, user, avatarUrl, isAdmin, p
           className="flex-1 overflow-x-hidden overflow-y-auto transition-colors duration-200"
           style={{ background: colors.lightBg }}
         >
-          <div className="max-w-6xl mx-auto px-4 py-6 md:px-8 md:py-8">
+          <div className="px-4 py-6 md:px-6 md:py-6">
             {children}
           </div>
         </main>
