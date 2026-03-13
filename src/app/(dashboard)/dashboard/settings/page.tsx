@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { processAvatarImage } from '@/lib/image-utils'
 import {
@@ -82,6 +83,7 @@ export default function SettingsPage() {
   const [checklistMessage, setChecklistMessage] = useState('')
 
   const { isDark, toggleTheme } = useTheme()
+  const { updateAvatar } = useAuth()
   const colors = getThemeColors(isDark)
   const supabase = createClientSupabaseClient()
 
@@ -229,7 +231,7 @@ export default function SettingsPage() {
       if (!res.ok) throw new Error('Failed to update avatar record')
 
       setAvatarUrl(urlWithCacheBust)
-      window.dispatchEvent(new CustomEvent('avatar-updated', { detail: urlWithCacheBust }))
+      updateAvatar(urlWithCacheBust)
       showMessage(setProfileMessage, 'Profile photo updated!')
     } catch (err) {
       console.error('Error uploading avatar:', err)
@@ -264,7 +266,7 @@ export default function SettingsPage() {
       if (!res.ok) throw new Error('Failed to update avatar record')
 
       setAvatarUrl(null)
-      window.dispatchEvent(new CustomEvent('avatar-updated', { detail: null }))
+      updateAvatar(null)
       showMessage(setProfileMessage, 'Profile photo removed.')
     } catch (err) {
       console.error('Error removing avatar:', err)

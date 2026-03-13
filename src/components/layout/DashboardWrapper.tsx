@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
+import { useAuth } from '@/contexts/AuthContext'
 import Sidebar from '@/components/layout/Sidebar'
 import Navbar from '@/components/layout/Navbar'
 import BadgeToast from '@/components/gamification/BadgeToast'
@@ -11,18 +12,15 @@ import ChatWidget from '@/components/ai/ChatWidget'
 
 interface DashboardWrapperProps {
   children: React.ReactNode
-  user: { email?: string; user_metadata?: { name?: string } } | null
-  avatarUrl?: string | null
-  isAdmin?: boolean
-  plan?: string
 }
 
-export default function DashboardWrapper({ children, user, avatarUrl, isAdmin, plan }: DashboardWrapperProps) {
+export default function DashboardWrapper({ children }: DashboardWrapperProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
   const pathname = usePathname()
+  const { loading } = useAuth()
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -31,7 +29,7 @@ export default function DashboardWrapper({ children, user, avatarUrl, isAdmin, p
     setMobileMenuOpen(false)
   }, [pathname])
 
-  if (!mounted) {
+  if (!mounted || loading) {
     return (
       <div className="flex h-screen overflow-hidden">
         <div className="hidden md:block w-[252px] h-screen border-r" style={{ background: colors.surface, borderColor: colors.border }} />
@@ -59,10 +57,6 @@ export default function DashboardWrapper({ children, user, avatarUrl, isAdmin, p
       )}
 
       <Sidebar
-        user={user}
-        avatarUrl={avatarUrl}
-        isAdmin={isAdmin}
-        plan={plan}
         mobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
       />
@@ -70,8 +64,6 @@ export default function DashboardWrapper({ children, user, avatarUrl, isAdmin, p
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Navbar
           onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
-          user={user}
-          avatarUrl={avatarUrl}
         />
 
         <main

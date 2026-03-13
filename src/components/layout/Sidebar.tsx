@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Image from 'next/image'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   LayoutDashboard,
   Users,
@@ -41,10 +42,6 @@ interface NavSection {
 }
 
 interface SidebarProps {
-  user?: { email?: string; user_metadata?: { name?: string } } | null
-  avatarUrl?: string | null
-  isAdmin?: boolean
-  plan?: string
   mobileOpen?: boolean
   onMobileClose?: () => void
 }
@@ -97,7 +94,8 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ]
 
-export default function Sidebar({ isAdmin = false, plan = 'free', mobileOpen = false, onMobileClose }: SidebarProps) {
+export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
+  const { isAdmin, plan } = useAuth()
   const isFreePlan = plan === 'free' || plan === 'trial'
   const router = useRouter()
   const pathname = usePathname()
