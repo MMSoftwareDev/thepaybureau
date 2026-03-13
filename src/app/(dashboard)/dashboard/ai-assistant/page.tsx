@@ -5,6 +5,8 @@ import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { Bot, Plus, Trash2, MessageSquare } from 'lucide-react'
 import ChatInput from '@/components/ai/ChatInput'
 import ChatMessage from '@/components/ai/ChatMessage'
+import { useSubscription } from '@/lib/swr'
+import UpgradePrompt from '@/components/ui/UpgradePrompt'
 
 interface Citation {
   document_id: string
@@ -28,7 +30,24 @@ interface Conversation {
   updated_at: string | null
 }
 
-export default function AIAssistantPage() {
+export default function AIAssistantPageWrapper() {
+  const { data: subscriptionData } = useSubscription()
+  const currentPlan = subscriptionData?.plan || 'free'
+
+  if (currentPlan === 'free' || currentPlan === 'trial') {
+    return (
+      <UpgradePrompt
+        feature="AI Assistant"
+        description="Get instant answers to payroll, PAYE, and pension questions powered by AI. Upgrade to Unlimited to unlock the AI Assistant."
+        icon={Bot}
+      />
+    )
+  }
+
+  return <AIAssistantPage />
+}
+
+function AIAssistantPage() {
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
 

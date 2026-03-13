@@ -12,6 +12,8 @@ import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { calculateNextPayDate, calculatePeriodDates } from '@/lib/hmrc-deadlines'
 import type { PayFrequency } from '@/lib/hmrc-deadlines'
 import { cn } from '@/lib/utils'
+import { useClients, useSubscription } from '@/lib/swr'
+import { PLANS } from '@/lib/stripe'
 import {
   ArrowLeft,
   ArrowRight,
@@ -26,6 +28,8 @@ import {
   Shield,
   Phone,
   ClipboardList,
+  AlertTriangle,
+  Crown,
 } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -144,6 +148,14 @@ function AddClientContent() {
   const searchParams = useSearchParams()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
+
+  const { data: clients = [] } = useClients()
+  const { data: subscriptionData } = useSubscription()
+  const currentPlan = (subscriptionData?.plan || 'free') as keyof typeof PLANS
+  const clientLimit = PLANS[currentPlan]?.clients ?? PLANS.free.clients
+  const clientCount = Array.isArray(clients) ? clients.length : 0
+  const isAtLimit = clientLimit !== Infinity && clientCount >= clientLimit
+  const isNearLimit = clientLimit !== Infinity && clientCount >= clientLimit - 5 && !isAtLimit
 
   const [mounted, setMounted] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
@@ -501,7 +513,11 @@ function AddClientContent() {
         router.push('/dashboard/clients')
       } else {
         const data = await res.json()
-        setError(data.error || 'Failed to create client')
+        if (data.upgrade) {
+          setError('Client limit reached. Upgrade your plan to add more clients.')
+        } else {
+          setError(data.error || 'Failed to create client')
+        }
       }
     } catch {
       setError('An unexpected error occurred')
@@ -1142,6 +1158,37 @@ function AddClientContent() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Client limit banner */}
+      {isAtLimit && (
+        <Card className="border-0" style={{ backgroundColor: `${colors.error}08`, border: `1px solid ${colors.error}30`, borderRadius: '12px' }}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: colors.error }} />
+            <div className="flex-1">
+              <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>Client limit reached ({clientCount}/{clientLimit})</p>
+              <p className="text-xs" style={{ color: colors.text.muted }}>Upgrade to Unlimited to add more clients.</p>
+            </div>
+            <Button
+              onClick={() => router.push('/dashboard/subscription')}
+              className="rounded-lg font-semibold text-white border-0 text-xs px-3 py-1.5"
+              style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+            >
+              <Crown className="w-3.5 h-3.5 mr-1.5" />
+              Upgrade
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+      {isNearLimit && (
+        <Card className="border-0" style={{ backgroundColor: `${colors.accent}08`, border: `1px solid ${colors.accent}30`, borderRadius: '12px' }}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: colors.accent }} />
+            <p className="text-sm flex-1" style={{ color: colors.text.primary }}>
+              <span className="font-semibold">Approaching client limit</span> — {clientCount}/{clientLimit} clients used.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

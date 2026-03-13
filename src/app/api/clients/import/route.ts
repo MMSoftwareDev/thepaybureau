@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { writeAuditLog } from '@/lib/audit'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { PLANS } from '@/lib/stripe'
 import {
   calculateNextPayDate,
   calculatePeriodDates,
@@ -76,12 +77,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Get default checklist from tenant settings
+    // Get tenant plan and settings
     const { data: tenant } = await supabase
       .from('tenants')
-      .select('settings')
+      .select('plan, settings')
       .eq('id', user.tenant_id)
       .single()
+
+    // Check client limit for free tier
+    const plan = (tenant?.plan || 'free') as keyof typeof PLANS
+    const clientLimit = PLANS[plan]?.clients ?? PLANS.free.clients
+
+    if (clientLimit !== Infinity) {
+      const { count } = await supabase
+        .from('clients')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', user.tenant_id)
+
+      const currentCount = count ?? 0
+      const remaining = clientLimit - currentCount
+
+      if (remaining <= 0) {
+        return NextResponse.json(
+          { error: 'Client limit reached. Upgrade your plan to add more clients.', limit: clientLimit, remaining: 0, upgrade: true },
+          { status: 403 }
+        )
+      }
+
+      // Pre-validate: check if import batch would exceed limit
+      const body_preview = await request.clone().json()
+      const importCount = body_preview?.clients?.length ?? 0
+      if (importCount > remaining) {
+        return NextResponse.json(
+          { error: `Import would exceed your plan limit. You can add ${remaining} more client${remaining === 1 ? '' : 's'}.`, limit: clientLimit, remaining, upgrade: true },
+          { status: 403 }
+        )
+      }
+    }
 
     const tenantSettings = (tenant?.settings || {}) as Record<string, unknown>
     const defaultChecklist = (tenantSettings.default_checklist as { name: string; sort_order: number }[]) || [

@@ -10,6 +10,8 @@ import {
   Globe, Download, BookOpen,
 } from 'lucide-react'
 import Link from 'next/link'
+import { useSubscription } from '@/lib/swr'
+import UpgradePrompt from '@/components/ui/UpgradePrompt'
 
 interface ScrapeStatus {
   total_seed_urls?: number
@@ -153,7 +155,24 @@ function ScrapeResultMessage({
   )
 }
 
-export default function AIDocumentsPage() {
+export default function AIDocumentsPageWrapper() {
+  const { data: subscriptionData } = useSubscription()
+  const currentPlan = subscriptionData?.plan || 'free'
+
+  if (currentPlan === 'free' || currentPlan === 'trial') {
+    return (
+      <UpgradePrompt
+        feature="Knowledge Base"
+        description="Manage AI knowledge base documents for the AI Assistant. Upgrade to Unlimited to access this feature."
+        icon={BookOpen}
+      />
+    )
+  }
+
+  return <AIDocumentsPage />
+}
+
+function AIDocumentsPage() {
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
 

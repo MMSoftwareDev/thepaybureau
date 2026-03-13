@@ -37,12 +37,13 @@ const PLAN_TIERS = [
     price: 0,
     annualPrice: 0,
     annualTotal: 0,
-    clients: 'Up to 100 clients',
+    clients: 'Up to 50 clients',
     icon: Users,
     features: [
       'Payroll runs',
       'Pension declarations',
-      'Automated emails',
+      'Audit log',
+      'Feature requests',
       'Email support',
     ],
   },
@@ -59,8 +60,8 @@ const PLAN_TIERS = [
     features: [
       'Everything in Free',
       'Unlimited clients',
+      'AI Assistant',
       'Training & CPD tracking',
-      'Audit logs',
       'Priority support',
     ],
   },
@@ -559,8 +560,8 @@ function SubscriptionPage() {
                 a: 'Yes. Upgrades take effect immediately and you only pay the prorated difference. Downgrades apply at the end of your current billing period.',
               },
               {
-                q: 'What happens if I exceed my client limit?',
-                a: "You won't lose any data. You'll be prompted to upgrade when adding new clients beyond your plan's limit.",
+                q: 'What happens if I reach my client limit?',
+                a: "You won't lose any data. The Free plan allows up to 50 clients. When you reach the limit, you'll be prompted to upgrade to continue adding clients.",
               },
               {
                 q: 'How does billing work?',
