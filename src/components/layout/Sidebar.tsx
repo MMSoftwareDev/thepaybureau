@@ -164,7 +164,7 @@ export default function Sidebar({ isAdmin = false, plan = 'free', mobileOpen = f
       }}
     >
       {/* Logo */}
-      <div className="h-[60px] flex items-center px-4 border-b" style={{ borderColor: colors.border }}>
+      <div className="h-[60px] flex items-center px-4">
         <button
           onClick={() => navigate('/dashboard')}
           className="flex items-center group"
