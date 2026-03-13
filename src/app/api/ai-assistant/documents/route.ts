@@ -22,7 +22,7 @@ export async function GET() {
 
     const { data: documents, error } = await supabase
       .from('ai_documents')
-      .select('*')
+      .select('id, title, source_url, category, file_path, status, metadata, created_at, updated_at')
       .order('created_at', { ascending: false })
 
     if (error) {
