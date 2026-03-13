@@ -129,10 +129,6 @@ npx playwright test  # E2E tests
 - CSV export endpoint for clients (`/api/clients/export`) with rate limiting
 - 25 additional client fields for full payroll bureau CRM (tax/compliance, billing, contacts, categorisation — see Session 19)
 - `/api/users` endpoint for tenant user listing (used by Assigned To dropdown)
-<<<<<<< claude/update-client-page-fields-Q1fqU
-- Client page Phase 2: removed director_name/payroll_contact/registered_address/tpas from UI, UK Industries dropdown, contract type/notice period fields, customizable table columns (localStorage), table avatars + sticky header + compact rows
-- Toast z-index fix (`z-[100]`) so toasts render above Sheet/Dialog overlays
-=======
 - Client page Phase 2: removed Payroll Contact/Registered Address/TPAS/Director Name; added Contract Type, Notice Period, UK Industries dropdown
 - Customizable table columns with localStorage persistence (toggle visibility, reorder)
 - Toast z-index fix (z-[100]) to render above Sheet/Dialog overlays
@@ -141,7 +137,6 @@ npx playwright test  # E2E tests
 - Vector search migration 019: `match_threshold` 0.3→0.1, `ivfflat.probes` 1→10
 - API reference documentation (`docs/api-reference.md`) covering all 42 routes
 - SELECT * audit: 6 routes fixed to use explicit column selection
->>>>>>> main
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Reorder pension tasks after payroll run in checklists
@@ -215,16 +210,11 @@ npx playwright test  # E2E tests
 - **Table design (ChangePen style):** Flat tables — no border wrapper, light gray header row, thin `border-b` dividers only, no alternating row backgrounds, CSS-only hover (`purple/3%`). Row height ~48px with `px-4 py-3` cell padding.
 - **Add/Edit forms:** Use shadcn `Sheet` sidebar pattern with grouped collapsible sections — not full-page forms or modals.
 - Use shadcn `AlertDialog` for destructive confirmations — never `window.confirm()` or browser `confirm()`.
-<<<<<<< claude/update-client-page-fields-Q1fqU
-- **Toast z-index**: Toast container uses `z-[100]` to render above Radix portals (Sheet, Dialog, AlertDialog all use `z-50`). Never lower the toast z-index.
-- **Table columns**: Clients table supports user-customizable columns persisted in localStorage (`tpb_client_columns`). Column definitions live in `ALL_COLUMNS` array in `clients/page.tsx`.
-=======
 - Toast z-index must be `z-[100]` — higher than Sheet/Dialog overlays (z-50) so toasts are always visible.
 - Table columns should be customizable where practical — toggle visibility + reorder, persist to localStorage.
 - Sidebar logo: use `logo.png` icon mark (36px) + themed text — never `logo-full.png` (dark text baked in, breaks dark mode).
 - **Testing:** Test files live alongside routes in `__tests__/` directories. Use `chainMock()` pattern for Supabase client mocking (two-pass init for chainable methods). Mock `@/lib/supabase-server` in every API route test. Suppress `console.error` in test setup.
 - **API route SELECT:** Use explicit column selection on list/read endpoints. Only use `select('*')` when the full record is needed (e.g., account export, audit diffs, edit forms that need all fields).
->>>>>>> main
 
 ## Design Consistency & Brand Standards
 
@@ -629,23 +619,6 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Files changed (8)**: migration 017 (new), `database.ts`, `validations.ts`, `clients/[id]/route.ts`, `clients/page.tsx`, `users/route.ts` (new), `clients/export/route.ts`, `clients/import/route.ts`
 - Branch: `claude/audit-client-fields-UcXzT`
 
-<<<<<<< claude/update-client-page-fields-Q1fqU
-### Session 20 — Client Page Phase 2: Field Cleanup, Industries Dropdown, Table Visuals (2026-03-13)
-- **Removed fields from UI** (DB columns kept, non-destructive): `director_name`, `payroll_contact_*`, `registered_address`, `tpas_authorised`
-- **Renamed**: "HMRC Agent Authorised (64-8)" → "HMRC PAYE Online Authorisation"
-- **Auto Enrolment Status**: Changed from `enrolled/exempt/postponed` to `enrolled/exempt/currently_not_required` (migration 018 updates CHECK constraint)
-- **Payment Method**: Changed from free text `<Input>` to `<Select>` dropdown (BACS, Standing Order, Card, Invoice, Direct Debit)
-- **Contract Type**: New `<Select>` (Rolling/Fixed Term); Contract End Date only shown for Fixed Term
-- **Notice Period**: New compound field — number `<Input>` + unit `<Select>` (Days/Weeks/Months)
-- **Customizable table columns**: Users can add/remove/reorder columns via dialog; preferences persisted in localStorage (`tpb_client_columns`)
-- **UK Industries dropdown**: Replaced free-text Industry input with `<Select>` of 20 standardized UK sectors (Agriculture through Other)
-- **Table visual improvements**: Company initial avatar circles (deterministic colors from name hash), sticky header, compact rows (`py-2.5`), text truncation with title tooltips, left border accent on hover
-- **Migration 018**: Added `contract_type`, `notice_period_value`, `notice_period_unit` columns; updated `auto_enrolment_status` CHECK constraint
-- **Bug fix**: Toast notifications hidden behind Sheet overlay — increased toast z-index from `z-50` to `z-[100]` in `src/components/ui/toast.tsx`
-- **Bug fix**: "Failed to create client" — user needed to apply migrations 016-018 to Supabase database
-- **Files changed**: `clients/page.tsx`, `validations.ts`, `clients/export/route.ts`, `clients/import/route.ts`, `toast.tsx`, migration 018 (new)
-- Branch: `claude/update-client-page-fields-Q1fqU`
-=======
 ### Session 20 — Client Page Form Phase 2 & Customizable Table (2026-03-13)
 - **Fields removed**: Payroll Contact section (primary contact covers this), Registered Address section (deferred), TPAS Authorised field, Director Name field
 - **Fields renamed**: "HMRC Agent Authorised (64-8)" → "HMRC PAYE Online Authorisation"
@@ -698,7 +671,8 @@ _Add notes from each Claude Code session below so context carries forward._
   - Helper files matched test pattern → added `testPathIgnorePatterns`
   - `chainMock` spread operator eagerness → two-pass init
 - Branch: `claude/migration-vector-search-fix-KoFyk`
-### Session 22 — SWR Login Revalidation & Unit Tests (2026-03-13)
+
+### Session 23 — SWR Login Revalidation & Unit Tests (2026-03-13)
 - **Goal**: Close backlog item #3 — reduce SWR `dedupingInterval` or add explicit revalidation on login
 - **Finding**: `dedupingInterval` was already at 2000ms (not 5s as backlog noted); SWR cache clear on both SIGNED_IN and SIGNED_OUT already existed in AuthContext
 - **Remaining gap**: `clearSWRCache()` used `{ revalidate: false }` — mounted SWR hooks wouldn't refetch after cache clear, leaving empty state until something else triggered revalidation
@@ -709,4 +683,3 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Test deps installed**: `jest`, `ts-jest`, `@types/jest`, `@testing-library/react`, `@testing-library/jest-dom`, `jest-environment-jsdom`
 - **Files changed**: `swr.ts`, `AuthContext.tsx`, 2 new test files, `package.json`/`package-lock.json`
 - Branch: `claude/swr-deduping-tests-YqF0W`
->>>>>>> main
