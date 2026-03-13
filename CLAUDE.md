@@ -77,6 +77,7 @@ npx playwright test  # E2E tests
 - **Data fetching:** SWR for client-side caching.
 - **Cron routes:** Protected by `CRON_SECRET` bearer token.
 - **Admin routes:** Protected by `PLATFORM_ADMIN_EMAILS` env check.
+- **Plan gating:** Free tier limited to 50 clients; AI Assistant, Knowledge Base, Training & CPD require paid plan. Server-side enforcement in API routes (`403` with `upgrade: true`), client-side gating via `useSubscription()` SWR hook and `UpgradePrompt` component. Sidebar shows PRO badges on gated items.
 
 ## Security Notes (from audit 2026-03-07)
 
@@ -114,6 +115,7 @@ npx playwright test  # E2E tests
 - SWR cache isolation fix on logout
 - Deployment build fixes (fonts, Sentry)
 - Production performance optimizations (non-blocking badges, dashboard date filter, import batching)
+- Free tier client limits (50) and feature gating (AI Assistant, Training & CPD behind paywall)
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Show frequency name in payroll run summary rows
@@ -184,6 +186,8 @@ npx playwright test  # E2E tests
 - API error responses: `{ error: string }` with appropriate HTTP status.
 - Dates: use `date-fns` for formatting/manipulation.
 - Keep all Supabase migrations numbered sequentially in `supabase/migrations/`.
+- Plan/feature gating: use `PLANS` from `src/lib/stripe.ts` as source of truth. Client-side checks via `useSubscription()` SWR hook. Server-side checks query `tenants.plan`. Gated pages use wrapper component pattern + `UpgradePrompt` component.
+- API routes returning plan-gated errors: `{ error: string, upgrade: true }` with `403` status.
 
 ## Design Consistency & Brand Standards
 
@@ -390,6 +394,8 @@ Every new page or component **must** satisfy all of these before it's considered
 | Auth reference page | `src/app/(auth)/login/page.tsx` |
 | Marketing components | `src/components/marketing/` |
 | Landing page reference | `src/app/page.tsx` |
+| Plan definitions & limits | `src/lib/stripe.ts` (`PLANS`, `PAID_ONLY_ROUTES`) |
+| Upgrade prompt (feature gate) | `src/components/ui/UpgradePrompt.tsx` |
 
 ## Session Log
 
@@ -518,3 +524,18 @@ _Add notes from each Claude Code session below so context carries forward._
 - Evaluated security tradeoffs: separate deployments (marketing vs app) recommended long-term, single deployment acceptable for pre-launch
 - **No code changes made** — current codebase already correctly references `app.thepaybureau.com` throughout
 - **TODO**: Revisit `thepaybureau.com` domain setup once Vercel access is confirmed
+
+### Session 16 — Free Tier Client Limits & Feature Gating (2026-03-13)
+- **Free tier**: Limited to 50 clients (was 100, unenforced). Server-side enforcement in both `/api/clients` (POST) and `/api/clients/import` (POST)
+- **Feature gating**: AI Assistant, Knowledge Base, Training & CPD require paid plan (`unlimited`)
+- **Sidebar**: Gated items visible with gradient "PRO" badge, greyed out at 60% opacity. Clicking navigates to page which shows upgrade prompt
+- **Page gates**: Wrapper component pattern on `ai-assistant`, `ai-assistant/documents`, `training` pages — free users see `UpgradePrompt` card with "Upgrade to Unlimited" CTA
+- **Client limit UX**: Warning banner at 45/50 on Add Client page, error banner + upgrade button at 50/50. Import page shows remaining slots
+- **Subscription page**: Updated feature lists — free (Payroll runs, Pension declarations, Audit log, Feature requests, Email support), unlimited (Everything in Free, Unlimited clients, AI Assistant, Training & CPD, Priority support). FAQ updated for 50-client limit
+- **Architecture**: `useSubscription()` SWR hook added. Plan flows through `layout.tsx` → `DashboardWrapper` → `Sidebar` via prop drilling (matches existing `isAdmin` pattern)
+- **New component**: `src/components/ui/UpgradePrompt.tsx` — reusable upgrade card with feature name, description, and CTA
+- **Decisions**: Audit Log stays free. Gated items visible (not hidden) to drive upgrade awareness
+- **Future design (not implemented)**: 30-day trial via Stripe `trial_period_days: 30` — one line change. Manual upgrade via admin API that sets `tenants.plan` directly (no Stripe needed)
+- **Files modified**: `stripe.ts`, `swr.ts`, `clients/route.ts`, `clients/import/route.ts`, `Sidebar.tsx`, `DashboardWrapper.tsx`, `layout.tsx`, `subscription/page.tsx`, `ai-assistant/page.tsx`, `ai-assistant/documents/page.tsx`, `training/page.tsx`, `clients/add/page.tsx`, `clients/import/page.tsx`
+- **Files created**: `src/components/ui/UpgradePrompt.tsx`
+- Branch: `claude/free-tier-client-limits-XJT1j`
