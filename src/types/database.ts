@@ -155,6 +155,10 @@ export interface Database {
           payroll_contact_name: string | null
           payroll_contact_email: string | null
           payroll_contact_phone: string | null
+          // Contract & Notice
+          contract_type: string | null
+          notice_period_value: number | null
+          notice_period_unit: string | null
         }
         Insert: {
           id?: string
@@ -219,6 +223,9 @@ export interface Database {
           payroll_contact_name?: string | null
           payroll_contact_email?: string | null
           payroll_contact_phone?: string | null
+          contract_type?: string | null
+          notice_period_value?: number | null
+          notice_period_unit?: string | null
         }
         Update: {
           id?: string
@@ -283,6 +290,9 @@ export interface Database {
           payroll_contact_name?: string | null
           payroll_contact_email?: string | null
           payroll_contact_phone?: string | null
+          contract_type?: string | null
+          notice_period_value?: number | null
+          notice_period_unit?: string | null
         }
       }
       payrolls: {
