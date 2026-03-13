@@ -12,6 +12,7 @@ import {
 import { z } from 'zod'
 import type { User } from '@supabase/supabase-js'
 import { writeAuditLog } from '@/lib/audit'
+import { PLANS } from '@/lib/stripe'
 
 async function getOrCreateUser(supabase: ReturnType<typeof createServerSupabaseClient>, authUser: User) {
   let { data: user } = await supabase
@@ -131,6 +132,30 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: authError }, { status: 500 })
+    }
+
+    // Check client limit for free tier
+    const { data: tenant } = await supabase
+      .from('tenants')
+      .select('plan')
+      .eq('id', user.tenant_id)
+      .single()
+
+    const plan = (tenant?.plan || 'free') as keyof typeof PLANS
+    const clientLimit = PLANS[plan]?.clients ?? PLANS.free.clients
+
+    if (clientLimit !== Infinity) {
+      const { count } = await supabase
+        .from('clients')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', user.tenant_id)
+
+      if ((count ?? 0) >= clientLimit) {
+        return NextResponse.json(
+          { error: 'Client limit reached. Upgrade your plan to add more clients.', limit: clientLimit, upgrade: true },
+          { status: 403 }
+        )
+      }
     }
 
     const body = await request.json()

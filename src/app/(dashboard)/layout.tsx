@@ -14,6 +14,7 @@ export default function DashboardLayout({
   const [user, setUser] = useState<User | null>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [plan, setPlan] = useState<string>('free')
   const supabase = createClientSupabaseClient()
 
   useEffect(() => {
@@ -35,6 +36,11 @@ export default function DashboardLayout({
           .then(res => res.json())
           .then(data => setIsAdmin(data.isAdmin === true))
           .catch(() => {})
+        // Fetch subscription plan
+        fetch('/api/stripe/subscription')
+          .then(res => res.json())
+          .then(data => { if (data.plan) setPlan(data.plan) })
+          .catch(() => {})
       }
     })
 
@@ -48,7 +54,7 @@ export default function DashboardLayout({
   // Render immediately — middleware already ensures auth.
   // User info populates asynchronously for sidebar/navbar display.
   return (
-    <DashboardWrapper user={user} avatarUrl={avatarUrl} isAdmin={isAdmin}>
+    <DashboardWrapper user={user} avatarUrl={avatarUrl} isAdmin={isAdmin} plan={plan}>
       {children}
     </DashboardWrapper>
   )

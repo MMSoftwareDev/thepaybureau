@@ -21,12 +21,13 @@ export const PLANS = {
     price: 0,
     annualPrice: 0,
     annualPriceId: null,
-    clients: 100,
+    clients: 50,
     features: [
-      'Up to 100 clients',
+      'Up to 50 clients',
       'Payroll runs',
       'Pension declarations',
-      'Automated emails',
+      'Audit log',
+      'Feature requests',
       'Email support',
     ],
   },
@@ -40,11 +41,22 @@ export const PLANS = {
     features: [
       'Everything in Free',
       'Unlimited clients',
+      'AI Assistant',
       'Training & CPD tracking',
-      'Audit logs',
       'Priority support',
     ],
   },
 } as const
 
 export type PlanKey = keyof typeof PLANS
+
+/** Routes that require a paid plan */
+export const PAID_ONLY_ROUTES = [
+  '/dashboard/ai-assistant',
+  '/dashboard/training',
+]
+
+/** Check if a route requires a paid plan */
+export function isRoutePaidOnly(pathname: string): boolean {
+  return PAID_ONLY_ROUTES.some(route => pathname.startsWith(route))
+}
