@@ -518,3 +518,15 @@ _Add notes from each Claude Code session below so context carries forward._
 - Evaluated security tradeoffs: separate deployments (marketing vs app) recommended long-term, single deployment acceptable for pre-launch
 - **No code changes made** — current codebase already correctly references `app.thepaybureau.com` throughout
 - **TODO**: Revisit `thepaybureau.com` domain setup once Vercel access is confirmed
+
+### Session 16 — Product Roadmap Review (2026-03-13)
+- Reviewed all 46 features across 4 phases of the `/roadmap` page
+- **Decision**: Move 3 features from V2 Business → V3 Enterprise:
+  - White Labelling (enterprise branding need, not mid-tier)
+  - Bureau Comparison (benchmarking needs scale, fits with Deep Analytics)
+  - Team Performance Reviews (formal reviews are enterprise HR, overkill for small bureaus)
+- **Decision**: No features moved earlier — current phase placement for V1, V2 Team, and Future Vision is correct
+- V2 Business: 10 → 7 features | V3 Enterprise: 7 → 10 features | Total unchanged at 46
+- Updated StatCard values and V3 note text to reflect new scope
+- File changed: `src/app/roadmap/page.tsx`
+- Branch: `claude/review-product-roadmap-RCniy`
