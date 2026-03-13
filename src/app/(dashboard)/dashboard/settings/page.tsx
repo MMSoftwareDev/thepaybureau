@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { createClientSupabaseClient } from '@/lib/supabase'
+import { processAvatarImage } from '@/lib/image-utils'
 import {
   User,
   ListChecks,
@@ -186,6 +187,9 @@ export default function SettingsPage() {
 
     setUploadingAvatar(true)
     try {
+      // Resize and compress to 256x256 square before upload
+      const processedBlob = await processAvatarImage(file)
+
       // Always use a fixed filename so re-uploads overwrite the old file
       const filePath = `${userId}/avatar`
 
@@ -202,7 +206,10 @@ export default function SettingsPage() {
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file, { upsert: true })
+        .upload(filePath, processedBlob, {
+          upsert: true,
+          contentType: processedBlob.type,
+        })
 
       if (uploadError) throw uploadError
 
