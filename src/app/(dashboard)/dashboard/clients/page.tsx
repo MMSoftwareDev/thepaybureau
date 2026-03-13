@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useClients } from '@/lib/swr'
 import { useDebounce } from '@/hooks/useDebounce'
 import { Card, CardContent } from '@/components/ui/card'
@@ -39,14 +39,11 @@ import {
   UserX,
   MapPin,
   Phone,
-  Mail,
-  Globe,
   UserPlus,
   Calculator,
   Filter,
-  ArrowUpDown,
   X,
-  Calendar,
+  Pencil,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
@@ -80,8 +77,150 @@ interface Client {
 
 type StatusFilter = 'all' | 'active' | 'inactive'
 type SortOption = 'name-asc' | 'name-desc' | 'date-newest' | 'date-oldest' | 'employees-high' | 'employees-low'
+type EditingCell = { clientId: string; field: string } | null
 
-// ── Collapsible Section ────────────────────────────────────────────────────────
+// ── Inline Edit Cell ───────────────────────────────────────────────────────────
+
+function InlineEditCell({
+  value,
+  isEditing,
+  onStartEdit,
+  editValue,
+  onEditChange,
+  onSave,
+  onCancel,
+  type = 'text',
+  colors,
+  placeholder = '-',
+}: {
+  value: string | number | null | undefined
+  isEditing: boolean
+  onStartEdit: () => void
+  editValue: string
+  onEditChange: (v: string) => void
+  onSave: () => void
+  onCancel: () => void
+  type?: 'text' | 'number'
+  colors: ReturnType<typeof getThemeColors>
+  placeholder?: string
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const escapePressedRef = useRef(false)
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [isEditing])
+
+  if (!isEditing) {
+    return (
+      <div
+        className="group/cell flex items-center gap-1 min-h-[28px] cursor-pointer rounded px-1 -mx-1 transition-colors hover:bg-[var(--login-purple)]/5"
+        onClick={(e) => {
+          e.stopPropagation()
+          onStartEdit()
+        }}
+      >
+        <span className="truncate" style={{ color: value ? colors.text.secondary : colors.text.muted }}>
+          {value != null && value !== '' ? String(value) : placeholder}
+        </span>
+        <Pencil className="w-3 h-3 shrink-0 opacity-0 group-hover/cell:opacity-40 transition-opacity" style={{ color: colors.text.muted }} />
+      </div>
+    )
+  }
+
+  return (
+    <Input
+      ref={inputRef}
+      type={type}
+      value={editValue}
+      onChange={(e) => onEditChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          onSave()
+        } else if (e.key === 'Escape') {
+          e.preventDefault()
+          escapePressedRef.current = true
+          onCancel()
+        }
+      }}
+      onBlur={() => {
+        if (!escapePressedRef.current) {
+          onSave()
+        }
+        escapePressedRef.current = false
+      }}
+      className="h-7 px-2 py-0 text-sm border rounded-md w-full"
+      style={{
+        backgroundColor: colors.surface,
+        borderColor: colors.primary,
+        color: colors.text.primary,
+        boxShadow: `0 0 0 1px ${colors.primary}40`,
+      }}
+    />
+  )
+}
+
+// ── Inline Status Cell ─────────────────────────────────────────────────────────
+
+function InlineStatusCell({
+  status,
+  isEditing,
+  onStartEdit,
+  onSave,
+  onCancel,
+  colors,
+}: {
+  status: string
+  isEditing: boolean
+  onStartEdit: () => void
+  onSave: (value: string) => void
+  onCancel: () => void
+  colors: ReturnType<typeof getThemeColors>
+}) {
+  const statusColor = status === 'active' ? colors.success : colors.text.muted
+  const statusLabel = status === 'active' ? 'Active' : 'Inactive'
+
+  if (!isEditing) {
+    return (
+      <div
+        className="cursor-pointer"
+        onClick={(e) => {
+          e.stopPropagation()
+          onStartEdit()
+        }}
+      >
+        <Badge className="text-xs" style={{ backgroundColor: `${statusColor}20`, color: statusColor, border: `1px solid ${statusColor}40` }}>
+          {statusLabel}
+        </Badge>
+      </div>
+    )
+  }
+
+  return (
+    <Select
+      defaultOpen
+      value={status}
+      onValueChange={(v) => onSave(v)}
+      onOpenChange={(open) => {
+        if (!open) onCancel()
+      }}
+    >
+      <SelectTrigger className="h-7 text-xs w-[100px]" style={{ borderColor: colors.primary, color: colors.text.primary }}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="active">Active</SelectItem>
+        <SelectItem value="inactive">Inactive</SelectItem>
+      </SelectContent>
+    </Select>
+  )
+}
+
+// ── Collapsible Form Section ───────────────────────────────────────────────────
 
 function FormSection({
   title,
@@ -139,6 +278,10 @@ export default function ClientsPage() {
   const [dateTo, setDateTo] = useState('')
   const [showFilters, setShowFilters] = useState(false)
 
+  // Inline edit state
+  const [editingCell, setEditingCell] = useState<EditingCell>(null)
+  const [editValue, setEditValue] = useState('')
+
   // Sidebar state
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
@@ -167,6 +310,113 @@ export default function ClientsPage() {
 
   // Delete state
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // ── Inline Edit Handler ──────────────────────────────────────────────────
+
+  const startEdit = useCallback((clientId: string, field: string, currentValue: string | number | null | undefined) => {
+    setEditingCell({ clientId, field })
+    setEditValue(currentValue != null ? String(currentValue) : '')
+  }, [])
+
+  const cancelEdit = useCallback(() => {
+    setEditingCell(null)
+    setEditValue('')
+  }, [])
+
+  const handleInlineSave = useCallback(async () => {
+    if (!editingCell || !clients) return
+
+    const { clientId, field } = editingCell
+    const client = (clients as Client[]).find((c) => c.id === clientId)
+    if (!client) return
+
+    const oldValue = client[field as keyof Client]
+    const apiValue = field === 'employee_count'
+      ? (editValue ? parseInt(editValue) || undefined : undefined)
+      : (editValue.trim() || undefined)
+
+    // Skip if unchanged
+    if (String(oldValue ?? '') === String(apiValue ?? '')) {
+      setEditingCell(null)
+      setEditValue('')
+      return
+    }
+
+    // Validate name is not empty
+    if (field === 'name' && !editValue.trim()) {
+      toast('Company name is required', 'error')
+      return
+    }
+
+    const optimisticData = (clients as Client[]).map((c) =>
+      c.id === clientId ? { ...c, [field]: apiValue ?? null } : c
+    )
+
+    setEditingCell(null)
+    setEditValue('')
+
+    try {
+      await mutate(
+        '/api/clients',
+        async () => {
+          const res = await fetch(`/api/clients/${clientId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [field]: apiValue }),
+          })
+          if (!res.ok) {
+            const err = await res.json()
+            throw new Error(err.error || 'Failed to save')
+          }
+          return optimisticData
+        },
+        { optimisticData, revalidate: true, rollbackOnError: true }
+      )
+      toast('Saved')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+  }, [editingCell, editValue, clients, toast])
+
+  const handleInlineStatusSave = useCallback(async (clientId: string, newStatus: string) => {
+    if (!clients) return
+
+    const client = (clients as Client[]).find((c) => c.id === clientId)
+    if (!client || client.status === newStatus) {
+      setEditingCell(null)
+      return
+    }
+
+    const optimisticData = (clients as Client[]).map((c) =>
+      c.id === clientId ? { ...c, status: newStatus } : c
+    )
+
+    setEditingCell(null)
+
+    try {
+      await mutate(
+        '/api/clients',
+        async () => {
+          const res = await fetch(`/api/clients/${clientId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus }),
+          })
+          if (!res.ok) {
+            const err = await res.json()
+            throw new Error(err.error || 'Failed to save')
+          }
+          return optimisticData
+        },
+        { optimisticData, revalidate: true, rollbackOnError: true }
+      )
+      toast('Saved')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+  }, [clients, toast])
+
+  // ── Form Handlers (Sheet sidebar) ────────────────────────────────────────
 
   const resetForm = useCallback(() => {
     setFormName('')
@@ -293,7 +543,8 @@ export default function ClientsPage() {
     }
   }
 
-  // Unique industries for filter dropdown
+  // ── Derived Data ─────────────────────────────────────────────────────────
+
   const industries = useMemo(() => {
     if (!clients) return []
     const allClients = clients as Client[]
@@ -301,7 +552,6 @@ export default function ClientsPage() {
     return unique.sort()
   }, [clients])
 
-  // Active filter count
   const activeFilterCount = useMemo(() => {
     let count = 0
     if (industryFilter !== 'all') count++
@@ -318,7 +568,6 @@ export default function ClientsPage() {
     setDateTo('')
   }, [])
 
-  // Filtered + sorted data
   const clientList: Client[] = useMemo(() => {
     if (!clients) return []
     let filtered = clients as Client[]
@@ -326,11 +575,9 @@ export default function ClientsPage() {
     if (statusFilter !== 'all') {
       filtered = filtered.filter((c) => c.status === statusFilter)
     }
-
     if (industryFilter !== 'all') {
       filtered = filtered.filter((c) => c.industry === industryFilter)
     }
-
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase()
       filtered = filtered.filter((c) =>
@@ -341,42 +588,31 @@ export default function ClientsPage() {
         c.company_number?.toLowerCase().includes(q)
       )
     }
-
     if (dateFrom) {
       const from = new Date(dateFrom)
       filtered = filtered.filter((c) => new Date(c.created_at) >= from)
     }
-
     if (dateTo) {
       const to = new Date(dateTo)
       to.setHours(23, 59, 59, 999)
       filtered = filtered.filter((c) => new Date(c.created_at) <= to)
     }
 
-    // Sort
     filtered = [...filtered].sort((a, b) => {
       switch (sortBy) {
-        case 'name-asc':
-          return a.name.localeCompare(b.name)
-        case 'name-desc':
-          return b.name.localeCompare(a.name)
-        case 'date-newest':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        case 'date-oldest':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        case 'employees-high':
-          return (b.employee_count || 0) - (a.employee_count || 0)
-        case 'employees-low':
-          return (a.employee_count || 0) - (b.employee_count || 0)
-        default:
-          return 0
+        case 'name-asc': return a.name.localeCompare(b.name)
+        case 'name-desc': return b.name.localeCompare(a.name)
+        case 'date-newest': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        case 'date-oldest': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        case 'employees-high': return (b.employee_count || 0) - (a.employee_count || 0)
+        case 'employees-low': return (a.employee_count || 0) - (b.employee_count || 0)
+        default: return 0
       }
     })
 
     return filtered
   }, [clients, statusFilter, industryFilter, debouncedSearch, sortBy, dateFrom, dateTo])
 
-  // KPI counts
   const counts = useMemo(() => {
     const all = (clients || []) as Client[]
     return {
@@ -386,40 +622,41 @@ export default function ClientsPage() {
     }
   }, [clients])
 
-  const statusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="text-xs" style={{ backgroundColor: `${colors.success}20`, color: colors.success, border: `1px solid ${colors.success}40` }}>Active</Badge>
-      case 'inactive':
-        return <Badge className="text-xs" style={{ backgroundColor: `${colors.text.muted}20`, color: colors.text.muted, border: `1px solid ${colors.text.muted}40` }}>Inactive</Badge>
-      default:
-        return <Badge className="text-xs">{status}</Badge>
-    }
-  }
+  // ── Helper: check if a cell is currently being edited ────────────────────
+
+  const isCellEditing = (clientId: string, field: string) =>
+    editingCell?.clientId === clientId && editingCell?.field === field
 
   // ── Skeleton ───────────────────────────────────────────────────────────────
 
   if (!mounted || isLoading) {
     return (
-      <div className="p-4 md:p-6 space-y-5">
+      <div className="p-4 md:p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <div className="h-8 w-48 rounded-lg animate-pulse" style={{ backgroundColor: `${colors.border}` }} />
-          <div className="h-9 w-32 rounded-lg animate-pulse" style={{ backgroundColor: `${colors.border}` }} />
+          <div className="h-7 w-32 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
+          <div className="h-8 w-28 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="flex items-center gap-2">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-20 rounded-xl animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
+            <div key={i} className="h-8 w-28 rounded-lg animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
           ))}
         </div>
-        <div className="h-96 rounded-xl animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
+        <div className="space-y-1 rounded-lg overflow-hidden" style={{ border: `1px solid ${colors.border}` }}>
+          <div className="h-9 animate-pulse" style={{ backgroundColor: `${colors.border}40` }} />
+          {[...Array(10)].map((_, i) => (
+            <div key={i} className="h-8 animate-pulse" style={{ backgroundColor: i % 2 === 0 ? 'transparent' : `${colors.border}20` }} />
+          ))}
+        </div>
       </div>
     )
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  const thStyle = "text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] px-3 py-2"
+
   return (
-    <div className="p-4 md:p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h1
@@ -438,87 +675,74 @@ export default function ClientsPage() {
         </Button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: 'Total Clients', count: counts.total, icon: Users, color: colors.primary, filterKey: 'all' as StatusFilter },
-          { label: 'Active', count: counts.active, icon: UserCheck, color: colors.success, filterKey: 'active' as StatusFilter },
-          { label: 'Inactive', count: counts.inactive, icon: UserX, color: colors.text.muted, filterKey: 'inactive' as StatusFilter },
-        ].map((kpi) => (
-          <Card
-            key={kpi.label}
-            className="rounded-xl shadow-sm cursor-pointer transition-colors"
-            style={{
-              backgroundColor: colors.surface,
-              border: `1px solid ${statusFilter === kpi.filterKey ? kpi.color : colors.border}`,
-            }}
-            onClick={() => {
-              setStatusFilter(kpi.filterKey === statusFilter ? 'all' : kpi.filterKey)
-            }}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
-                    {kpi.label}
-                  </p>
-                  <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
-                    {kpi.count}
-                  </p>
-                </div>
-                <div className="p-2 rounded-lg" style={{ backgroundColor: `${kpi.color}12` }}>
-                  <kpi.icon className="w-5 h-5" style={{ color: kpi.color }} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Search + Filter Toggle */}
+      {/* Compact KPI Pills + Search */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
-          <Input
-            placeholder="Search clients..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 text-sm"
-            style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-          />
+        <div className="flex items-center gap-2 flex-wrap">
+          {[
+            { label: 'Total', count: counts.total, icon: Users, color: colors.primary, filterKey: 'all' as StatusFilter },
+            { label: 'Active', count: counts.active, icon: UserCheck, color: colors.success, filterKey: 'active' as StatusFilter },
+            { label: 'Inactive', count: counts.inactive, icon: UserX, color: colors.text.muted, filterKey: 'inactive' as StatusFilter },
+          ].map((kpi) => {
+            const isActive = statusFilter === kpi.filterKey
+            return (
+              <button
+                key={kpi.label}
+                onClick={() => setStatusFilter(kpi.filterKey === statusFilter ? 'all' : kpi.filterKey)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium font-[family-name:var(--font-inter)] transition-colors"
+                style={{
+                  backgroundColor: isActive ? `${kpi.color}15` : 'transparent',
+                  color: isActive ? kpi.color : colors.text.secondary,
+                  border: `1px solid ${isActive ? kpi.color : colors.border}`,
+                }}
+              >
+                <kpi.icon className="w-3.5 h-3.5" />
+                {kpi.label}: <span className="font-bold">{kpi.count}</span>
+              </button>
+            )
+          })}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-sm gap-1.5"
-          style={{ borderColor: colors.border, color: colors.text.secondary }}
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          <Filter className="w-3.5 h-3.5" />
-          Filters
-          {activeFilterCount > 0 && (
-            <span
-              className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium text-white"
-              style={{ backgroundColor: colors.primary }}
-            >
-              {activeFilterCount}
-            </span>
-          )}
-        </Button>
+
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: colors.text.muted }} />
+            <Input
+              placeholder="Search clients..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 text-sm h-8 w-[200px] lg:w-[260px]"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs gap-1 h-8"
+            style={{ borderColor: colors.border, color: colors.text.secondary }}
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="w-3 h-3" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span
+                className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium text-white"
+                style={{ backgroundColor: colors.primary }}
+              >
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Filter Bar */}
       {showFilters && (
-        <Card className="rounded-xl shadow-sm" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
-          <CardContent className="p-4">
-            <div className="flex flex-wrap items-end gap-4">
-              {/* Industry Filter */}
-              <div className="min-w-[160px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1.5 block" style={{ color: colors.text.muted }}>
-                  Industry
-                </Label>
+        <Card className="rounded-lg shadow-sm" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
+          <CardContent className="p-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-[150px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Industry</Label>
                 <Select value={industryFilter} onValueChange={setIndustryFilter}>
-                  <SelectTrigger className="text-sm h-9" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
                     <SelectValue placeholder="All Industries" />
                   </SelectTrigger>
                   <SelectContent>
@@ -529,14 +753,10 @@ export default function ClientsPage() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Sort By */}
-              <div className="min-w-[180px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1.5 block" style={{ color: colors.text.muted }}>
-                  Sort By
-                </Label>
+              <div className="min-w-[170px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Sort By</Label>
                 <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-                  <SelectTrigger className="text-sm h-9" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -549,45 +769,17 @@ export default function ClientsPage() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Date From */}
-              <div className="min-w-[140px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1.5 block" style={{ color: colors.text.muted }}>
-                  Added From
-                </Label>
-                <Input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="text-sm h-9"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+              <div className="min-w-[130px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Added From</Label>
+                <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
-
-              {/* Date To */}
-              <div className="min-w-[140px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1.5 block" style={{ color: colors.text.muted }}>
-                  Added To
-                </Label>
-                <Input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="text-sm h-9"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+              <div className="min-w-[130px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Added To</Label>
+                <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
-
-              {/* Clear Filters */}
               {activeFilterCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-sm gap-1 h-9"
-                  style={{ color: colors.error }}
-                  onClick={clearFilters}
-                >
-                  <X className="w-3.5 h-3.5" />
+                <Button variant="ghost" size="sm" className="text-xs gap-1 h-8" style={{ color: colors.error }} onClick={clearFilters}>
+                  <X className="w-3 h-3" />
                   Clear
                 </Button>
               )}
@@ -598,119 +790,204 @@ export default function ClientsPage() {
 
       {/* Table */}
       {clientList.length === 0 ? (
-        <Card className="rounded-xl shadow-sm" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
-          <CardContent className="p-12 text-center">
-            <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: `${colors.primary}12` }}>
-              <Users className="w-6 h-6" style={{ color: colors.primary }} />
-            </div>
-            <h3 className="text-sm font-semibold mb-1 font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
-              No clients found
-            </h3>
-            <p className="text-xs mb-4 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
-              {debouncedSearch || activeFilterCount > 0 ? 'Try adjusting your search or filters.' : 'Add your first client to get started.'}
-            </p>
-            {!debouncedSearch && activeFilterCount === 0 && (
-              <Button
-                onClick={openAdd}
-                size="sm"
-                className="text-white text-xs"
-                style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
-              >
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                Add Client
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="rounded-xl shadow-sm overflow-hidden" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow style={{ borderColor: colors.border }}>
-                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Client Name</TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden md:table-cell" style={{ color: colors.text.muted }}>Status</TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>Contact</TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>Email</TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Phone</TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Industry</TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden 2xl:table-cell" style={{ color: colors.text.muted }}>Domain</TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Employees</TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden 2xl:table-cell" style={{ color: colors.text.muted }}>Date Added</TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {clientList.map((client) => (
-                  <TableRow
-                    key={client.id}
-                    className="cursor-pointer transition-colors"
-                    style={{ borderColor: colors.border }}
-                    onClick={() => openEdit(client)}
-                  >
-                    <TableCell className="font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${colors.primary}12` }}>
-                          <Building2 className="w-4 h-4" style={{ color: colors.primary }} />
-                        </div>
-                        <span className="truncate max-w-[200px]">{client.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {statusBadge(client.status)}
-                    </TableCell>
-                    <TableCell className="text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.contact_name || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.contact_email || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.contact_phone || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.industry || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.domain || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.employee_count || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.created_at ? format(new Date(client.created_at), 'dd MMM yyyy') : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => openEdit(client)}
-                        >
-                          <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          disabled={deletingId === client.id}
-                          onClick={() => handleDelete(client)}
-                        >
-                          {deletingId === client.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.text.muted }} />
-                          ) : (
-                            <Trash2 className="w-3.5 h-3.5" style={{ color: colors.error }} />
-                          )}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <div className="py-16 text-center">
+          <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: `${colors.primary}12` }}>
+            <Users className="w-6 h-6" style={{ color: colors.primary }} />
           </div>
-        </Card>
+          <h3 className="text-sm font-semibold mb-1 font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+            No clients found
+          </h3>
+          <p className="text-xs mb-4 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+            {debouncedSearch || activeFilterCount > 0 ? 'Try adjusting your search or filters.' : 'Add your first client to get started.'}
+          </p>
+          {!debouncedSearch && activeFilterCount === 0 && (
+            <Button onClick={openAdd} size="sm" className="text-white text-xs" style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}>
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Add Client
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg" style={{ border: `1px solid ${colors.border}` }}>
+          <Table>
+            <TableHeader>
+              <TableRow
+                className="sticky top-0 z-10"
+                style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+              >
+                <TableHead className={thStyle} style={{ color: colors.text.muted }}>Client Name</TableHead>
+                <TableHead className={`${thStyle} hidden md:table-cell`} style={{ color: colors.text.muted }}>Status</TableHead>
+                <TableHead className={`${thStyle} hidden lg:table-cell`} style={{ color: colors.text.muted }}>Contact</TableHead>
+                <TableHead className={`${thStyle} hidden lg:table-cell`} style={{ color: colors.text.muted }}>Email</TableHead>
+                <TableHead className={`${thStyle} hidden xl:table-cell`} style={{ color: colors.text.muted }}>Phone</TableHead>
+                <TableHead className={`${thStyle} hidden xl:table-cell`} style={{ color: colors.text.muted }}>Industry</TableHead>
+                <TableHead className={`${thStyle} hidden 2xl:table-cell`} style={{ color: colors.text.muted }}>Domain</TableHead>
+                <TableHead className={`${thStyle} hidden xl:table-cell`} style={{ color: colors.text.muted }}>Employees</TableHead>
+                <TableHead className={`${thStyle} hidden 2xl:table-cell`} style={{ color: colors.text.muted }}>Date Added</TableHead>
+                <TableHead className={thStyle} style={{ color: colors.text.muted }}>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {clientList.map((client, idx) => (
+                <TableRow
+                  key={client.id}
+                  className="transition-colors"
+                  style={{
+                    borderColor: colors.border,
+                    backgroundColor: idx % 2 === 1 ? `${colors.lightBg}` : 'transparent',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${colors.primary}06` }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = idx % 2 === 1 ? `${colors.lightBg}` : 'transparent' }}
+                >
+                  {/* Name */}
+                  <TableCell className="px-3 py-1.5 font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                    <InlineEditCell
+                      value={client.name}
+                      isEditing={isCellEditing(client.id, 'name')}
+                      onStartEdit={() => startEdit(client.id, 'name', client.name)}
+                      editValue={editValue}
+                      onEditChange={setEditValue}
+                      onSave={handleInlineSave}
+                      onCancel={cancelEdit}
+                      colors={colors}
+                      placeholder="Unnamed"
+                    />
+                  </TableCell>
+
+                  {/* Status */}
+                  <TableCell className="px-3 py-1.5 hidden md:table-cell">
+                    <InlineStatusCell
+                      status={client.status}
+                      isEditing={isCellEditing(client.id, 'status')}
+                      onStartEdit={() => startEdit(client.id, 'status', client.status)}
+                      onSave={(v) => handleInlineStatusSave(client.id, v)}
+                      onCancel={cancelEdit}
+                      colors={colors}
+                    />
+                  </TableCell>
+
+                  {/* Contact */}
+                  <TableCell className="px-3 py-1.5 text-sm hidden lg:table-cell font-[family-name:var(--font-body)]">
+                    <InlineEditCell
+                      value={client.contact_name}
+                      isEditing={isCellEditing(client.id, 'contact_name')}
+                      onStartEdit={() => startEdit(client.id, 'contact_name', client.contact_name)}
+                      editValue={editValue}
+                      onEditChange={setEditValue}
+                      onSave={handleInlineSave}
+                      onCancel={cancelEdit}
+                      colors={colors}
+                    />
+                  </TableCell>
+
+                  {/* Email */}
+                  <TableCell className="px-3 py-1.5 text-sm hidden lg:table-cell font-[family-name:var(--font-body)]">
+                    <InlineEditCell
+                      value={client.contact_email}
+                      isEditing={isCellEditing(client.id, 'contact_email')}
+                      onStartEdit={() => startEdit(client.id, 'contact_email', client.contact_email)}
+                      editValue={editValue}
+                      onEditChange={setEditValue}
+                      onSave={handleInlineSave}
+                      onCancel={cancelEdit}
+                      colors={colors}
+                    />
+                  </TableCell>
+
+                  {/* Phone */}
+                  <TableCell className="px-3 py-1.5 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]">
+                    <InlineEditCell
+                      value={client.contact_phone}
+                      isEditing={isCellEditing(client.id, 'contact_phone')}
+                      onStartEdit={() => startEdit(client.id, 'contact_phone', client.contact_phone)}
+                      editValue={editValue}
+                      onEditChange={setEditValue}
+                      onSave={handleInlineSave}
+                      onCancel={cancelEdit}
+                      colors={colors}
+                    />
+                  </TableCell>
+
+                  {/* Industry */}
+                  <TableCell className="px-3 py-1.5 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]">
+                    <InlineEditCell
+                      value={client.industry}
+                      isEditing={isCellEditing(client.id, 'industry')}
+                      onStartEdit={() => startEdit(client.id, 'industry', client.industry)}
+                      editValue={editValue}
+                      onEditChange={setEditValue}
+                      onSave={handleInlineSave}
+                      onCancel={cancelEdit}
+                      colors={colors}
+                    />
+                  </TableCell>
+
+                  {/* Domain */}
+                  <TableCell className="px-3 py-1.5 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]">
+                    <InlineEditCell
+                      value={client.domain}
+                      isEditing={isCellEditing(client.id, 'domain')}
+                      onStartEdit={() => startEdit(client.id, 'domain', client.domain)}
+                      editValue={editValue}
+                      onEditChange={setEditValue}
+                      onSave={handleInlineSave}
+                      onCancel={cancelEdit}
+                      colors={colors}
+                    />
+                  </TableCell>
+
+                  {/* Employees */}
+                  <TableCell className="px-3 py-1.5 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]">
+                    <InlineEditCell
+                      value={client.employee_count}
+                      isEditing={isCellEditing(client.id, 'employee_count')}
+                      onStartEdit={() => startEdit(client.id, 'employee_count', client.employee_count)}
+                      editValue={editValue}
+                      onEditChange={setEditValue}
+                      onSave={handleInlineSave}
+                      onCancel={cancelEdit}
+                      type="number"
+                      colors={colors}
+                    />
+                  </TableCell>
+
+                  {/* Date Added (read-only) */}
+                  <TableCell className="px-3 py-1.5 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+                    {client.created_at ? format(new Date(client.created_at), 'dd MMM yyyy') : '-'}
+                  </TableCell>
+
+                  {/* Actions */}
+                  <TableCell className="px-3 py-1.5">
+                    <div className="flex items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        title="Edit all fields"
+                        onClick={(e) => { e.stopPropagation(); openEdit(client) }}
+                      >
+                        <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        disabled={deletingId === client.id}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(client) }}
+                      >
+                        {deletingId === client.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.text.muted }} />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" style={{ color: colors.error }} />
+                        )}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       {/* Add/Edit Sidebar */}
@@ -726,67 +1003,33 @@ export default function ClientsPage() {
           </SheetHeader>
 
           <div className="divide-y" style={{ borderColor: colors.border }}>
-            {/* Company Details */}
             <FormSection title="Company Details" icon={Building2} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
                   Company Name <span style={{ color: colors.error }}>*</span>
                 </Label>
-                <Input
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="e.g. Acme Ltd"
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Acme Ltd" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Company Number</Label>
-                <Input
-                  value={formCompanyNumber}
-                  onChange={(e) => setFormCompanyNumber(e.target.value)}
-                  placeholder="e.g. 12345678"
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input value={formCompanyNumber} onChange={(e) => setFormCompanyNumber(e.target.value)} placeholder="e.g. 12345678" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Industry</Label>
-                <Input
-                  value={formIndustry}
-                  onChange={(e) => setFormIndustry(e.target.value)}
-                  placeholder="e.g. Construction"
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input value={formIndustry} onChange={(e) => setFormIndustry(e.target.value)} placeholder="e.g. Construction" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Domain</Label>
-                <Input
-                  value={formDomain}
-                  onChange={(e) => setFormDomain(e.target.value)}
-                  placeholder="e.g. acme.co.uk"
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input value={formDomain} onChange={(e) => setFormDomain(e.target.value)} placeholder="e.g. acme.co.uk" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Employee Count</Label>
-                <Input
-                  type="number"
-                  value={formEmployeeCount}
-                  onChange={(e) => setFormEmployeeCount(e.target.value)}
-                  placeholder="e.g. 25"
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input type="number" value={formEmployeeCount} onChange={(e) => setFormEmployeeCount(e.target.value)} placeholder="e.g. 25" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Status</Label>
                 <Select value={formStatus} onValueChange={setFormStatus}>
-                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
@@ -795,145 +1038,71 @@ export default function ClientsPage() {
               </div>
             </FormSection>
 
-            {/* Address */}
             <FormSection title="Address" icon={MapPin} defaultOpen={false} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Street</Label>
-                <Input
-                  value={formStreet}
-                  onChange={(e) => setFormStreet(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input value={formStreet} onChange={(e) => setFormStreet(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>City</Label>
-                <Input
-                  value={formCity}
-                  onChange={(e) => setFormCity(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input value={formCity} onChange={(e) => setFormCity(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Postcode</Label>
-                <Input
-                  value={formPostcode}
-                  onChange={(e) => setFormPostcode(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input value={formPostcode} onChange={(e) => setFormPostcode(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
             </FormSection>
 
-            {/* Primary Contact */}
             <FormSection title="Primary Contact" icon={Phone} defaultOpen={false} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Contact Name</Label>
-                <Input
-                  value={formContactName}
-                  onChange={(e) => setFormContactName(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input value={formContactName} onChange={(e) => setFormContactName(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Contact Email</Label>
-                <Input
-                  type="email"
-                  value={formContactEmail}
-                  onChange={(e) => setFormContactEmail(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input type="email" value={formContactEmail} onChange={(e) => setFormContactEmail(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Contact Phone</Label>
-                <Input
-                  value={formContactPhone}
-                  onChange={(e) => setFormContactPhone(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input value={formContactPhone} onChange={(e) => setFormContactPhone(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Notes</Label>
-                <Textarea
-                  value={formNotes}
-                  onChange={(e) => setFormNotes(e.target.value)}
-                  rows={3}
-                  className="mt-1 text-sm resize-none"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} rows={3} className="mt-1 text-sm resize-none" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
             </FormSection>
 
-            {/* Secondary Contact */}
             <FormSection title="Secondary Contact" icon={UserPlus} defaultOpen={false} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Name</Label>
-                <Input
-                  value={formSecondaryContactName}
-                  onChange={(e) => setFormSecondaryContactName(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input value={formSecondaryContactName} onChange={(e) => setFormSecondaryContactName(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Email</Label>
-                <Input
-                  type="email"
-                  value={formSecondaryContactEmail}
-                  onChange={(e) => setFormSecondaryContactEmail(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input type="email" value={formSecondaryContactEmail} onChange={(e) => setFormSecondaryContactEmail(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Phone</Label>
-                <Input
-                  value={formSecondaryContactPhone}
-                  onChange={(e) => setFormSecondaryContactPhone(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input value={formSecondaryContactPhone} onChange={(e) => setFormSecondaryContactPhone(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
             </FormSection>
 
-            {/* Accountant Contact */}
             <FormSection title="Accountant Contact" icon={Calculator} defaultOpen={false} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Name</Label>
-                <Input
-                  value={formAccountantName}
-                  onChange={(e) => setFormAccountantName(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input value={formAccountantName} onChange={(e) => setFormAccountantName(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Email</Label>
-                <Input
-                  type="email"
-                  value={formAccountantEmail}
-                  onChange={(e) => setFormAccountantEmail(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input type="email" value={formAccountantEmail} onChange={(e) => setFormAccountantEmail(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Phone</Label>
-                <Input
-                  value={formAccountantPhone}
-                  onChange={(e) => setFormAccountantPhone(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
+                <Input value={formAccountantPhone} onChange={(e) => setFormAccountantPhone(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
             </FormSection>
           </div>
 
-          {/* Save Button */}
           <div className="px-5 py-4" style={{ borderTop: `1px solid ${colors.border}` }}>
             <Button
               onClick={handleSave}
