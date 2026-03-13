@@ -125,6 +125,36 @@ export interface Database {
           accountant_name: string | null
           accountant_email: string | null
           accountant_phone: string | null
+          // Tax & Compliance
+          vat_number: string | null
+          utr: string | null
+          cis_registered: boolean
+          sic_code: string | null
+          hmrc_agent_authorised: boolean
+          tpas_authorised: boolean
+          auto_enrolment_status: string | null
+          // Company Details
+          company_type: string | null
+          incorporation_date: string | null
+          registered_address: Json | null
+          director_name: string | null
+          // Billing
+          fee: string | null
+          billing_frequency: string | null
+          payment_method: string | null
+          // Operational
+          start_date: string | null
+          contract_end_date: string | null
+          assigned_to: string | null
+          referral_source: string | null
+          bacs_bureau_number: string | null
+          tags: string[] | null
+          document_storage_url: string | null
+          portal_access_enabled: boolean
+          // Payroll Contact
+          payroll_contact_name: string | null
+          payroll_contact_email: string | null
+          payroll_contact_phone: string | null
         }
         Insert: {
           id?: string
@@ -164,6 +194,31 @@ export interface Database {
           accountant_name?: string | null
           accountant_email?: string | null
           accountant_phone?: string | null
+          vat_number?: string | null
+          utr?: string | null
+          cis_registered?: boolean
+          sic_code?: string | null
+          hmrc_agent_authorised?: boolean
+          tpas_authorised?: boolean
+          auto_enrolment_status?: string | null
+          company_type?: string | null
+          incorporation_date?: string | null
+          registered_address?: Json | null
+          director_name?: string | null
+          fee?: string | null
+          billing_frequency?: string | null
+          payment_method?: string | null
+          start_date?: string | null
+          contract_end_date?: string | null
+          assigned_to?: string | null
+          referral_source?: string | null
+          bacs_bureau_number?: string | null
+          tags?: string[] | null
+          document_storage_url?: string | null
+          portal_access_enabled?: boolean
+          payroll_contact_name?: string | null
+          payroll_contact_email?: string | null
+          payroll_contact_phone?: string | null
         }
         Update: {
           id?: string
@@ -203,6 +258,31 @@ export interface Database {
           accountant_name?: string | null
           accountant_email?: string | null
           accountant_phone?: string | null
+          vat_number?: string | null
+          utr?: string | null
+          cis_registered?: boolean
+          sic_code?: string | null
+          hmrc_agent_authorised?: boolean
+          tpas_authorised?: boolean
+          auto_enrolment_status?: string | null
+          company_type?: string | null
+          incorporation_date?: string | null
+          registered_address?: Json | null
+          director_name?: string | null
+          fee?: string | null
+          billing_frequency?: string | null
+          payment_method?: string | null
+          start_date?: string | null
+          contract_end_date?: string | null
+          assigned_to?: string | null
+          referral_source?: string | null
+          bacs_bureau_number?: string | null
+          tags?: string[] | null
+          document_storage_url?: string | null
+          portal_access_enabled?: boolean
+          payroll_contact_name?: string | null
+          payroll_contact_email?: string | null
+          payroll_contact_phone?: string | null
         }
       }
       payrolls: {
