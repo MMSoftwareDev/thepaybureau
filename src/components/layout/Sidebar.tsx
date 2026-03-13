@@ -164,18 +164,12 @@ export default function Sidebar({ isAdmin = false, plan = 'free', mobileOpen = f
       }}
     >
       {/* Logo */}
-      <div className="h-[52px] flex items-center px-4 border-b" style={{ borderColor: colors.border }}>
+      <div className="h-[60px] flex items-center px-4 border-b" style={{ borderColor: colors.border }}>
         <button
           onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-2.5 group"
+          className="flex items-center group"
         >
-          <Image src="/logo.png" alt="ThePayBureau" width={28} height={28} className="rounded-md flex-shrink-0" priority />
-          <span
-            className="text-[0.875rem] font-semibold tracking-tight"
-            style={{ color: colors.text.primary }}
-          >
-            ThePayBureau
-          </span>
+          <Image src="/logo-full.png" alt="ThePayBureau" width={180} height={40} className="flex-shrink-0" priority />
         </button>
       </div>
 

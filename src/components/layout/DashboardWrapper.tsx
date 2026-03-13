@@ -36,7 +36,7 @@ export default function DashboardWrapper({ children, user, avatarUrl, isAdmin, p
       <div className="flex h-screen overflow-hidden">
         <div className="hidden md:block w-[252px] h-screen border-r" style={{ background: colors.surface, borderColor: colors.border }} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="h-[52px] border-b" style={{ background: colors.surface, borderColor: colors.border }} />
+          <div className="h-[60px] border-b" style={{ background: colors.surface, borderColor: colors.border }} />
           <main className="flex-1 overflow-y-auto p-6" style={{ background: colors.lightBg }}>
             <div className="space-y-4 max-w-5xl mx-auto">
               <div className="h-8 rounded-lg animate-pulse" style={{ background: colors.border }} />
