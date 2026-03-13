@@ -55,6 +55,10 @@ import {
   ArrowUp,
   ArrowDown,
   Download,
+  ClipboardList,
+  Shield,
+  CreditCard,
+  Settings,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
@@ -68,7 +72,7 @@ interface Client {
   company_number?: string | null
   email?: string | null
   phone?: string | null
-  address?: { street?: string; city?: string; postcode?: string } | null
+  address?: { street?: string; city?: string; postcode?: string; country?: string } | null
   industry?: string | null
   employee_count?: number | null
   status: string
@@ -83,11 +87,47 @@ interface Client {
   accountant_name?: string | null
   accountant_email?: string | null
   accountant_phone?: string | null
+  // Payroll Contact
+  payroll_contact_name?: string | null
+  payroll_contact_email?: string | null
+  payroll_contact_phone?: string | null
+  // Tax & Compliance
+  vat_number?: string | null
+  utr?: string | null
+  cis_registered?: boolean | null
+  sic_code?: string | null
+  hmrc_agent_authorised?: boolean | null
+  tpas_authorised?: boolean | null
+  auto_enrolment_status?: string | null
+  // Company Details
+  company_type?: string | null
+  incorporation_date?: string | null
+  registered_address?: { street?: string; city?: string; postcode?: string; country?: string } | null
+  director_name?: string | null
+  // Billing
+  fee?: string | null
+  billing_frequency?: string | null
+  payment_method?: string | null
+  // Operational
+  start_date?: string | null
+  contract_end_date?: string | null
+  assigned_to?: string | null
+  referral_source?: string | null
+  bacs_bureau_number?: string | null
+  tags?: string[] | null
+  document_storage_url?: string | null
+  portal_access_enabled?: boolean | null
   created_at: string
 }
 
+interface TenantUser {
+  id: string
+  name: string
+  email: string
+}
+
 type StatusFilter = 'all' | 'active' | 'inactive'
-type SortField = 'name' | 'status' | 'contact_name' | 'contact_email' | 'industry' | 'employee_count' | 'created_at'
+type SortField = 'name' | 'status' | 'contact_name' | 'contact_email' | 'industry' | 'employee_count' | 'created_at' | 'company_type' | 'start_date' | 'assigned_to'
 type SortDirection = 'asc' | 'desc'
 
 const PAGE_SIZE = 25
@@ -219,6 +259,39 @@ export default function ClientsPage() {
   const [formAccountantName, setFormAccountantName] = useState('')
   const [formAccountantEmail, setFormAccountantEmail] = useState('')
   const [formAccountantPhone, setFormAccountantPhone] = useState('')
+  // Payroll Contact
+  const [formPayrollContactName, setFormPayrollContactName] = useState('')
+  const [formPayrollContactEmail, setFormPayrollContactEmail] = useState('')
+  const [formPayrollContactPhone, setFormPayrollContactPhone] = useState('')
+  // Tax & Compliance
+  const [formVatNumber, setFormVatNumber] = useState('')
+  const [formUtr, setFormUtr] = useState('')
+  const [formCisRegistered, setFormCisRegistered] = useState('no')
+  const [formSicCode, setFormSicCode] = useState('')
+  const [formHmrcAgentAuthorised, setFormHmrcAgentAuthorised] = useState('no')
+  const [formTpasAuthorised, setFormTpasAuthorised] = useState('no')
+  const [formAutoEnrolmentStatus, setFormAutoEnrolmentStatus] = useState('')
+  // Company Details (new)
+  const [formCompanyType, setFormCompanyType] = useState('')
+  const [formIncorporationDate, setFormIncorporationDate] = useState('')
+  const [formRegisteredStreet, setFormRegisteredStreet] = useState('')
+  const [formRegisteredCity, setFormRegisteredCity] = useState('')
+  const [formRegisteredPostcode, setFormRegisteredPostcode] = useState('')
+  const [formRegisteredCountry, setFormRegisteredCountry] = useState('')
+  const [formDirectorName, setFormDirectorName] = useState('')
+  // Billing
+  const [formFee, setFormFee] = useState('')
+  const [formBillingFrequency, setFormBillingFrequency] = useState('')
+  const [formPaymentMethod, setFormPaymentMethod] = useState('')
+  // Operational
+  const [formStartDate, setFormStartDate] = useState('')
+  const [formContractEndDate, setFormContractEndDate] = useState('')
+  const [formAssignedTo, setFormAssignedTo] = useState('')
+  const [formReferralSource, setFormReferralSource] = useState('')
+  const [formBacsBureauNumber, setFormBacsBureauNumber] = useState('')
+  const [formTags, setFormTags] = useState('')
+  const [formDocumentStorageUrl, setFormDocumentStorageUrl] = useState('')
+  const [formPortalAccessEnabled, setFormPortalAccessEnabled] = useState('no')
 
   // Delete state
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -226,6 +299,15 @@ export default function ClientsPage() {
 
   // Export state
   const [exporting, setExporting] = useState(false)
+
+  // Tenant users for Assigned To dropdown
+  const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([])
+  useEffect(() => {
+    fetch('/api/users')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setTenantUsers(Array.isArray(data) ? data : []))
+      .catch(() => setTenantUsers([]))
+  }, [])
 
   // ── Form Handlers ────────────────────────────────────────────────────────
 
@@ -249,6 +331,34 @@ export default function ClientsPage() {
     setFormAccountantName('')
     setFormAccountantEmail('')
     setFormAccountantPhone('')
+    setFormPayrollContactName('')
+    setFormPayrollContactEmail('')
+    setFormPayrollContactPhone('')
+    setFormVatNumber('')
+    setFormUtr('')
+    setFormCisRegistered('no')
+    setFormSicCode('')
+    setFormHmrcAgentAuthorised('no')
+    setFormTpasAuthorised('no')
+    setFormAutoEnrolmentStatus('')
+    setFormCompanyType('')
+    setFormIncorporationDate('')
+    setFormRegisteredStreet('')
+    setFormRegisteredCity('')
+    setFormRegisteredPostcode('')
+    setFormRegisteredCountry('')
+    setFormDirectorName('')
+    setFormFee('')
+    setFormBillingFrequency('')
+    setFormPaymentMethod('')
+    setFormStartDate('')
+    setFormContractEndDate('')
+    setFormAssignedTo('')
+    setFormReferralSource('')
+    setFormBacsBureauNumber('')
+    setFormTags('')
+    setFormDocumentStorageUrl('')
+    setFormPortalAccessEnabled('no')
     setEditingClient(null)
   }, [])
 
@@ -279,6 +389,35 @@ export default function ClientsPage() {
     setFormAccountantName(client.accountant_name || '')
     setFormAccountantEmail(client.accountant_email || '')
     setFormAccountantPhone(client.accountant_phone || '')
+    setFormPayrollContactName(client.payroll_contact_name || '')
+    setFormPayrollContactEmail(client.payroll_contact_email || '')
+    setFormPayrollContactPhone(client.payroll_contact_phone || '')
+    setFormVatNumber(client.vat_number || '')
+    setFormUtr(client.utr || '')
+    setFormCisRegistered(client.cis_registered ? 'yes' : 'no')
+    setFormSicCode(client.sic_code || '')
+    setFormHmrcAgentAuthorised(client.hmrc_agent_authorised ? 'yes' : 'no')
+    setFormTpasAuthorised(client.tpas_authorised ? 'yes' : 'no')
+    setFormAutoEnrolmentStatus(client.auto_enrolment_status || '')
+    setFormCompanyType(client.company_type || '')
+    setFormIncorporationDate(client.incorporation_date || '')
+    const regAddr = client.registered_address as { street?: string; city?: string; postcode?: string; country?: string } | null
+    setFormRegisteredStreet(regAddr?.street || '')
+    setFormRegisteredCity(regAddr?.city || '')
+    setFormRegisteredPostcode(regAddr?.postcode || '')
+    setFormRegisteredCountry(regAddr?.country || '')
+    setFormDirectorName(client.director_name || '')
+    setFormFee(client.fee || '')
+    setFormBillingFrequency(client.billing_frequency || '')
+    setFormPaymentMethod(client.payment_method || '')
+    setFormStartDate(client.start_date || '')
+    setFormContractEndDate(client.contract_end_date || '')
+    setFormAssignedTo(client.assigned_to || '')
+    setFormReferralSource(client.referral_source || '')
+    setFormBacsBureauNumber(client.bacs_bureau_number || '')
+    setFormTags(client.tags?.join(', ') || '')
+    setFormDocumentStorageUrl(client.document_storage_url || '')
+    setFormPortalAccessEnabled(client.portal_access_enabled ? 'yes' : 'no')
     setSheetOpen(true)
   }, [])
 
@@ -312,6 +451,41 @@ export default function ClientsPage() {
         accountant_name: formAccountantName.trim() || undefined,
         accountant_email: formAccountantEmail.trim() || undefined,
         accountant_phone: formAccountantPhone.trim() || undefined,
+        // Payroll Contact
+        payroll_contact_name: formPayrollContactName.trim() || undefined,
+        payroll_contact_email: formPayrollContactEmail.trim() || undefined,
+        payroll_contact_phone: formPayrollContactPhone.trim() || undefined,
+        // Tax & Compliance
+        vat_number: formVatNumber.trim() || undefined,
+        utr: formUtr.trim() || undefined,
+        cis_registered: formCisRegistered === 'yes',
+        sic_code: formSicCode.trim() || undefined,
+        hmrc_agent_authorised: formHmrcAgentAuthorised === 'yes',
+        tpas_authorised: formTpasAuthorised === 'yes',
+        auto_enrolment_status: formAutoEnrolmentStatus || undefined,
+        // Company Details
+        company_type: formCompanyType || undefined,
+        incorporation_date: formIncorporationDate || undefined,
+        registered_address: (formRegisteredStreet || formRegisteredCity || formRegisteredPostcode || formRegisteredCountry) ? {
+          street: formRegisteredStreet.trim() || undefined,
+          city: formRegisteredCity.trim() || undefined,
+          postcode: formRegisteredPostcode.trim() || undefined,
+          country: formRegisteredCountry.trim() || undefined,
+        } : undefined,
+        director_name: formDirectorName.trim() || undefined,
+        // Billing
+        fee: formFee.trim() || undefined,
+        billing_frequency: formBillingFrequency || undefined,
+        payment_method: formPaymentMethod.trim() || undefined,
+        // Operational
+        start_date: formStartDate || undefined,
+        contract_end_date: formContractEndDate || undefined,
+        assigned_to: formAssignedTo || undefined,
+        referral_source: formReferralSource.trim() || undefined,
+        bacs_bureau_number: formBacsBureauNumber.trim() || undefined,
+        tags: formTags.trim() ? formTags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
+        document_storage_url: formDocumentStorageUrl.trim() || undefined,
+        portal_access_enabled: formPortalAccessEnabled === 'yes',
       }
 
       const url = editingClient ? `/api/clients/${editingClient.id}` : '/api/clients'
@@ -463,13 +637,22 @@ export default function ClientsPage() {
         }
         case 'created_at':
           return dir * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        case 'company_type':
+          return dir * (a.company_type || '').localeCompare(b.company_type || '')
+        case 'start_date':
+          return dir * ((a.start_date || '').localeCompare(b.start_date || ''))
+        case 'assigned_to': {
+          const aName = tenantUsers.find(u => u.id === a.assigned_to)?.name || ''
+          const bName = tenantUsers.find(u => u.id === b.assigned_to)?.name || ''
+          return dir * aName.localeCompare(bName)
+        }
         default:
           return 0
       }
     })
 
     return filtered
-  }, [clients, statusFilter, industryFilter, debouncedSearch, sortField, sortDirection, dateFrom, dateTo])
+  }, [clients, statusFilter, industryFilter, debouncedSearch, sortField, sortDirection, dateFrom, dateTo, tenantUsers])
 
   // Reset page when filters/sort change
   useEffect(() => {
@@ -694,6 +877,9 @@ export default function ClientsPage() {
                   <SortableHeader label="Industry" field="industry" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden xl:table-cell" />
                   <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden 2xl:table-cell" style={{ color: colors.text.muted }}>Domain</TableHead>
                   <SortableHeader label="Employees" field="employee_count" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden xl:table-cell" />
+                  <SortableHeader label="Type" field="company_type" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden xl:table-cell" />
+                  <SortableHeader label="Start Date" field="start_date" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden xl:table-cell" />
+                  <SortableHeader label="Assigned To" field="assigned_to" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden 2xl:table-cell" />
                   <SortableHeader label="Date Added" field="created_at" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden 2xl:table-cell" />
                   <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Actions</TableHead>
                 </TableRow>
@@ -729,6 +915,15 @@ export default function ClientsPage() {
                     </TableCell>
                     <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
                       {client.employee_count || '-'}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.company_type ? { ltd: 'Ltd', llp: 'LLP', sole_trader: 'Sole Trader', charity: 'Charity', public_sector: 'Public Sector', partnership: 'Partnership' }[client.company_type] || client.company_type : '-'}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.start_date ? format(new Date(client.start_date), 'dd MMM yyyy') : '-'}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.assigned_to ? tenantUsers.find(u => u.id === client.assigned_to)?.name || '-' : '-'}
                     </TableCell>
                     <TableCell className="px-4 py-3 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
                       {client.created_at ? format(new Date(client.created_at), 'dd MMM yyyy') : '-'}
@@ -871,8 +1066,30 @@ export default function ClientsPage() {
                 <Input value={formCompanyNumber} onChange={(e) => setFormCompanyNumber(e.target.value)} placeholder="e.g. 12345678" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Company Type</Label>
+                <Select value={formCompanyType} onValueChange={setFormCompanyType}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue placeholder="Select type..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ltd">Ltd</SelectItem>
+                    <SelectItem value="llp">LLP</SelectItem>
+                    <SelectItem value="sole_trader">Sole Trader</SelectItem>
+                    <SelectItem value="charity">Charity</SelectItem>
+                    <SelectItem value="public_sector">Public Sector</SelectItem>
+                    <SelectItem value="partnership">Partnership</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Industry</Label>
                 <Input value={formIndustry} onChange={(e) => setFormIndustry(e.target.value)} placeholder="e.g. Construction" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Director Name</Label>
+                <Input value={formDirectorName} onChange={(e) => setFormDirectorName(e.target.value)} placeholder="e.g. John Smith" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>SIC Code</Label>
+                <Input value={formSicCode} onChange={(e) => setFormSicCode(e.target.value)} placeholder="e.g. 62020" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Domain</Label>
@@ -955,6 +1172,167 @@ export default function ClientsPage() {
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Phone</Label>
                 <Input value={formAccountantPhone} onChange={(e) => setFormAccountantPhone(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+            </FormSection>
+
+            <FormSection title="Payroll Contact" icon={ClipboardList} defaultOpen={false} colors={colors}>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Name</Label>
+                <Input value={formPayrollContactName} onChange={(e) => setFormPayrollContactName(e.target.value)} placeholder="Person who sends timesheets" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Email</Label>
+                <Input type="email" value={formPayrollContactEmail} onChange={(e) => setFormPayrollContactEmail(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Phone</Label>
+                <Input value={formPayrollContactPhone} onChange={(e) => setFormPayrollContactPhone(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+            </FormSection>
+
+            <FormSection title="Registered Address" icon={MapPin} defaultOpen={false} colors={colors}>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Street</Label>
+                <Input value={formRegisteredStreet} onChange={(e) => setFormRegisteredStreet(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>City</Label>
+                <Input value={formRegisteredCity} onChange={(e) => setFormRegisteredCity(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Postcode</Label>
+                <Input value={formRegisteredPostcode} onChange={(e) => setFormRegisteredPostcode(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Country</Label>
+                <Input value={formRegisteredCountry} onChange={(e) => setFormRegisteredCountry(e.target.value)} placeholder="e.g. United Kingdom" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+            </FormSection>
+
+            <FormSection title="Tax & Compliance" icon={Shield} defaultOpen={false} colors={colors}>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>VAT Number</Label>
+                <Input value={formVatNumber} onChange={(e) => setFormVatNumber(e.target.value)} placeholder="e.g. GB123456789" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>UTR (Unique Taxpayer Reference)</Label>
+                <Input value={formUtr} onChange={(e) => setFormUtr(e.target.value)} placeholder="e.g. 1234567890" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>CIS Registered</Label>
+                <Select value={formCisRegistered} onValueChange={setFormCisRegistered}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no">No</SelectItem>
+                    <SelectItem value="yes">Yes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>HMRC Agent Authorised (64-8)</Label>
+                <Select value={formHmrcAgentAuthorised} onValueChange={setFormHmrcAgentAuthorised}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no">No</SelectItem>
+                    <SelectItem value="yes">Yes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>TPAS Authorised</Label>
+                <Select value={formTpasAuthorised} onValueChange={setFormTpasAuthorised}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no">No</SelectItem>
+                    <SelectItem value="yes">Yes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Auto Enrolment Status</Label>
+                <Select value={formAutoEnrolmentStatus} onValueChange={setFormAutoEnrolmentStatus}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="enrolled">Enrolled</SelectItem>
+                    <SelectItem value="exempt">Exempt</SelectItem>
+                    <SelectItem value="postponed">Postponed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </FormSection>
+
+            <FormSection title="Billing & Contract" icon={CreditCard} defaultOpen={false} colors={colors}>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Fee</Label>
+                <Input value={formFee} onChange={(e) => setFormFee(e.target.value)} placeholder="e.g. £150/month or £5 per employee" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Billing Frequency</Label>
+                <Select value={formBillingFrequency} onValueChange={setFormBillingFrequency}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="per_run">Per Payroll Run</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="annually">Annually</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Payment Method</Label>
+                <Input value={formPaymentMethod} onChange={(e) => setFormPaymentMethod(e.target.value)} placeholder="e.g. BACS, Standing Order, Card" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Start Date</Label>
+                <Input type="date" value={formStartDate} onChange={(e) => setFormStartDate(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Contract End Date</Label>
+                <Input type="date" value={formContractEndDate} onChange={(e) => setFormContractEndDate(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+            </FormSection>
+
+            <FormSection title="Additional Details" icon={Settings} defaultOpen={false} colors={colors}>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Incorporation Date</Label>
+                <Input type="date" value={formIncorporationDate} onChange={(e) => setFormIncorporationDate(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Assigned To</Label>
+                <Select value={formAssignedTo} onValueChange={setFormAssignedTo}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue placeholder="Select team member..." /></SelectTrigger>
+                  <SelectContent>
+                    {tenantUsers.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Referral Source</Label>
+                <Input value={formReferralSource} onChange={(e) => setFormReferralSource(e.target.value)} placeholder="e.g. Website, Referral, Accountant" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>BACS Bureau Number</Label>
+                <Input value={formBacsBureauNumber} onChange={(e) => setFormBacsBureauNumber(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Tags</Label>
+                <Input value={formTags} onChange={(e) => setFormTags(e.target.value)} placeholder="e.g. CIS, monthly, priority (comma-separated)" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Document Storage URL</Label>
+                <Input value={formDocumentStorageUrl} onChange={(e) => setFormDocumentStorageUrl(e.target.value)} placeholder="e.g. https://drive.google.com/..." className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Portal Access Enabled</Label>
+                <Select value={formPortalAccessEnabled} onValueChange={setFormPortalAccessEnabled}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no">No</SelectItem>
+                    <SelectItem value="yes">Yes</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </FormSection>
           </div>
