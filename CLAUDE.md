@@ -70,7 +70,8 @@ npx playwright test  # E2E tests
 ## Architecture Patterns
 
 - **Multi-tenant:** Every table scoped by `tenant_id`. RLS policies enforce isolation via `get_user_tenant_id()`.
-- **Auth flow:** Supabase Auth -> middleware redirects unauthenticated users from `/dashboard` -> API routes call `getAuthUser()`.
+- **Auth flow:** Supabase Auth -> `AuthContext` provides reactive user state via `onAuthStateChange` -> middleware redirects unauthenticated users from `/dashboard` -> API routes call `getAuthUser()`.
+- **Auth context:** `useAuth()` hook provides `user`, `avatarUrl`, `isAdmin`, `plan`, `loading`, `updateAvatar()`, `signOut()`. Wraps entire dashboard in `<AuthProvider>`. Replaces prop-drilling and CustomEvent patterns.
 - **CSRF:** Middleware validates Origin header matches Host for mutating API requests (webhooks exempted).
 - **API routes:** All under `src/app/api/`. Mutating routes require auth and scope queries by `tenant_id`.
 - **Forms:** react-hook-form + Zod validation.
@@ -132,11 +133,13 @@ npx playwright test  # E2E tests
 - Customizable table columns with localStorage persistence (toggle visibility, reorder)
 - Toast z-index fix (z-[100]) to render above Sheet/Dialog overlays
 - Sidebar logo: 36px icon mark + themed text (dark mode compatible), header height bumped to 60px
+- Global auth context (`AuthContext` + `useAuth()` hook) — reactive user state, `onAuthStateChange` listener, centralized `signOut()` with SWR cache clear
+- SWR `dedupingInterval` reduced from 5000ms to 2000ms
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Reorder pension tasks after payroll run in checklists
-- Global auth context for reactive user tracking
-- Reduce SWR `dedupingInterval` or add explicit revalidation on login
+- ~~Global auth context for reactive user tracking~~ (done: Session 22)
+- ~~Reduce SWR `dedupingInterval` or add explicit revalidation on login~~ (done: Session 22 — reduced to 2000ms + cache clear on auth state change)
 - Complete `app.thepaybureau.com` → `thepaybureau.com` domain migration
 - ~~Renumber duplicate `001_` migration files~~ (fixed: renamed to `014_`)
 - Create missing `014_fix_vector_search.sql` migration (or verify fixes applied directly)
@@ -208,6 +211,7 @@ npx playwright test  # E2E tests
 - Toast z-index must be `z-[100]` — higher than Sheet/Dialog overlays (z-50) so toasts are always visible.
 - Table columns should be customizable where practical — toggle visibility + reorder, persist to localStorage.
 - Sidebar logo: use `logo.png` icon mark (36px) + themed text — never `logo-full.png` (dark text baked in, breaks dark mode).
+- **Auth state:** Use `useAuth()` from `src/contexts/AuthContext.tsx` for user data, avatar, admin check, plan, and sign-out. Never prop-drill user state or use `CustomEvent` for auth updates.
 
 ## Design Consistency & Brand Standards
 
@@ -422,6 +426,7 @@ Every new page or component **must** satisfy all of these before it's considered
 | Client CSV import API | `src/app/api/clients/import/route.ts` |
 | Tenant users API | `src/app/api/users/route.ts` |
 | Dashboard layout wrapper | `src/components/layout/DashboardWrapper.tsx` |
+| Auth context & provider | `src/contexts/AuthContext.tsx` |
 
 ## Session Log
 
@@ -629,3 +634,24 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Layout change**: Header height bumped from 52px → 60px across Sidebar, Navbar, and DashboardWrapper skeleton for consistent alignment
 - **Files changed**: `Sidebar.tsx`, `Navbar.tsx`, `DashboardWrapper.tsx`
 - Branch: `claude/update-client-page-form-7T38L`
+
+### Session 22 — Global Auth Context & Codebase Status Assessment (2026-03-13)
+- **Codebase analysis**: Assessed full project status — all major features complete, identified remaining backlog items
+- **Backlog prioritised**: Reorder pension tasks, global auth context, SWR dedup interval, domain migration, missing migration 014, test coverage gaps
+- **User chose**: Global auth context as next priority
+- **New file**: `src/contexts/AuthContext.tsx` — `AuthProvider` + `useAuth()` hook
+  - Supabase `onAuthStateChange` listener for reactive auth state
+  - Provides `user`, `avatarUrl`, `isAdmin`, `plan`, `loading`, `updateAvatar()`, `signOut()`
+  - `signOut()` centralises SWR cache clear + Supabase sign out + redirect
+  - Auto-clears SWR cache on `SIGNED_OUT` and `SIGNED_IN` events (fixes stale data on account switch)
+- **Refactored 7 files** to remove prop-drilling and CustomEvent hacks:
+  - `layout.tsx` — stripped to `<AuthProvider>` + `<DashboardWrapper>` (was ~150 lines of local state)
+  - `DashboardWrapper.tsx` — uses `useAuth()` instead of 6 props
+  - `Navbar.tsx` — uses `useAuth()` for user data and `signOut()`
+  - `Sidebar.tsx` — uses `useAuth()` for `isAdmin` and `plan`; removed unused `user`/`avatarUrl` from interface
+  - `dashboard/page.tsx` — uses `useAuth()` for greeting name
+  - `settings/page.tsx` — uses `updateAvatar()` instead of `CustomEvent` dispatch
+  - `swr.ts` — `dedupingInterval` reduced from 5000ms to 2000ms
+- **Patterns eliminated**: `window.dispatchEvent(new CustomEvent('avatar-updated'))`, prop-drilling user/avatar through layout → wrapper → navbar → sidebar
+- **Build & lint**: Clean pass, no regressions
+- Branch: `claude/update-claude-md-NiZm6`
