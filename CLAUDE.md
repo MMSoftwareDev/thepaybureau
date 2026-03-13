@@ -136,7 +136,7 @@ npx playwright test  # E2E tests
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Reorder pension tasks after payroll run in checklists
 - Global auth context for reactive user tracking
-- Reduce SWR `dedupingInterval` or add explicit revalidation on login
+- ~~Reduce SWR `dedupingInterval` or add explicit revalidation on login~~ (done: `revalidateAllSWR()` on SIGNED_IN, interval already at 2s)
 - Complete `app.thepaybureau.com` → `thepaybureau.com` domain migration
 - ~~Renumber duplicate `001_` migration files~~ (fixed: renamed to `014_`)
 - Create missing `014_fix_vector_search.sql` migration (or verify fixes applied directly)
@@ -629,3 +629,15 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Layout change**: Header height bumped from 52px → 60px across Sidebar, Navbar, and DashboardWrapper skeleton for consistent alignment
 - **Files changed**: `Sidebar.tsx`, `Navbar.tsx`, `DashboardWrapper.tsx`
 - Branch: `claude/update-client-page-form-7T38L`
+
+### Session 22 — SWR Login Revalidation & Unit Tests (2026-03-13)
+- **Goal**: Close backlog item #3 — reduce SWR `dedupingInterval` or add explicit revalidation on login
+- **Finding**: `dedupingInterval` was already at 2000ms (not 5s as backlog noted); SWR cache clear on both SIGNED_IN and SIGNED_OUT already existed in AuthContext
+- **Remaining gap**: `clearSWRCache()` used `{ revalidate: false }` — mounted SWR hooks wouldn't refetch after cache clear, leaving empty state until something else triggered revalidation
+- **Fix**: Added `revalidateAllSWR()` to `src/lib/swr.ts` (calls `mutate(() => true)` to force all mounted hooks to refetch); called it after `clearSWRCache()` on SIGNED_IN event in `AuthContext.tsx`
+- **Tests added (12 total)**:
+  - `src/lib/__tests__/swr.test.ts` (6 tests) — `clearSWRCache` args, `revalidateAllSWR` args, `defaultConfig` values, hook exports
+  - `src/contexts/__tests__/AuthContext.test.tsx` (6 tests) — SIGNED_OUT clears cache + resets state, SIGNED_IN clears + revalidates (order verified), signOut handler, listener cleanup on unmount
+- **Test deps installed**: `jest`, `ts-jest`, `@types/jest`, `@testing-library/react`, `@testing-library/jest-dom`, `jest-environment-jsdom`
+- **Files changed**: `swr.ts`, `AuthContext.tsx`, 2 new test files, `package.json`/`package-lock.json`
+- Branch: `claude/swr-deduping-tests-YqF0W`
