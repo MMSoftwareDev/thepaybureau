@@ -55,10 +55,10 @@ import {
   ArrowUp,
   ArrowDown,
   Download,
-  ClipboardList,
   Shield,
   CreditCard,
   Settings,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
@@ -87,30 +87,27 @@ interface Client {
   accountant_name?: string | null
   accountant_email?: string | null
   accountant_phone?: string | null
-  // Payroll Contact
-  payroll_contact_name?: string | null
-  payroll_contact_email?: string | null
-  payroll_contact_phone?: string | null
   // Tax & Compliance
   vat_number?: string | null
   utr?: string | null
   cis_registered?: boolean | null
   sic_code?: string | null
   hmrc_agent_authorised?: boolean | null
-  tpas_authorised?: boolean | null
   auto_enrolment_status?: string | null
   // Company Details
   company_type?: string | null
   incorporation_date?: string | null
-  registered_address?: { street?: string; city?: string; postcode?: string; country?: string } | null
   director_name?: string | null
   // Billing
   fee?: string | null
   billing_frequency?: string | null
   payment_method?: string | null
-  // Operational
+  // Contract
+  contract_type?: string | null
   start_date?: string | null
   contract_end_date?: string | null
+  notice_period_value?: number | null
+  notice_period_unit?: string | null
   assigned_to?: string | null
   referral_source?: string | null
   bacs_bureau_number?: string | null
@@ -127,10 +124,77 @@ interface TenantUser {
 }
 
 type StatusFilter = 'all' | 'active' | 'inactive'
-type SortField = 'name' | 'status' | 'contact_name' | 'contact_email' | 'industry' | 'employee_count' | 'created_at' | 'company_type' | 'start_date' | 'assigned_to'
+type SortField = 'name' | 'status' | 'contact_name' | 'contact_email' | 'industry' | 'employee_count' | 'created_at' | 'company_type' | 'start_date' | 'assigned_to' | 'contract_type'
 type SortDirection = 'asc' | 'desc'
 
 const PAGE_SIZE = 25
+const LOCALSTORAGE_KEY = 'tpb_client_columns'
+
+// ── Column Definitions ────────────────────────────────────────────────────────
+
+interface ColumnDef {
+  id: string
+  label: string
+  sortField?: SortField
+  defaultVisible: boolean
+  getValue: (client: Client, tenantUsers: TenantUser[]) => string
+}
+
+const COMPANY_TYPE_LABELS: Record<string, string> = {
+  ltd: 'Ltd', llp: 'LLP', sole_trader: 'Sole Trader', charity: 'Charity',
+  public_sector: 'Public Sector', partnership: 'Partnership',
+}
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  bacs: 'BACS', standing_order: 'Standing Order', card: 'Card',
+  invoice: 'Invoice', direct_debit: 'Direct Debit',
+}
+
+const ALL_COLUMNS: ColumnDef[] = [
+  { id: 'status', label: 'Status', sortField: 'status', defaultVisible: true, getValue: (c) => c.status },
+  { id: 'contact_name', label: 'Contact', sortField: 'contact_name', defaultVisible: true, getValue: (c) => c.contact_name || '-' },
+  { id: 'contact_email', label: 'Email', sortField: 'contact_email', defaultVisible: true, getValue: (c) => c.contact_email || '-' },
+  { id: 'contact_phone', label: 'Phone', sortField: undefined, defaultVisible: false, getValue: (c) => c.contact_phone || '-' },
+  { id: 'industry', label: 'Industry', sortField: 'industry', defaultVisible: false, getValue: (c) => c.industry || '-' },
+  { id: 'domain', label: 'Domain', sortField: undefined, defaultVisible: false, getValue: (c) => c.domain || '-' },
+  { id: 'employee_count', label: 'Employees', sortField: 'employee_count', defaultVisible: false, getValue: (c) => c.employee_count?.toString() || '-' },
+  { id: 'company_type', label: 'Type', sortField: 'company_type', defaultVisible: false, getValue: (c) => c.company_type ? COMPANY_TYPE_LABELS[c.company_type] || c.company_type : '-' },
+  { id: 'start_date', label: 'Start Date', sortField: 'start_date', defaultVisible: false, getValue: (c) => c.start_date ? format(new Date(c.start_date), 'dd MMM yyyy') : '-' },
+  { id: 'contract_type', label: 'Contract', sortField: 'contract_type', defaultVisible: false, getValue: (c) => c.contract_type === 'fixed_term' ? 'Fixed Term' : c.contract_type === 'rolling' ? 'Rolling' : '-' },
+  { id: 'assigned_to', label: 'Assigned To', sortField: 'assigned_to', defaultVisible: false, getValue: (c, users) => c.assigned_to ? users.find(u => u.id === c.assigned_to)?.name || '-' : '-' },
+  { id: 'created_at', label: 'Date Added', sortField: 'created_at', defaultVisible: false, getValue: (c) => c.created_at ? format(new Date(c.created_at), 'dd MMM yyyy') : '-' },
+  { id: 'fee', label: 'Fee', sortField: undefined, defaultVisible: false, getValue: (c) => c.fee || '-' },
+  { id: 'billing_frequency', label: 'Billing', sortField: undefined, defaultVisible: false, getValue: (c) => c.billing_frequency ? { monthly: 'Monthly', per_run: 'Per Run', quarterly: 'Quarterly', annually: 'Annually' }[c.billing_frequency] || c.billing_frequency : '-' },
+  { id: 'payment_method', label: 'Payment', sortField: undefined, defaultVisible: false, getValue: (c) => c.payment_method ? PAYMENT_METHOD_LABELS[c.payment_method] || c.payment_method : '-' },
+]
+
+const DEFAULT_VISIBLE = ALL_COLUMNS.filter(c => c.defaultVisible).map(c => c.id)
+const DEFAULT_ORDER = ALL_COLUMNS.map(c => c.id)
+
+function loadColumnPrefs(): { visible: string[]; order: string[] } {
+  try {
+    const stored = localStorage.getItem(LOCALSTORAGE_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      // Validate — remove any IDs that no longer exist, add any new ones
+      const validIds = new Set(ALL_COLUMNS.map(c => c.id))
+      const visible = (parsed.visible as string[]).filter(id => validIds.has(id))
+      const order = (parsed.order as string[]).filter(id => validIds.has(id))
+      // Add any new columns not in stored order
+      for (const col of ALL_COLUMNS) {
+        if (!order.includes(col.id)) order.push(col.id)
+      }
+      return { visible, order }
+    }
+  } catch { /* ignore */ }
+  return { visible: DEFAULT_VISIBLE, order: DEFAULT_ORDER }
+}
+
+function saveColumnPrefs(prefs: { visible: string[]; order: string[] }) {
+  try {
+    localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(prefs))
+  } catch { /* ignore */ }
+}
 
 // ── Collapsible Form Section ───────────────────────────────────────────────────
 
@@ -259,33 +323,27 @@ export default function ClientsPage() {
   const [formAccountantName, setFormAccountantName] = useState('')
   const [formAccountantEmail, setFormAccountantEmail] = useState('')
   const [formAccountantPhone, setFormAccountantPhone] = useState('')
-  // Payroll Contact
-  const [formPayrollContactName, setFormPayrollContactName] = useState('')
-  const [formPayrollContactEmail, setFormPayrollContactEmail] = useState('')
-  const [formPayrollContactPhone, setFormPayrollContactPhone] = useState('')
   // Tax & Compliance
   const [formVatNumber, setFormVatNumber] = useState('')
   const [formUtr, setFormUtr] = useState('')
   const [formCisRegistered, setFormCisRegistered] = useState('no')
   const [formSicCode, setFormSicCode] = useState('')
   const [formHmrcAgentAuthorised, setFormHmrcAgentAuthorised] = useState('no')
-  const [formTpasAuthorised, setFormTpasAuthorised] = useState('no')
   const [formAutoEnrolmentStatus, setFormAutoEnrolmentStatus] = useState('')
-  // Company Details (new)
+  // Company Details
   const [formCompanyType, setFormCompanyType] = useState('')
   const [formIncorporationDate, setFormIncorporationDate] = useState('')
-  const [formRegisteredStreet, setFormRegisteredStreet] = useState('')
-  const [formRegisteredCity, setFormRegisteredCity] = useState('')
-  const [formRegisteredPostcode, setFormRegisteredPostcode] = useState('')
-  const [formRegisteredCountry, setFormRegisteredCountry] = useState('')
   const [formDirectorName, setFormDirectorName] = useState('')
   // Billing
   const [formFee, setFormFee] = useState('')
   const [formBillingFrequency, setFormBillingFrequency] = useState('')
   const [formPaymentMethod, setFormPaymentMethod] = useState('')
-  // Operational
+  // Contract
+  const [formContractType, setFormContractType] = useState('rolling')
   const [formStartDate, setFormStartDate] = useState('')
   const [formContractEndDate, setFormContractEndDate] = useState('')
+  const [formNoticePeriodValue, setFormNoticePeriodValue] = useState('')
+  const [formNoticePeriodUnit, setFormNoticePeriodUnit] = useState('months')
   const [formAssignedTo, setFormAssignedTo] = useState('')
   const [formReferralSource, setFormReferralSource] = useState('')
   const [formBacsBureauNumber, setFormBacsBureauNumber] = useState('')
@@ -307,6 +365,51 @@ export default function ClientsPage() {
       .then(res => res.ok ? res.json() : [])
       .then(data => setTenantUsers(Array.isArray(data) ? data : []))
       .catch(() => setTenantUsers([]))
+  }, [])
+
+  // Column customization
+  const [columnPrefs, setColumnPrefs] = useState<{ visible: string[]; order: string[] }>({ visible: DEFAULT_VISIBLE, order: DEFAULT_ORDER })
+  const [columnsDialogOpen, setColumnsDialogOpen] = useState(false)
+  useEffect(() => {
+    setColumnPrefs(loadColumnPrefs())
+  }, [])
+
+  const activeColumns = useMemo(() => {
+    return columnPrefs.order
+      .filter(id => columnPrefs.visible.includes(id))
+      .map(id => ALL_COLUMNS.find(c => c.id === id)!)
+      .filter(Boolean)
+  }, [columnPrefs])
+
+  const toggleColumn = useCallback((id: string) => {
+    setColumnPrefs(prev => {
+      const visible = prev.visible.includes(id)
+        ? prev.visible.filter(v => v !== id)
+        : [...prev.visible, id]
+      const next = { ...prev, visible }
+      saveColumnPrefs(next)
+      return next
+    })
+  }, [])
+
+  const moveColumn = useCallback((id: string, direction: 'up' | 'down') => {
+    setColumnPrefs(prev => {
+      const order = [...prev.order]
+      const idx = order.indexOf(id)
+      if (idx < 0) return prev
+      const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+      if (swapIdx < 0 || swapIdx >= order.length) return prev
+      ;[order[idx], order[swapIdx]] = [order[swapIdx], order[idx]]
+      const next = { ...prev, order }
+      saveColumnPrefs(next)
+      return next
+    })
+  }, [])
+
+  const resetColumns = useCallback(() => {
+    const next = { visible: DEFAULT_VISIBLE, order: DEFAULT_ORDER }
+    setColumnPrefs(next)
+    saveColumnPrefs(next)
   }, [])
 
   // ── Form Handlers ────────────────────────────────────────────────────────
@@ -331,28 +434,23 @@ export default function ClientsPage() {
     setFormAccountantName('')
     setFormAccountantEmail('')
     setFormAccountantPhone('')
-    setFormPayrollContactName('')
-    setFormPayrollContactEmail('')
-    setFormPayrollContactPhone('')
     setFormVatNumber('')
     setFormUtr('')
     setFormCisRegistered('no')
     setFormSicCode('')
     setFormHmrcAgentAuthorised('no')
-    setFormTpasAuthorised('no')
     setFormAutoEnrolmentStatus('')
     setFormCompanyType('')
     setFormIncorporationDate('')
-    setFormRegisteredStreet('')
-    setFormRegisteredCity('')
-    setFormRegisteredPostcode('')
-    setFormRegisteredCountry('')
     setFormDirectorName('')
     setFormFee('')
     setFormBillingFrequency('')
     setFormPaymentMethod('')
+    setFormContractType('rolling')
     setFormStartDate('')
     setFormContractEndDate('')
+    setFormNoticePeriodValue('')
+    setFormNoticePeriodUnit('months')
     setFormAssignedTo('')
     setFormReferralSource('')
     setFormBacsBureauNumber('')
@@ -389,29 +487,23 @@ export default function ClientsPage() {
     setFormAccountantName(client.accountant_name || '')
     setFormAccountantEmail(client.accountant_email || '')
     setFormAccountantPhone(client.accountant_phone || '')
-    setFormPayrollContactName(client.payroll_contact_name || '')
-    setFormPayrollContactEmail(client.payroll_contact_email || '')
-    setFormPayrollContactPhone(client.payroll_contact_phone || '')
     setFormVatNumber(client.vat_number || '')
     setFormUtr(client.utr || '')
     setFormCisRegistered(client.cis_registered ? 'yes' : 'no')
     setFormSicCode(client.sic_code || '')
     setFormHmrcAgentAuthorised(client.hmrc_agent_authorised ? 'yes' : 'no')
-    setFormTpasAuthorised(client.tpas_authorised ? 'yes' : 'no')
     setFormAutoEnrolmentStatus(client.auto_enrolment_status || '')
     setFormCompanyType(client.company_type || '')
     setFormIncorporationDate(client.incorporation_date || '')
-    const regAddr = client.registered_address as { street?: string; city?: string; postcode?: string; country?: string } | null
-    setFormRegisteredStreet(regAddr?.street || '')
-    setFormRegisteredCity(regAddr?.city || '')
-    setFormRegisteredPostcode(regAddr?.postcode || '')
-    setFormRegisteredCountry(regAddr?.country || '')
     setFormDirectorName(client.director_name || '')
     setFormFee(client.fee || '')
     setFormBillingFrequency(client.billing_frequency || '')
     setFormPaymentMethod(client.payment_method || '')
+    setFormContractType(client.contract_type || 'rolling')
     setFormStartDate(client.start_date || '')
     setFormContractEndDate(client.contract_end_date || '')
+    setFormNoticePeriodValue(client.notice_period_value?.toString() || '')
+    setFormNoticePeriodUnit(client.notice_period_unit || 'months')
     setFormAssignedTo(client.assigned_to || '')
     setFormReferralSource(client.referral_source || '')
     setFormBacsBureauNumber(client.bacs_bureau_number || '')
@@ -451,35 +543,27 @@ export default function ClientsPage() {
         accountant_name: formAccountantName.trim() || undefined,
         accountant_email: formAccountantEmail.trim() || undefined,
         accountant_phone: formAccountantPhone.trim() || undefined,
-        // Payroll Contact
-        payroll_contact_name: formPayrollContactName.trim() || undefined,
-        payroll_contact_email: formPayrollContactEmail.trim() || undefined,
-        payroll_contact_phone: formPayrollContactPhone.trim() || undefined,
         // Tax & Compliance
         vat_number: formVatNumber.trim() || undefined,
         utr: formUtr.trim() || undefined,
         cis_registered: formCisRegistered === 'yes',
         sic_code: formSicCode.trim() || undefined,
         hmrc_agent_authorised: formHmrcAgentAuthorised === 'yes',
-        tpas_authorised: formTpasAuthorised === 'yes',
         auto_enrolment_status: formAutoEnrolmentStatus || undefined,
         // Company Details
         company_type: formCompanyType || undefined,
         incorporation_date: formIncorporationDate || undefined,
-        registered_address: (formRegisteredStreet || formRegisteredCity || formRegisteredPostcode || formRegisteredCountry) ? {
-          street: formRegisteredStreet.trim() || undefined,
-          city: formRegisteredCity.trim() || undefined,
-          postcode: formRegisteredPostcode.trim() || undefined,
-          country: formRegisteredCountry.trim() || undefined,
-        } : undefined,
         director_name: formDirectorName.trim() || undefined,
         // Billing
         fee: formFee.trim() || undefined,
         billing_frequency: formBillingFrequency || undefined,
-        payment_method: formPaymentMethod.trim() || undefined,
-        // Operational
+        payment_method: formPaymentMethod || undefined,
+        // Contract
+        contract_type: formContractType || undefined,
         start_date: formStartDate || undefined,
-        contract_end_date: formContractEndDate || undefined,
+        contract_end_date: formContractType === 'fixed_term' ? (formContractEndDate || undefined) : undefined,
+        notice_period_value: formNoticePeriodValue ? parseInt(formNoticePeriodValue) : undefined,
+        notice_period_unit: formNoticePeriodValue ? formNoticePeriodUnit : undefined,
         assigned_to: formAssignedTo || undefined,
         referral_source: formReferralSource.trim() || undefined,
         bacs_bureau_number: formBacsBureauNumber.trim() || undefined,
@@ -641,6 +725,8 @@ export default function ClientsPage() {
           return dir * (a.company_type || '').localeCompare(b.company_type || '')
         case 'start_date':
           return dir * ((a.start_date || '').localeCompare(b.start_date || ''))
+        case 'contract_type':
+          return dir * (a.contract_type || '').localeCompare(b.contract_type || '')
         case 'assigned_to': {
           const aName = tenantUsers.find(u => u.id === a.assigned_to)?.name || ''
           const bName = tenantUsers.find(u => u.id === b.assigned_to)?.name || ''
@@ -735,6 +821,16 @@ export default function ClientsPage() {
               <Download className="w-4 h-4" />
             )}
             Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-sm gap-1.5"
+            style={{ borderColor: colors.border, color: colors.text.secondary }}
+            onClick={() => setColumnsDialogOpen(true)}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Columns
           </Button>
           <Button
             onClick={openAdd}
@@ -870,17 +966,13 @@ export default function ClientsPage() {
               <TableHeader>
                 <TableRow style={{ backgroundColor: colors.lightBg, borderBottom: `1px solid ${colors.border}` }}>
                   <SortableHeader label="Client Name" field="name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} />
-                  <SortableHeader label="Status" field="status" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden md:table-cell" />
-                  <SortableHeader label="Contact" field="contact_name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden lg:table-cell" />
-                  <SortableHeader label="Email" field="contact_email" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden lg:table-cell" />
-                  <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Phone</TableHead>
-                  <SortableHeader label="Industry" field="industry" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden xl:table-cell" />
-                  <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden 2xl:table-cell" style={{ color: colors.text.muted }}>Domain</TableHead>
-                  <SortableHeader label="Employees" field="employee_count" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden xl:table-cell" />
-                  <SortableHeader label="Type" field="company_type" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden xl:table-cell" />
-                  <SortableHeader label="Start Date" field="start_date" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden xl:table-cell" />
-                  <SortableHeader label="Assigned To" field="assigned_to" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden 2xl:table-cell" />
-                  <SortableHeader label="Date Added" field="created_at" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden 2xl:table-cell" />
+                  {activeColumns.map((col) => (
+                    col.sortField ? (
+                      <SortableHeader key={col.id} label={col.label} field={col.sortField} currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} />
+                    ) : (
+                      <TableHead key={col.id} className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>{col.label}</TableHead>
+                    )
+                  ))}
                   <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -895,39 +987,11 @@ export default function ClientsPage() {
                     <TableCell className="px-4 py-3 font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
                       {client.name}
                     </TableCell>
-                    <TableCell className="px-4 py-3 hidden md:table-cell">
-                      {statusBadge(client.status)}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.contact_name || '-'}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.contact_email || '-'}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.contact_phone || '-'}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.industry || '-'}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.domain || '-'}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.employee_count || '-'}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.company_type ? { ltd: 'Ltd', llp: 'LLP', sole_trader: 'Sole Trader', charity: 'Charity', public_sector: 'Public Sector', partnership: 'Partnership' }[client.company_type] || client.company_type : '-'}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.start_date ? format(new Date(client.start_date), 'dd MMM yyyy') : '-'}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                      {client.assigned_to ? tenantUsers.find(u => u.id === client.assigned_to)?.name || '-' : '-'}
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
-                      {client.created_at ? format(new Date(client.created_at), 'dd MMM yyyy') : '-'}
-                    </TableCell>
+                    {activeColumns.map((col) => (
+                      <TableCell key={col.id} className="px-4 py-3 text-sm font-[family-name:var(--font-body)]" style={{ color: col.id === 'created_at' ? colors.text.muted : colors.text.secondary }}>
+                        {col.id === 'status' ? statusBadge(client.status) : col.getValue(client, tenantUsers)}
+                      </TableCell>
+                    ))}
                     <TableCell className="px-4 py-3">
                       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                         <Button
@@ -1036,6 +1100,98 @@ export default function ClientsPage() {
                   Delete
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Column Customizer Dialog */}
+      <Dialog open={columnsDialogOpen} onOpenChange={setColumnsDialogOpen}>
+        <DialogContent style={{ backgroundColor: colors.surface, borderColor: colors.border }} className="max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+              Customize Columns
+            </DialogTitle>
+            <DialogDescription className="font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+              Toggle columns on or off and reorder them using the arrows.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[400px] overflow-y-auto -mx-1">
+            {/* Fixed: Client Name always first */}
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-lg mb-1"
+              style={{ backgroundColor: `${colors.primary}08` }}
+            >
+              <input type="checkbox" checked disabled className="w-4 h-4 accent-[var(--login-purple)] opacity-50" />
+              <span className="text-sm font-medium font-[family-name:var(--font-inter)] flex-1" style={{ color: colors.text.muted }}>
+                Client Name
+              </span>
+              <span className="text-[10px] font-medium font-[family-name:var(--font-inter)] px-1.5 py-0.5 rounded" style={{ color: colors.text.muted, backgroundColor: `${colors.border}60` }}>
+                Pinned
+              </span>
+            </div>
+            {columnPrefs.order.map((id, idx) => {
+              const col = ALL_COLUMNS.find(c => c.id === id)
+              if (!col) return null
+              const isVisible = columnPrefs.visible.includes(id)
+              return (
+                <div
+                  key={id}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors"
+                  style={{ backgroundColor: isVisible ? 'transparent' : `${colors.border}20` }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isVisible}
+                    onChange={() => toggleColumn(id)}
+                    className="w-4 h-4 accent-[var(--login-purple)] cursor-pointer"
+                  />
+                  <span
+                    className="text-sm font-medium font-[family-name:var(--font-inter)] flex-1"
+                    style={{ color: isVisible ? colors.text.primary : colors.text.muted }}
+                  >
+                    {col.label}
+                  </span>
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      className="p-1 rounded transition-colors hover:bg-[var(--login-purple)]/10 disabled:opacity-30"
+                      disabled={idx === 0}
+                      onClick={() => moveColumn(id, 'up')}
+                      title="Move up"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
+                    </button>
+                    <button
+                      type="button"
+                      className="p-1 rounded transition-colors hover:bg-[var(--login-purple)]/10 disabled:opacity-30"
+                      disabled={idx === columnPrefs.order.length - 1}
+                      onClick={() => moveColumn(id, 'down')}
+                      title="Move down"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={resetColumns}
+              style={{ borderColor: colors.border, color: colors.text.secondary }}
+            >
+              Reset to Default
+            </Button>
+            <Button
+              size="sm"
+              className="text-white"
+              style={{ backgroundColor: colors.primary }}
+              onClick={() => setColumnsDialogOpen(false)}
+            >
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1175,40 +1331,6 @@ export default function ClientsPage() {
               </div>
             </FormSection>
 
-            <FormSection title="Payroll Contact" icon={ClipboardList} defaultOpen={false} colors={colors}>
-              <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Name</Label>
-                <Input value={formPayrollContactName} onChange={(e) => setFormPayrollContactName(e.target.value)} placeholder="Person who sends timesheets" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
-              </div>
-              <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Email</Label>
-                <Input type="email" value={formPayrollContactEmail} onChange={(e) => setFormPayrollContactEmail(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
-              </div>
-              <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Phone</Label>
-                <Input value={formPayrollContactPhone} onChange={(e) => setFormPayrollContactPhone(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
-              </div>
-            </FormSection>
-
-            <FormSection title="Registered Address" icon={MapPin} defaultOpen={false} colors={colors}>
-              <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Street</Label>
-                <Input value={formRegisteredStreet} onChange={(e) => setFormRegisteredStreet(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
-              </div>
-              <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>City</Label>
-                <Input value={formRegisteredCity} onChange={(e) => setFormRegisteredCity(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
-              </div>
-              <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Postcode</Label>
-                <Input value={formRegisteredPostcode} onChange={(e) => setFormRegisteredPostcode(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
-              </div>
-              <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Country</Label>
-                <Input value={formRegisteredCountry} onChange={(e) => setFormRegisteredCountry(e.target.value)} placeholder="e.g. United Kingdom" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
-              </div>
-            </FormSection>
-
             <FormSection title="Tax & Compliance" icon={Shield} defaultOpen={false} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>VAT Number</Label>
@@ -1229,18 +1351,8 @@ export default function ClientsPage() {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>HMRC Agent Authorised (64-8)</Label>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>HMRC PAYE Online Authorisation</Label>
                 <Select value={formHmrcAgentAuthorised} onValueChange={setFormHmrcAgentAuthorised}>
-                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="no">No</SelectItem>
-                    <SelectItem value="yes">Yes</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>TPAS Authorised</Label>
-                <Select value={formTpasAuthorised} onValueChange={setFormTpasAuthorised}>
                   <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="no">No</SelectItem>
@@ -1253,9 +1365,9 @@ export default function ClientsPage() {
                 <Select value={formAutoEnrolmentStatus} onValueChange={setFormAutoEnrolmentStatus}>
                   <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue placeholder="Select..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="enrolled">Enrolled</SelectItem>
                     <SelectItem value="exempt">Exempt</SelectItem>
-                    <SelectItem value="postponed">Postponed</SelectItem>
+                    <SelectItem value="currently_not_required">Currently Not Required</SelectItem>
+                    <SelectItem value="enrolled">Enrolled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1280,15 +1392,58 @@ export default function ClientsPage() {
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Payment Method</Label>
-                <Input value={formPaymentMethod} onChange={(e) => setFormPaymentMethod(e.target.value)} placeholder="e.g. BACS, Standing Order, Card" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+                <Select value={formPaymentMethod} onValueChange={setFormPaymentMethod}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bacs">BACS</SelectItem>
+                    <SelectItem value="standing_order">Standing Order</SelectItem>
+                    <SelectItem value="card">Card</SelectItem>
+                    <SelectItem value="invoice">Invoice</SelectItem>
+                    <SelectItem value="direct_debit">Direct Debit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Contract Type</Label>
+                <Select value={formContractType} onValueChange={setFormContractType}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="rolling">Rolling</SelectItem>
+                    <SelectItem value="fixed_term">Fixed Term</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Start Date</Label>
                 <Input type="date" value={formStartDate} onChange={(e) => setFormStartDate(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
+              {formContractType === 'fixed_term' && (
+                <div>
+                  <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Contract End Date</Label>
+                  <Input type="date" value={formContractEndDate} onChange={(e) => setFormContractEndDate(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+                </div>
+              )}
               <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Contract End Date</Label>
-                <Input type="date" value={formContractEndDate} onChange={(e) => setFormContractEndDate(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Notice Period</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    type="number"
+                    min="1"
+                    value={formNoticePeriodValue}
+                    onChange={(e) => setFormNoticePeriodValue(e.target.value)}
+                    placeholder="e.g. 1"
+                    className="text-sm flex-1"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                  />
+                  <Select value={formNoticePeriodUnit} onValueChange={setFormNoticePeriodUnit}>
+                    <SelectTrigger className="text-sm w-[120px]" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="days">Days</SelectItem>
+                      <SelectItem value="weeks">Weeks</SelectItem>
+                      <SelectItem value="months">Months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </FormSection>
 
