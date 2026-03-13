@@ -37,13 +37,20 @@ import {
   Building2,
   UserCheck,
   UserX,
-  UserPlus,
   MapPin,
   Phone,
   Mail,
+  Globe,
+  UserPlus,
+  Calculator,
+  Filter,
+  ArrowUpDown,
+  X,
+  Calendar,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
+import { format } from 'date-fns'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -61,10 +68,18 @@ interface Client {
   contact_email?: string | null
   contact_phone?: string | null
   notes?: string | null
+  domain?: string | null
+  secondary_contact_name?: string | null
+  secondary_contact_email?: string | null
+  secondary_contact_phone?: string | null
+  accountant_name?: string | null
+  accountant_email?: string | null
+  accountant_phone?: string | null
   created_at: string
 }
 
-type StatusFilter = 'all' | 'active' | 'prospect' | 'inactive'
+type StatusFilter = 'all' | 'active' | 'inactive'
+type SortOption = 'name-asc' | 'name-desc' | 'date-newest' | 'date-oldest' | 'employees-high' | 'employees-low'
 
 // ── Collapsible Section ────────────────────────────────────────────────────────
 
@@ -118,6 +133,11 @@ export default function ClientsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedSearch = useDebounce(searchQuery, 300)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [industryFilter, setIndustryFilter] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<SortOption>('name-asc')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
 
   // Sidebar state
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -130,6 +150,7 @@ export default function ClientsPage() {
   const [formIndustry, setFormIndustry] = useState('')
   const [formEmployeeCount, setFormEmployeeCount] = useState('')
   const [formStatus, setFormStatus] = useState('active')
+  const [formDomain, setFormDomain] = useState('')
   const [formStreet, setFormStreet] = useState('')
   const [formCity, setFormCity] = useState('')
   const [formPostcode, setFormPostcode] = useState('')
@@ -137,6 +158,12 @@ export default function ClientsPage() {
   const [formContactEmail, setFormContactEmail] = useState('')
   const [formContactPhone, setFormContactPhone] = useState('')
   const [formNotes, setFormNotes] = useState('')
+  const [formSecondaryContactName, setFormSecondaryContactName] = useState('')
+  const [formSecondaryContactEmail, setFormSecondaryContactEmail] = useState('')
+  const [formSecondaryContactPhone, setFormSecondaryContactPhone] = useState('')
+  const [formAccountantName, setFormAccountantName] = useState('')
+  const [formAccountantEmail, setFormAccountantEmail] = useState('')
+  const [formAccountantPhone, setFormAccountantPhone] = useState('')
 
   // Delete state
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -147,6 +174,7 @@ export default function ClientsPage() {
     setFormIndustry('')
     setFormEmployeeCount('')
     setFormStatus('active')
+    setFormDomain('')
     setFormStreet('')
     setFormCity('')
     setFormPostcode('')
@@ -154,6 +182,12 @@ export default function ClientsPage() {
     setFormContactEmail('')
     setFormContactPhone('')
     setFormNotes('')
+    setFormSecondaryContactName('')
+    setFormSecondaryContactEmail('')
+    setFormSecondaryContactPhone('')
+    setFormAccountantName('')
+    setFormAccountantEmail('')
+    setFormAccountantPhone('')
     setEditingClient(null)
   }, [])
 
@@ -169,6 +203,7 @@ export default function ClientsPage() {
     setFormIndustry(client.industry || '')
     setFormEmployeeCount(client.employee_count?.toString() || '')
     setFormStatus(client.status || 'active')
+    setFormDomain(client.domain || '')
     const addr = client.address as { street?: string; city?: string; postcode?: string } | null
     setFormStreet(addr?.street || '')
     setFormCity(addr?.city || '')
@@ -177,6 +212,12 @@ export default function ClientsPage() {
     setFormContactEmail(client.contact_email || '')
     setFormContactPhone(client.contact_phone || '')
     setFormNotes(client.notes || '')
+    setFormSecondaryContactName(client.secondary_contact_name || '')
+    setFormSecondaryContactEmail(client.secondary_contact_email || '')
+    setFormSecondaryContactPhone(client.secondary_contact_phone || '')
+    setFormAccountantName(client.accountant_name || '')
+    setFormAccountantEmail(client.accountant_email || '')
+    setFormAccountantPhone(client.accountant_phone || '')
     setSheetOpen(true)
   }, [])
 
@@ -194,6 +235,7 @@ export default function ClientsPage() {
         industry: formIndustry.trim() || undefined,
         employee_count: formEmployeeCount ? parseInt(formEmployeeCount) : undefined,
         status: formStatus,
+        domain: formDomain.trim() || undefined,
         address: (formStreet || formCity || formPostcode) ? {
           street: formStreet.trim() || undefined,
           city: formCity.trim() || undefined,
@@ -203,6 +245,12 @@ export default function ClientsPage() {
         contact_email: formContactEmail.trim() || undefined,
         contact_phone: formContactPhone.trim() || undefined,
         notes: formNotes.trim() || undefined,
+        secondary_contact_name: formSecondaryContactName.trim() || undefined,
+        secondary_contact_email: formSecondaryContactEmail.trim() || undefined,
+        secondary_contact_phone: formSecondaryContactPhone.trim() || undefined,
+        accountant_name: formAccountantName.trim() || undefined,
+        accountant_email: formAccountantEmail.trim() || undefined,
+        accountant_phone: formAccountantPhone.trim() || undefined,
       }
 
       const url = editingClient ? `/api/clients/${editingClient.id}` : '/api/clients'
@@ -245,7 +293,32 @@ export default function ClientsPage() {
     }
   }
 
-  // Filtered data
+  // Unique industries for filter dropdown
+  const industries = useMemo(() => {
+    if (!clients) return []
+    const allClients = clients as Client[]
+    const unique = [...new Set(allClients.map((c) => c.industry).filter(Boolean))] as string[]
+    return unique.sort()
+  }, [clients])
+
+  // Active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (industryFilter !== 'all') count++
+    if (sortBy !== 'name-asc') count++
+    if (dateFrom) count++
+    if (dateTo) count++
+    return count
+  }, [industryFilter, sortBy, dateFrom, dateTo])
+
+  const clearFilters = useCallback(() => {
+    setIndustryFilter('all')
+    setSortBy('name-asc')
+    setDateFrom('')
+    setDateTo('')
+  }, [])
+
+  // Filtered + sorted data
   const clientList: Client[] = useMemo(() => {
     if (!clients) return []
     let filtered = clients as Client[]
@@ -254,17 +327,54 @@ export default function ClientsPage() {
       filtered = filtered.filter((c) => c.status === statusFilter)
     }
 
+    if (industryFilter !== 'all') {
+      filtered = filtered.filter((c) => c.industry === industryFilter)
+    }
+
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase()
       filtered = filtered.filter((c) =>
         c.name.toLowerCase().includes(q) ||
         c.contact_email?.toLowerCase().includes(q) ||
-        c.contact_name?.toLowerCase().includes(q)
+        c.contact_name?.toLowerCase().includes(q) ||
+        c.domain?.toLowerCase().includes(q) ||
+        c.company_number?.toLowerCase().includes(q)
       )
     }
 
+    if (dateFrom) {
+      const from = new Date(dateFrom)
+      filtered = filtered.filter((c) => new Date(c.created_at) >= from)
+    }
+
+    if (dateTo) {
+      const to = new Date(dateTo)
+      to.setHours(23, 59, 59, 999)
+      filtered = filtered.filter((c) => new Date(c.created_at) <= to)
+    }
+
+    // Sort
+    filtered = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'name-asc':
+          return a.name.localeCompare(b.name)
+        case 'name-desc':
+          return b.name.localeCompare(a.name)
+        case 'date-newest':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        case 'date-oldest':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        case 'employees-high':
+          return (b.employee_count || 0) - (a.employee_count || 0)
+        case 'employees-low':
+          return (a.employee_count || 0) - (b.employee_count || 0)
+        default:
+          return 0
+      }
+    })
+
     return filtered
-  }, [clients, statusFilter, debouncedSearch])
+  }, [clients, statusFilter, industryFilter, debouncedSearch, sortBy, dateFrom, dateTo])
 
   // KPI counts
   const counts = useMemo(() => {
@@ -272,7 +382,6 @@ export default function ClientsPage() {
     return {
       total: all.length,
       active: all.filter((c) => c.status === 'active').length,
-      prospect: all.filter((c) => c.status === 'prospect').length,
       inactive: all.filter((c) => c.status === 'inactive').length,
     }
   }, [clients])
@@ -281,8 +390,6 @@ export default function ClientsPage() {
     switch (status) {
       case 'active':
         return <Badge className="text-xs" style={{ backgroundColor: `${colors.success}20`, color: colors.success, border: `1px solid ${colors.success}40` }}>Active</Badge>
-      case 'prospect':
-        return <Badge className="text-xs" style={{ backgroundColor: `${colors.accent}20`, color: colors.accent, border: `1px solid ${colors.accent}40` }}>Prospect</Badge>
       case 'inactive':
         return <Badge className="text-xs" style={{ backgroundColor: `${colors.text.muted}20`, color: colors.text.muted, border: `1px solid ${colors.text.muted}40` }}>Inactive</Badge>
       default:
@@ -299,8 +406,8 @@ export default function ClientsPage() {
           <div className="h-8 w-48 rounded-lg animate-pulse" style={{ backgroundColor: `${colors.border}` }} />
           <div className="h-9 w-32 rounded-lg animate-pulse" style={{ backgroundColor: `${colors.border}` }} />
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid grid-cols-3 gap-3">
+          {[...Array(3)].map((_, i) => (
             <div key={i} className="h-20 rounded-xl animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
           ))}
         </div>
@@ -332,23 +439,21 @@ export default function ClientsPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total Clients', count: counts.total, icon: Users, color: colors.primary },
-          { label: 'Active', count: counts.active, icon: UserCheck, color: colors.success },
-          { label: 'Prospect', count: counts.prospect, icon: UserPlus, color: colors.accent },
-          { label: 'Inactive', count: counts.inactive, icon: UserX, color: colors.text.muted },
+          { label: 'Total Clients', count: counts.total, icon: Users, color: colors.primary, filterKey: 'all' as StatusFilter },
+          { label: 'Active', count: counts.active, icon: UserCheck, color: colors.success, filterKey: 'active' as StatusFilter },
+          { label: 'Inactive', count: counts.inactive, icon: UserX, color: colors.text.muted, filterKey: 'inactive' as StatusFilter },
         ].map((kpi) => (
           <Card
             key={kpi.label}
             className="rounded-xl shadow-sm cursor-pointer transition-colors"
             style={{
               backgroundColor: colors.surface,
-              border: `1px solid ${statusFilter === kpi.label.toLowerCase().replace('total clients', 'all') ? kpi.color : colors.border}`,
+              border: `1px solid ${statusFilter === kpi.filterKey ? kpi.color : colors.border}`,
             }}
             onClick={() => {
-              const filter = kpi.label === 'Total Clients' ? 'all' : kpi.label.toLowerCase() as StatusFilter
-              setStatusFilter(filter === statusFilter ? 'all' : filter)
+              setStatusFilter(kpi.filterKey === statusFilter ? 'all' : kpi.filterKey)
             }}
           >
             <CardContent className="p-4">
@@ -370,17 +475,126 @@ export default function ClientsPage() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
-        <Input
-          placeholder="Search clients..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9 text-sm"
-          style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-        />
+      {/* Search + Filter Toggle */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
+          <Input
+            placeholder="Search clients..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 text-sm"
+            style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+          />
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-sm gap-1.5"
+          style={{ borderColor: colors.border, color: colors.text.secondary }}
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          <Filter className="w-3.5 h-3.5" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span
+              className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium text-white"
+              style={{ backgroundColor: colors.primary }}
+            >
+              {activeFilterCount}
+            </span>
+          )}
+        </Button>
       </div>
+
+      {/* Filter Bar */}
+      {showFilters && (
+        <Card className="rounded-xl shadow-sm" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-end gap-4">
+              {/* Industry Filter */}
+              <div className="min-w-[160px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1.5 block" style={{ color: colors.text.muted }}>
+                  Industry
+                </Label>
+                <Select value={industryFilter} onValueChange={setIndustryFilter}>
+                  <SelectTrigger className="text-sm h-9" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                    <SelectValue placeholder="All Industries" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Industries</SelectItem>
+                    {industries.map((ind) => (
+                      <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sort By */}
+              <div className="min-w-[180px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1.5 block" style={{ color: colors.text.muted }}>
+                  Sort By
+                </Label>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                  <SelectTrigger className="text-sm h-9" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                    <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                    <SelectItem value="date-newest">Date Added (Newest)</SelectItem>
+                    <SelectItem value="date-oldest">Date Added (Oldest)</SelectItem>
+                    <SelectItem value="employees-high">Employees (High-Low)</SelectItem>
+                    <SelectItem value="employees-low">Employees (Low-High)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date From */}
+              <div className="min-w-[140px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1.5 block" style={{ color: colors.text.muted }}>
+                  Added From
+                </Label>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="text-sm h-9"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+
+              {/* Date To */}
+              <div className="min-w-[140px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1.5 block" style={{ color: colors.text.muted }}>
+                  Added To
+                </Label>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="text-sm h-9"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+
+              {/* Clear Filters */}
+              {activeFilterCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-sm gap-1 h-9"
+                  style={{ color: colors.error }}
+                  onClick={clearFilters}
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Clear
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Table */}
       {clientList.length === 0 ? (
@@ -393,9 +607,9 @@ export default function ClientsPage() {
               No clients found
             </h3>
             <p className="text-xs mb-4 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
-              {debouncedSearch ? 'Try a different search term.' : 'Add your first client to get started.'}
+              {debouncedSearch || activeFilterCount > 0 ? 'Try adjusting your search or filters.' : 'Add your first client to get started.'}
             </p>
-            {!debouncedSearch && (
+            {!debouncedSearch && activeFilterCount === 0 && (
               <Button
                 onClick={openAdd}
                 size="sm"
@@ -410,78 +624,92 @@ export default function ClientsPage() {
         </Card>
       ) : (
         <Card className="rounded-xl shadow-sm overflow-hidden" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
-          <Table>
-            <TableHeader>
-              <TableRow style={{ borderColor: colors.border }}>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Client Name</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden md:table-cell" style={{ color: colors.text.muted }}>Status</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>Contact</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>Email</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Phone</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Employees</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clientList.map((client) => (
-                <TableRow
-                  key={client.id}
-                  className="cursor-pointer transition-colors"
-                  style={{ borderColor: colors.border }}
-                  onClick={() => openEdit(client)}
-                >
-                  <TableCell className="font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${colors.primary}12` }}>
-                        <Building2 className="w-4 h-4" style={{ color: colors.primary }} />
-                      </div>
-                      {client.name}
-                    </div>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {statusBadge(client.status)}
-                  </TableCell>
-                  <TableCell className="text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {client.contact_name || '-'}
-                  </TableCell>
-                  <TableCell className="text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {client.contact_email || '-'}
-                  </TableCell>
-                  <TableCell className="text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {client.contact_phone || '-'}
-                  </TableCell>
-                  <TableCell className="text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {client.employee_count || '-'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => openEdit(client)}
-                      >
-                        <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        disabled={deletingId === client.id}
-                        onClick={() => handleDelete(client)}
-                      >
-                        {deletingId === client.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.text.muted }} />
-                        ) : (
-                          <Trash2 className="w-3.5 h-3.5" style={{ color: colors.error }} />
-                        )}
-                      </Button>
-                    </div>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow style={{ borderColor: colors.border }}>
+                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Client Name</TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden md:table-cell" style={{ color: colors.text.muted }}>Status</TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>Contact</TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>Email</TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Phone</TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Industry</TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden 2xl:table-cell" style={{ color: colors.text.muted }}>Domain</TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Employees</TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden 2xl:table-cell" style={{ color: colors.text.muted }}>Date Added</TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {clientList.map((client) => (
+                  <TableRow
+                    key={client.id}
+                    className="cursor-pointer transition-colors"
+                    style={{ borderColor: colors.border }}
+                    onClick={() => openEdit(client)}
+                  >
+                    <TableCell className="font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${colors.primary}12` }}>
+                          <Building2 className="w-4 h-4" style={{ color: colors.primary }} />
+                        </div>
+                        <span className="truncate max-w-[200px]">{client.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {statusBadge(client.status)}
+                    </TableCell>
+                    <TableCell className="text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.contact_name || '-'}
+                    </TableCell>
+                    <TableCell className="text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.contact_email || '-'}
+                    </TableCell>
+                    <TableCell className="text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.contact_phone || '-'}
+                    </TableCell>
+                    <TableCell className="text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.industry || '-'}
+                    </TableCell>
+                    <TableCell className="text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.domain || '-'}
+                    </TableCell>
+                    <TableCell className="text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.employee_count || '-'}
+                    </TableCell>
+                    <TableCell className="text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.created_at ? format(new Date(client.created_at), 'dd MMM yyyy') : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => openEdit(client)}
+                        >
+                          <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          disabled={deletingId === client.id}
+                          onClick={() => handleDelete(client)}
+                        >
+                          {deletingId === client.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.text.muted }} />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5" style={{ color: colors.error }} />
+                          )}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </Card>
       )}
 
@@ -533,6 +761,16 @@ export default function ClientsPage() {
                 />
               </div>
               <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Domain</Label>
+                <Input
+                  value={formDomain}
+                  onChange={(e) => setFormDomain(e.target.value)}
+                  placeholder="e.g. acme.co.uk"
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+              <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Employee Count</Label>
                 <Input
                   type="number"
@@ -551,7 +789,6 @@ export default function ClientsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="prospect">Prospect</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
@@ -589,8 +826,8 @@ export default function ClientsPage() {
               </div>
             </FormSection>
 
-            {/* Contact */}
-            <FormSection title="Contact" icon={Phone} defaultOpen={false} colors={colors}>
+            {/* Primary Contact */}
+            <FormSection title="Primary Contact" icon={Phone} defaultOpen={false} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Contact Name</Label>
                 <Input
@@ -626,6 +863,70 @@ export default function ClientsPage() {
                   onChange={(e) => setFormNotes(e.target.value)}
                   rows={3}
                   className="mt-1 text-sm resize-none"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+            </FormSection>
+
+            {/* Secondary Contact */}
+            <FormSection title="Secondary Contact" icon={UserPlus} defaultOpen={false} colors={colors}>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Name</Label>
+                <Input
+                  value={formSecondaryContactName}
+                  onChange={(e) => setFormSecondaryContactName(e.target.value)}
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Email</Label>
+                <Input
+                  type="email"
+                  value={formSecondaryContactEmail}
+                  onChange={(e) => setFormSecondaryContactEmail(e.target.value)}
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Phone</Label>
+                <Input
+                  value={formSecondaryContactPhone}
+                  onChange={(e) => setFormSecondaryContactPhone(e.target.value)}
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+            </FormSection>
+
+            {/* Accountant Contact */}
+            <FormSection title="Accountant Contact" icon={Calculator} defaultOpen={false} colors={colors}>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Name</Label>
+                <Input
+                  value={formAccountantName}
+                  onChange={(e) => setFormAccountantName(e.target.value)}
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Email</Label>
+                <Input
+                  type="email"
+                  value={formAccountantEmail}
+                  onChange={(e) => setFormAccountantEmail(e.target.value)}
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Phone</Label>
+                <Input
+                  value={formAccountantPhone}
+                  onChange={(e) => setFormAccountantPhone(e.target.value)}
+                  className="mt-1 text-sm"
                   style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
                 />
               </div>

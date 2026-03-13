@@ -23,7 +23,7 @@ const clientUpdateSchema = z.object({
     country: z.string().optional()
   }).optional(),
   employee_count: z.number().int().positive().optional(),
-  status: z.enum(['active', 'inactive', 'prospect']).optional(),
+  status: z.enum(['active', 'inactive']).optional(),
   notes: z.string().optional(),
   paye_reference: z.string().optional(),
   accounts_office_ref: z.string().max(13).optional(),
@@ -40,6 +40,13 @@ const clientUpdateSchema = z.object({
   contact_name: z.string().optional(),
   contact_email: z.string().email().optional().or(z.literal('')),
   contact_phone: z.string().optional(),
+  domain: z.string().optional(),
+  secondary_contact_name: z.string().optional(),
+  secondary_contact_email: z.string().email().optional().or(z.literal('')),
+  secondary_contact_phone: z.string().optional(),
+  accountant_name: z.string().optional(),
+  accountant_email: z.string().email().optional().or(z.literal('')),
+  accountant_phone: z.string().optional(),
   checklist_templates: z.array(checklistTemplateSchema).optional(),
 })
 

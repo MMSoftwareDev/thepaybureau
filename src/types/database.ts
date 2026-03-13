@@ -118,6 +118,13 @@ export interface Database {
           contact_name: string | null
           contact_email: string | null
           contact_phone: string | null
+          domain: string | null
+          secondary_contact_name: string | null
+          secondary_contact_email: string | null
+          secondary_contact_phone: string | null
+          accountant_name: string | null
+          accountant_email: string | null
+          accountant_phone: string | null
         }
         Insert: {
           id?: string
@@ -150,6 +157,13 @@ export interface Database {
           contact_name?: string | null
           contact_email?: string | null
           contact_phone?: string | null
+          domain?: string | null
+          secondary_contact_name?: string | null
+          secondary_contact_email?: string | null
+          secondary_contact_phone?: string | null
+          accountant_name?: string | null
+          accountant_email?: string | null
+          accountant_phone?: string | null
         }
         Update: {
           id?: string
@@ -182,6 +196,13 @@ export interface Database {
           contact_name?: string | null
           contact_email?: string | null
           contact_phone?: string | null
+          domain?: string | null
+          secondary_contact_name?: string | null
+          secondary_contact_email?: string | null
+          secondary_contact_phone?: string | null
+          accountant_name?: string | null
+          accountant_email?: string | null
+          accountant_phone?: string | null
         }
       }
       payrolls: {
