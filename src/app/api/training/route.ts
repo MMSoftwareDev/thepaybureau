@@ -39,7 +39,7 @@ export async function GET() {
 
     const { data: records, error } = await supabase
       .from('training_records')
-      .select('*')
+      .select('id, tenant_id, created_by, title, provider, category, url, notes, completed, completed_date, created_at, updated_at')
       .eq('tenant_id', user.tenant_id)
       .order('created_at', { ascending: false })
 

@@ -8,7 +8,7 @@ const fetcher = (url: string) => fetch(url).then(res => {
 
 const defaultConfig: SWRConfiguration = {
   revalidateOnFocus: false,
-  dedupingInterval: 5000,
+  dedupingInterval: 2000,
 }
 
 export function useClients() {
@@ -37,6 +37,10 @@ export function useTrainingRecords() {
 
 export function clearSWRCache() {
   mutate(() => true, undefined, { revalidate: false })
+}
+
+export function revalidateAllSWR() {
+  mutate(() => true)
 }
 
 export function useConversations() {

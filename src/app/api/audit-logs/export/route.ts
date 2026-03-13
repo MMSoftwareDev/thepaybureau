@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     // Build query — fetch up to 5000 rows for export
     let query = supabase
       .from('audit_logs')
-      .select('*')
+      .select('created_at, user_email, action, resource_type, resource_name, changes, ip_address')
       .eq('tenant_id', user.tenant_id)
       .order('created_at', { ascending: false })
       .limit(5000)

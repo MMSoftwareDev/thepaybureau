@@ -63,7 +63,9 @@ docs/plans/           # Design docs & feedback
 npm run dev          # Start dev server (Turbopack)
 npm run build        # Production build
 npm run lint         # ESLint
-npx jest             # Unit tests
+npm test             # Unit tests (Jest)
+npm run test:watch   # Unit tests in watch mode
+npm run test:coverage # Unit tests with coverage report
 npx playwright test  # E2E tests
 ```
 
@@ -78,18 +80,17 @@ npx playwright test  # E2E tests
 - **Cron routes:** Protected by `CRON_SECRET` bearer token.
 - **Admin routes:** Protected by `PLATFORM_ADMIN_EMAILS` env check.
 - **Clients vs Payrolls:** Separate tables — one client can have multiple payrolls. Payroll config fields (frequency, pay day, PAYE ref, pension) live on `payrolls` table, not `clients`. Payroll runs reference `payroll_id`.
-- **Client data model:** 45+ fields across identity, company details, address, 3 contact types (primary, secondary, payroll), accountant, registered address, tax/compliance (VAT, UTR, CIS, HMRC 64-8, TPAS, AE status), billing/contract, and metadata (tags, assigned_to, referral_source, etc.).
+- **Client data model:** 45+ fields across identity, company details, address, 2 contact types (primary, secondary), accountant, tax/compliance (VAT, UTR, CIS, HMRC PAYE Online Auth, AE status), billing/contract (fee, billing frequency, payment method, contract type, notice period), and metadata (tags, assigned_to, referral_source, industry, etc.). Payroll Contact removed (primary contact covers this). Registered Address and TPAS deferred.
 
 ## Security Notes (from audit 2026-03-07)
 
 - Health/status endpoints are intentionally unauthenticated.
-- `feature_requests` RLS UPDATE/DELETE policies need tightening (currently `USING (true)` — admin check only in API layer).
-- Some API routes use `SELECT *` — consider explicit column selection for list endpoints.
+- `feature_requests` RLS UPDATE/DELETE policies tightened in migration 011 (admin-only via `is_platform_admin()` function).
+- SELECT * audit completed (Session 22): 6 routes fixed to use explicit column selection. Remaining `SELECT *` usage is intentional (account export, audit diffs, clients/payrolls list endpoints that serve sidebar edit forms).
 
 ## Known Issues
 
 - **Incomplete domain migration**: 15+ `app.thepaybureau.com` references remain in email templates, fallback URLs, CI config, and Supabase config (see Session 11).
-- **Missing migration**: Vector search fix migration referenced in Session 10 was never committed.
 - **Serverless fire-and-forget caveat**: Never use unawaited promises for critical side effects (emails, webhooks) in Vercel serverless routes — the runtime may terminate before they complete. Always `await` or use `waitUntil()`. Fixed for feedback/feature-request emails in Session 16; audit other routes if adding new email sends.
 
 ## Current Status & Roadmap
@@ -128,16 +129,27 @@ npx playwright test  # E2E tests
 - CSV export endpoint for clients (`/api/clients/export`) with rate limiting
 - 25 additional client fields for full payroll bureau CRM (tax/compliance, billing, contacts, categorisation — see Session 19)
 - `/api/users` endpoint for tenant user listing (used by Assigned To dropdown)
+<<<<<<< claude/update-client-page-fields-Q1fqU
 - Client page Phase 2: removed director_name/payroll_contact/registered_address/tpas from UI, UK Industries dropdown, contract type/notice period fields, customizable table columns (localStorage), table avatars + sticky header + compact rows
 - Toast z-index fix (`z-[100]`) so toasts render above Sheet/Dialog overlays
+=======
+- Client page Phase 2: removed Payroll Contact/Registered Address/TPAS/Director Name; added Contract Type, Notice Period, UK Industries dropdown
+- Customizable table columns with localStorage persistence (toggle visibility, reorder)
+- Toast z-index fix (z-[100]) to render above Sheet/Dialog overlays
+- Sidebar logo: 36px icon mark + themed text (dark mode compatible), header height bumped to 60px
+- Jest test infrastructure with chainable Supabase mock pattern (44 tests across 7 API route test files)
+- Vector search migration 019: `match_threshold` 0.3→0.1, `ivfflat.probes` 1→10
+- API reference documentation (`docs/api-reference.md`) covering all 42 routes
+- SELECT * audit: 6 routes fixed to use explicit column selection
+>>>>>>> main
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Reorder pension tasks after payroll run in checklists
 - Global auth context for reactive user tracking
-- Reduce SWR `dedupingInterval` or add explicit revalidation on login
+- ~~Reduce SWR `dedupingInterval` or add explicit revalidation on login~~ (done: `revalidateAllSWR()` on SIGNED_IN, interval already at 2s)
 - Complete `app.thepaybureau.com` → `thepaybureau.com` domain migration
 - ~~Renumber duplicate `001_` migration files~~ (fixed: renamed to `014_`)
-- Create missing `014_fix_vector_search.sql` migration (or verify fixes applied directly)
+- ~~Create missing vector search fix migration~~ (done: `019_fix_vector_search.sql`)
 
 ## Workflow Orchestration
 
@@ -203,8 +215,16 @@ npx playwright test  # E2E tests
 - **Table design (ChangePen style):** Flat tables — no border wrapper, light gray header row, thin `border-b` dividers only, no alternating row backgrounds, CSS-only hover (`purple/3%`). Row height ~48px with `px-4 py-3` cell padding.
 - **Add/Edit forms:** Use shadcn `Sheet` sidebar pattern with grouped collapsible sections — not full-page forms or modals.
 - Use shadcn `AlertDialog` for destructive confirmations — never `window.confirm()` or browser `confirm()`.
+<<<<<<< claude/update-client-page-fields-Q1fqU
 - **Toast z-index**: Toast container uses `z-[100]` to render above Radix portals (Sheet, Dialog, AlertDialog all use `z-50`). Never lower the toast z-index.
 - **Table columns**: Clients table supports user-customizable columns persisted in localStorage (`tpb_client_columns`). Column definitions live in `ALL_COLUMNS` array in `clients/page.tsx`.
+=======
+- Toast z-index must be `z-[100]` — higher than Sheet/Dialog overlays (z-50) so toasts are always visible.
+- Table columns should be customizable where practical — toggle visibility + reorder, persist to localStorage.
+- Sidebar logo: use `logo.png` icon mark (36px) + themed text — never `logo-full.png` (dark text baked in, breaks dark mode).
+- **Testing:** Test files live alongside routes in `__tests__/` directories. Use `chainMock()` pattern for Supabase client mocking (two-pass init for chainable methods). Mock `@/lib/supabase-server` in every API route test. Suppress `console.error` in test setup.
+- **API route SELECT:** Use explicit column selection on list/read endpoints. Only use `select('*')` when the full record is needed (e.g., account export, audit diffs, edit forms that need all fields).
+>>>>>>> main
 
 ## Design Consistency & Brand Standards
 
@@ -299,7 +319,7 @@ npx playwright test  # E2E tests
 
 **Dashboard layout constants:**
 - Sidebar width: `252px` (`w-[252px]`)
-- Navbar height: `52px` (`h-[52px]`)
+- Navbar/sidebar header height: `60px` (`h-[60px]`)
 - Page content padding: `p-4 md:px-6 md:py-6`
 - Card padding: `p-4` to `p-6`
 - Card gap in grids: `gap-3 md:gap-4`
@@ -419,6 +439,11 @@ Every new page or component **must** satisfy all of these before it's considered
 | Client CSV import API | `src/app/api/clients/import/route.ts` |
 | Tenant users API | `src/app/api/users/route.ts` |
 | Dashboard layout wrapper | `src/components/layout/DashboardWrapper.tsx` |
+| API reference docs | `docs/api-reference.md` |
+| Test helpers (Supabase mock) | `src/lib/__tests__/helpers/supabase-mock.ts` |
+| Test setup (global mocks) | `src/lib/__tests__/helpers/setup.ts` |
+| Jest config | `jest.config.js` |
+| Vector search migration | `supabase/migrations/019_fix_vector_search.sql` |
 
 ## Session Log
 
@@ -604,6 +629,7 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Files changed (8)**: migration 017 (new), `database.ts`, `validations.ts`, `clients/[id]/route.ts`, `clients/page.tsx`, `users/route.ts` (new), `clients/export/route.ts`, `clients/import/route.ts`
 - Branch: `claude/audit-client-fields-UcXzT`
 
+<<<<<<< claude/update-client-page-fields-Q1fqU
 ### Session 20 — Client Page Phase 2: Field Cleanup, Industries Dropdown, Table Visuals (2026-03-13)
 - **Removed fields from UI** (DB columns kept, non-destructive): `director_name`, `payroll_contact_*`, `registered_address`, `tpas_authorised`
 - **Renamed**: "HMRC Agent Authorised (64-8)" → "HMRC PAYE Online Authorisation"
@@ -619,3 +645,68 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Bug fix**: "Failed to create client" — user needed to apply migrations 016-018 to Supabase database
 - **Files changed**: `clients/page.tsx`, `validations.ts`, `clients/export/route.ts`, `clients/import/route.ts`, `toast.tsx`, migration 018 (new)
 - Branch: `claude/update-client-page-fields-Q1fqU`
+=======
+### Session 20 — Client Page Form Phase 2 & Customizable Table (2026-03-13)
+- **Fields removed**: Payroll Contact section (primary contact covers this), Registered Address section (deferred), TPAS Authorised field, Director Name field
+- **Fields renamed**: "HMRC Agent Authorised (64-8)" → "HMRC PAYE Online Authorisation"
+- **Fields updated**: Auto Enrolment Status options changed from enrolled/exempt/postponed → Exempt/Currently Not Required/Enrolled; Payment Method changed from free text to dropdown (BACS, Standing Order, Card, Invoice, Direct Debit); Industry changed from free text to UK Industries dropdown (20 sectors)
+- **Fields added**: Contract Type (Rolling / Fixed Term) — Contract End Date only shows when Fixed Term; Notice Period (number + unit: Days/Weeks/Months)
+- **Migration 018**: Added `contract_type`, `notice_period_value`, `notice_period_unit` columns; updated `auto_enrolment_status` CHECK constraint (postponed → currently_not_required)
+- **Customizable table columns**: "Columns" button opens dialog to toggle column visibility and reorder with up/down arrows; preferences persist in localStorage
+- **Table visual improvements**: Company initial avatars with deterministic colors, sticky header, compact rows (py-2.5), text truncation on overflow cells, left border accent on hover
+- **Bug fix**: Toast notifications hidden behind Sheet overlay — both used z-50; fixed toast to z-[100]
+- **Root cause of "Failed to create client"**: Migrations 016–018 not applied to Supabase database; guided user through running all three in SQL Editor
+- **Files changed**: `clients/page.tsx`, `validations.ts`, `database.ts`, `clients/export/route.ts`, `clients/import/route.ts`, migration 018 (new), `toast.tsx` (z-index fix)
+- Branch: `claude/update-client-page-fields-Q1fqU`
+
+### Session 21 — Sidebar Logo Resize & Dark Mode Fix (2026-03-13)
+- **Goal**: Make sidebar logo bigger and more prominent
+- **Attempt 1**: Swapped to `logo-full.png` (full lockup image) — looked broken due to wrong aspect ratio (275x150 image forced to 180x40)
+- **Attempt 2**: Fixed aspect ratio with `h-[38px] w-auto` — looked correct in light mode but dark text baked into image was invisible in dark mode
+- **Final solution**: Reverted to icon mark (`logo.png`) at 36px + theme-aware text (`colors.text.primary`) — works in both light and dark mode
+- **Decision**: Don't use `logo-full.png` in the app — it has dark text baked in, unusable in dark mode without a separate white-text variant
+- **Layout change**: Header height bumped from 52px → 60px across Sidebar, Navbar, and DashboardWrapper skeleton for consistent alignment
+- **Files changed**: `Sidebar.tsx`, `Navbar.tsx`, `DashboardWrapper.tsx`
+- Branch: `claude/update-client-page-form-7T38L`
+
+### Session 22 — Test Coverage, Vector Search Migration, API Docs & SELECT * Audit (2026-03-13)
+- **Scope**: Addressed 4 outstanding items from security/quality audit (items 4, 5, 7, 8)
+- **Test infrastructure** (Item 4):
+  - Added `npm test`, `npm run test:watch`, `npm run test:coverage` scripts
+  - Created test helpers: `supabase-mock.ts` (chainable builder mock), `setup.ts` (global mocks for `next/headers`, audit, badges), `index.ts` (re-exports)
+  - Updated `jest.config.js` with `setupFiles` and `testPathIgnorePatterns`
+  - Created 7 test files with 44 tests covering: health, status, clients CRUD, clients [id], payrolls, payroll-run actions, dashboard stats
+  - **Key pattern**: `chainMock()` uses two-pass init — first creates all `jest.fn()` stubs, then sets `mockReturnValue` with spread (avoids eager evaluation bug)
+- **Vector search migration** (Item 5):
+  - Created `supabase/migrations/019_fix_vector_search.sql` — `CREATE OR REPLACE FUNCTION match_document_chunks()` with `match_threshold DEFAULT 0.1` (was 0.3) and `SET LOCAL ivfflat.probes = 10` (was default 1)
+  - Updated `src/lib/ai/rag.ts` line 35: `match_threshold: 0.3` → `0.1`
+- **API documentation** (Item 7):
+  - Created `docs/api-reference.md` — 2,175 lines covering all 42 API routes across 20 categories
+  - Includes method, path, auth, request/response shapes, error codes, rate limiting
+- **SELECT * audit** (Item 8):
+  - Fixed 6 routes to use explicit column selection:
+    - `feature-requests/route.ts` — 9 explicit columns
+    - `badges/route.ts` — 2 queries: 5 + 13 explicit columns
+    - `training/route.ts` — 12 explicit columns
+    - `ai-assistant/documents/route.ts` — 9 explicit columns
+    - `audit-logs/export/route.ts` — 7 columns (dropped `user_agent`, `user_id`, `id`, `tenant_id`)
+    - `payroll-runs/generate/route.ts` — `select('id, name, sort_order')` for checklist templates
+  - Intentionally skipped: account export (needs all), clients/payrolls list (sidebar edit needs all), audit diffs (needs full record)
+- **Bugs encountered & fixed**:
+  - `setupFilesAfterSetup` → `setupFiles` (Jest config key doesn't exist)
+  - `beforeAll` not defined in setup → removed (setupFiles runs before Jest framework)
+  - Helper files matched test pattern → added `testPathIgnorePatterns`
+  - `chainMock` spread operator eagerness → two-pass init
+- Branch: `claude/migration-vector-search-fix-KoFyk`
+### Session 22 — SWR Login Revalidation & Unit Tests (2026-03-13)
+- **Goal**: Close backlog item #3 — reduce SWR `dedupingInterval` or add explicit revalidation on login
+- **Finding**: `dedupingInterval` was already at 2000ms (not 5s as backlog noted); SWR cache clear on both SIGNED_IN and SIGNED_OUT already existed in AuthContext
+- **Remaining gap**: `clearSWRCache()` used `{ revalidate: false }` — mounted SWR hooks wouldn't refetch after cache clear, leaving empty state until something else triggered revalidation
+- **Fix**: Added `revalidateAllSWR()` to `src/lib/swr.ts` (calls `mutate(() => true)` to force all mounted hooks to refetch); called it after `clearSWRCache()` on SIGNED_IN event in `AuthContext.tsx`
+- **Tests added (12 total)**:
+  - `src/lib/__tests__/swr.test.ts` (6 tests) — `clearSWRCache` args, `revalidateAllSWR` args, `defaultConfig` values, hook exports
+  - `src/contexts/__tests__/AuthContext.test.tsx` (6 tests) — SIGNED_OUT clears cache + resets state, SIGNED_IN clears + revalidates (order verified), signOut handler, listener cleanup on unmount
+- **Test deps installed**: `jest`, `ts-jest`, `@types/jest`, `@testing-library/react`, `@testing-library/jest-dom`, `jest-environment-jsdom`
+- **Files changed**: `swr.ts`, `AuthContext.tsx`, 2 new test files, `package.json`/`package-lock.json`
+- Branch: `claude/swr-deduping-tests-YqF0W`
+>>>>>>> main

@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     // Fetch active checklist templates for this payroll
     const { data: templates } = await supabase
       .from('checklist_templates')
-      .select('*')
+      .select('id, name, sort_order')
       .eq('payroll_id', payroll.id)
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
