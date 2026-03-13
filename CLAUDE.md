@@ -131,6 +131,7 @@ npx playwright test  # E2E tests
 - Client page Phase 2: removed Payroll Contact/Registered Address/TPAS/Director Name; added Contract Type, Notice Period, UK Industries dropdown
 - Customizable table columns with localStorage persistence (toggle visibility, reorder)
 - Toast z-index fix (z-[100]) to render above Sheet/Dialog overlays
+- Sidebar logo: 36px icon mark + themed text (dark mode compatible), header height bumped to 60px
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Reorder pension tasks after payroll run in checklists
@@ -206,6 +207,7 @@ npx playwright test  # E2E tests
 - Use shadcn `AlertDialog` for destructive confirmations — never `window.confirm()` or browser `confirm()`.
 - Toast z-index must be `z-[100]` — higher than Sheet/Dialog overlays (z-50) so toasts are always visible.
 - Table columns should be customizable where practical — toggle visibility + reorder, persist to localStorage.
+- Sidebar logo: use `logo.png` icon mark (36px) + themed text — never `logo-full.png` (dark text baked in, breaks dark mode).
 
 ## Design Consistency & Brand Standards
 
@@ -300,7 +302,7 @@ npx playwright test  # E2E tests
 
 **Dashboard layout constants:**
 - Sidebar width: `252px` (`w-[252px]`)
-- Navbar height: `52px` (`h-[52px]`)
+- Navbar/sidebar header height: `60px` (`h-[60px]`)
 - Page content padding: `p-4 md:px-6 md:py-6`
 - Card padding: `p-4` to `p-6`
 - Card gap in grids: `gap-3 md:gap-4`
@@ -617,3 +619,13 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Root cause of "Failed to create client"**: Migrations 016–018 not applied to Supabase database; guided user through running all three in SQL Editor
 - **Files changed**: `clients/page.tsx`, `validations.ts`, `database.ts`, `clients/export/route.ts`, `clients/import/route.ts`, migration 018 (new), `toast.tsx` (z-index fix)
 - Branch: `claude/update-client-page-fields-Q1fqU`
+
+### Session 21 — Sidebar Logo Resize & Dark Mode Fix (2026-03-13)
+- **Goal**: Make sidebar logo bigger and more prominent
+- **Attempt 1**: Swapped to `logo-full.png` (full lockup image) — looked broken due to wrong aspect ratio (275x150 image forced to 180x40)
+- **Attempt 2**: Fixed aspect ratio with `h-[38px] w-auto` — looked correct in light mode but dark text baked into image was invisible in dark mode
+- **Final solution**: Reverted to icon mark (`logo.png`) at 36px + theme-aware text (`colors.text.primary`) — works in both light and dark mode
+- **Decision**: Don't use `logo-full.png` in the app — it has dark text baked in, unusable in dark mode without a separate white-text variant
+- **Layout change**: Header height bumped from 52px → 60px across Sidebar, Navbar, and DashboardWrapper skeleton for consistent alignment
+- **Files changed**: `Sidebar.tsx`, `Navbar.tsx`, `DashboardWrapper.tsx`
+- Branch: `claude/update-client-page-form-7T38L`
