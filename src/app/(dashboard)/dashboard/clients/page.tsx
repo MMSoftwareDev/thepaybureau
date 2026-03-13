@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useClients } from '@/lib/swr'
 import { useDebounce } from '@/hooks/useDebounce'
 import { Card, CardContent } from '@/components/ui/card'
@@ -43,7 +43,6 @@ import {
   Calculator,
   Filter,
   X,
-  Pencil,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
@@ -77,148 +76,6 @@ interface Client {
 
 type StatusFilter = 'all' | 'active' | 'inactive'
 type SortOption = 'name-asc' | 'name-desc' | 'date-newest' | 'date-oldest' | 'employees-high' | 'employees-low'
-type EditingCell = { clientId: string; field: string } | null
-
-// ── Inline Edit Cell ───────────────────────────────────────────────────────────
-
-function InlineEditCell({
-  value,
-  isEditing,
-  onStartEdit,
-  editValue,
-  onEditChange,
-  onSave,
-  onCancel,
-  type = 'text',
-  colors,
-  placeholder = '-',
-}: {
-  value: string | number | null | undefined
-  isEditing: boolean
-  onStartEdit: () => void
-  editValue: string
-  onEditChange: (v: string) => void
-  onSave: () => void
-  onCancel: () => void
-  type?: 'text' | 'number'
-  colors: ReturnType<typeof getThemeColors>
-  placeholder?: string
-}) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const escapePressedRef = useRef(false)
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
-    }
-  }, [isEditing])
-
-  if (!isEditing) {
-    return (
-      <div
-        className="group/cell flex items-center gap-1 min-h-[28px] cursor-pointer rounded px-1 -mx-1 transition-colors hover:bg-[var(--login-purple)]/5"
-        onClick={(e) => {
-          e.stopPropagation()
-          onStartEdit()
-        }}
-      >
-        <span className="truncate" style={{ color: value ? colors.text.secondary : colors.text.muted }}>
-          {value != null && value !== '' ? String(value) : placeholder}
-        </span>
-        <Pencil className="w-3 h-3 shrink-0 opacity-0 group-hover/cell:opacity-40 transition-opacity" style={{ color: colors.text.muted }} />
-      </div>
-    )
-  }
-
-  return (
-    <Input
-      ref={inputRef}
-      type={type}
-      value={editValue}
-      onChange={(e) => onEditChange(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault()
-          onSave()
-        } else if (e.key === 'Escape') {
-          e.preventDefault()
-          escapePressedRef.current = true
-          onCancel()
-        }
-      }}
-      onBlur={() => {
-        if (!escapePressedRef.current) {
-          onSave()
-        }
-        escapePressedRef.current = false
-      }}
-      className="h-7 px-2 py-0 text-sm border rounded-md w-full"
-      style={{
-        backgroundColor: colors.surface,
-        borderColor: colors.primary,
-        color: colors.text.primary,
-        boxShadow: `0 0 0 1px ${colors.primary}40`,
-      }}
-    />
-  )
-}
-
-// ── Inline Status Cell ─────────────────────────────────────────────────────────
-
-function InlineStatusCell({
-  status,
-  isEditing,
-  onStartEdit,
-  onSave,
-  onCancel,
-  colors,
-}: {
-  status: string
-  isEditing: boolean
-  onStartEdit: () => void
-  onSave: (value: string) => void
-  onCancel: () => void
-  colors: ReturnType<typeof getThemeColors>
-}) {
-  const statusColor = status === 'active' ? colors.success : colors.text.muted
-  const statusLabel = status === 'active' ? 'Active' : 'Inactive'
-
-  if (!isEditing) {
-    return (
-      <div
-        className="cursor-pointer"
-        onClick={(e) => {
-          e.stopPropagation()
-          onStartEdit()
-        }}
-      >
-        <Badge className="text-xs" style={{ backgroundColor: `${statusColor}20`, color: statusColor, border: `1px solid ${statusColor}40` }}>
-          {statusLabel}
-        </Badge>
-      </div>
-    )
-  }
-
-  return (
-    <Select
-      defaultOpen
-      value={status}
-      onValueChange={(v) => onSave(v)}
-      onOpenChange={(open) => {
-        if (!open) onCancel()
-      }}
-    >
-      <SelectTrigger className="h-7 text-xs w-[100px]" style={{ borderColor: colors.primary, color: colors.text.primary }}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="active">Active</SelectItem>
-        <SelectItem value="inactive">Inactive</SelectItem>
-      </SelectContent>
-    </Select>
-  )
-}
 
 // ── Collapsible Form Section ───────────────────────────────────────────────────
 
@@ -278,10 +135,6 @@ export default function ClientsPage() {
   const [dateTo, setDateTo] = useState('')
   const [showFilters, setShowFilters] = useState(false)
 
-  // Inline edit state
-  const [editingCell, setEditingCell] = useState<EditingCell>(null)
-  const [editValue, setEditValue] = useState('')
-
   // Sidebar state
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
@@ -311,112 +164,7 @@ export default function ClientsPage() {
   // Delete state
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  // ── Inline Edit Handler ──────────────────────────────────────────────────
-
-  const startEdit = useCallback((clientId: string, field: string, currentValue: string | number | null | undefined) => {
-    setEditingCell({ clientId, field })
-    setEditValue(currentValue != null ? String(currentValue) : '')
-  }, [])
-
-  const cancelEdit = useCallback(() => {
-    setEditingCell(null)
-    setEditValue('')
-  }, [])
-
-  const handleInlineSave = useCallback(async () => {
-    if (!editingCell || !clients) return
-
-    const { clientId, field } = editingCell
-    const client = (clients as Client[]).find((c) => c.id === clientId)
-    if (!client) return
-
-    const oldValue = client[field as keyof Client]
-    const apiValue = field === 'employee_count'
-      ? (editValue ? parseInt(editValue) || undefined : undefined)
-      : (editValue.trim() || undefined)
-
-    // Skip if unchanged
-    if (String(oldValue ?? '') === String(apiValue ?? '')) {
-      setEditingCell(null)
-      setEditValue('')
-      return
-    }
-
-    // Validate name is not empty
-    if (field === 'name' && !editValue.trim()) {
-      toast('Company name is required', 'error')
-      return
-    }
-
-    const optimisticData = (clients as Client[]).map((c) =>
-      c.id === clientId ? { ...c, [field]: apiValue ?? null } : c
-    )
-
-    setEditingCell(null)
-    setEditValue('')
-
-    try {
-      await mutate(
-        '/api/clients',
-        async () => {
-          const res = await fetch(`/api/clients/${clientId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ [field]: apiValue }),
-          })
-          if (!res.ok) {
-            const err = await res.json()
-            throw new Error(err.error || 'Failed to save')
-          }
-          return optimisticData
-        },
-        { optimisticData, revalidate: true, rollbackOnError: true }
-      )
-      toast('Saved')
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
-  }, [editingCell, editValue, clients, toast])
-
-  const handleInlineStatusSave = useCallback(async (clientId: string, newStatus: string) => {
-    if (!clients) return
-
-    const client = (clients as Client[]).find((c) => c.id === clientId)
-    if (!client || client.status === newStatus) {
-      setEditingCell(null)
-      return
-    }
-
-    const optimisticData = (clients as Client[]).map((c) =>
-      c.id === clientId ? { ...c, status: newStatus } : c
-    )
-
-    setEditingCell(null)
-
-    try {
-      await mutate(
-        '/api/clients',
-        async () => {
-          const res = await fetch(`/api/clients/${clientId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: newStatus }),
-          })
-          if (!res.ok) {
-            const err = await res.json()
-            throw new Error(err.error || 'Failed to save')
-          }
-          return optimisticData
-        },
-        { optimisticData, revalidate: true, rollbackOnError: true }
-      )
-      toast('Saved')
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    }
-  }, [clients, toast])
-
-  // ── Form Handlers (Sheet sidebar) ────────────────────────────────────────
+  // ── Form Handlers ────────────────────────────────────────────────────────
 
   const resetForm = useCallback(() => {
     setFormName('')
@@ -622,29 +370,35 @@ export default function ClientsPage() {
     }
   }, [clients])
 
-  // ── Helper: check if a cell is currently being edited ────────────────────
-
-  const isCellEditing = (clientId: string, field: string) =>
-    editingCell?.clientId === clientId && editingCell?.field === field
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case 'active':
+        return <Badge className="text-xs" style={{ backgroundColor: `${colors.success}20`, color: colors.success, border: `1px solid ${colors.success}40` }}>Active</Badge>
+      case 'inactive':
+        return <Badge className="text-xs" style={{ backgroundColor: `${colors.text.muted}20`, color: colors.text.muted, border: `1px solid ${colors.text.muted}40` }}>Inactive</Badge>
+      default:
+        return <Badge className="text-xs">{status}</Badge>
+    }
+  }
 
   // ── Skeleton ───────────────────────────────────────────────────────────────
 
   if (!mounted || isLoading) {
     return (
-      <div className="p-4 md:p-6 space-y-4">
+      <div className="p-4 md:p-6 space-y-5">
         <div className="flex items-center justify-between">
-          <div className="h-7 w-32 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
-          <div className="h-8 w-28 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
+          <div className="h-8 w-32 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
+          <div className="h-9 w-28 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
         </div>
         <div className="flex items-center gap-2">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-8 w-28 rounded-lg animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
+            <div key={i} className="h-8 w-24 rounded-lg animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
           ))}
         </div>
-        <div className="space-y-1 rounded-lg overflow-hidden" style={{ border: `1px solid ${colors.border}` }}>
-          <div className="h-9 animate-pulse" style={{ backgroundColor: `${colors.border}40` }} />
-          {[...Array(10)].map((_, i) => (
-            <div key={i} className="h-8 animate-pulse" style={{ backgroundColor: i % 2 === 0 ? 'transparent' : `${colors.border}20` }} />
+        <div className="space-y-0">
+          <div className="h-10 animate-pulse" style={{ backgroundColor: `${colors.border}30` }} />
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="h-12 animate-pulse" style={{ backgroundColor: 'transparent', borderBottom: `1px solid ${colors.border}30` }} />
           ))}
         </div>
       </div>
@@ -653,10 +407,8 @@ export default function ClientsPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  const thStyle = "text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] px-3 py-2"
-
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h1
@@ -675,7 +427,7 @@ export default function ClientsPage() {
         </Button>
       </div>
 
-      {/* Compact KPI Pills + Search */}
+      {/* KPI Pills + Search Row */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           {[
@@ -790,7 +542,7 @@ export default function ClientsPage() {
 
       {/* Table */}
       {clientList.length === 0 ? (
-        <div className="py-16 text-center">
+        <div className="py-20 text-center">
           <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: `${colors.primary}12` }}>
             <Users className="w-6 h-6" style={{ color: colors.primary }} />
           </div>
@@ -808,172 +560,74 @@ export default function ClientsPage() {
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg" style={{ border: `1px solid ${colors.border}` }}>
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow
-                className="sticky top-0 z-10"
-                style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-              >
-                <TableHead className={thStyle} style={{ color: colors.text.muted }}>Client Name</TableHead>
-                <TableHead className={`${thStyle} hidden md:table-cell`} style={{ color: colors.text.muted }}>Status</TableHead>
-                <TableHead className={`${thStyle} hidden lg:table-cell`} style={{ color: colors.text.muted }}>Contact</TableHead>
-                <TableHead className={`${thStyle} hidden lg:table-cell`} style={{ color: colors.text.muted }}>Email</TableHead>
-                <TableHead className={`${thStyle} hidden xl:table-cell`} style={{ color: colors.text.muted }}>Phone</TableHead>
-                <TableHead className={`${thStyle} hidden xl:table-cell`} style={{ color: colors.text.muted }}>Industry</TableHead>
-                <TableHead className={`${thStyle} hidden 2xl:table-cell`} style={{ color: colors.text.muted }}>Domain</TableHead>
-                <TableHead className={`${thStyle} hidden xl:table-cell`} style={{ color: colors.text.muted }}>Employees</TableHead>
-                <TableHead className={`${thStyle} hidden 2xl:table-cell`} style={{ color: colors.text.muted }}>Date Added</TableHead>
-                <TableHead className={thStyle} style={{ color: colors.text.muted }}>Actions</TableHead>
+              <TableRow style={{ backgroundColor: colors.lightBg, borderBottom: `1px solid ${colors.border}` }}>
+                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Client Name</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden md:table-cell" style={{ color: colors.text.muted }}>Status</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>Contact</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>Email</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Phone</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Industry</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden 2xl:table-cell" style={{ color: colors.text.muted }}>Domain</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Employees</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden 2xl:table-cell" style={{ color: colors.text.muted }}>Date Added</TableHead>
+                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {clientList.map((client, idx) => (
+              {clientList.map((client) => (
                 <TableRow
                   key={client.id}
-                  className="transition-colors"
-                  style={{
-                    borderColor: colors.border,
-                    backgroundColor: idx % 2 === 1 ? `${colors.lightBg}` : 'transparent',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${colors.primary}06` }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = idx % 2 === 1 ? `${colors.lightBg}` : 'transparent' }}
+                  className="cursor-pointer transition-colors hover:bg-[var(--login-purple)]/[0.03]"
+                  style={{ borderBottom: `1px solid ${colors.border}` }}
+                  onClick={() => openEdit(client)}
                 >
-                  {/* Name */}
-                  <TableCell className="px-3 py-1.5 font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
-                    <InlineEditCell
-                      value={client.name}
-                      isEditing={isCellEditing(client.id, 'name')}
-                      onStartEdit={() => startEdit(client.id, 'name', client.name)}
-                      editValue={editValue}
-                      onEditChange={setEditValue}
-                      onSave={handleInlineSave}
-                      onCancel={cancelEdit}
-                      colors={colors}
-                      placeholder="Unnamed"
-                    />
+                  <TableCell className="px-4 py-3 font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                    {client.name}
                   </TableCell>
-
-                  {/* Status */}
-                  <TableCell className="px-3 py-1.5 hidden md:table-cell">
-                    <InlineStatusCell
-                      status={client.status}
-                      isEditing={isCellEditing(client.id, 'status')}
-                      onStartEdit={() => startEdit(client.id, 'status', client.status)}
-                      onSave={(v) => handleInlineStatusSave(client.id, v)}
-                      onCancel={cancelEdit}
-                      colors={colors}
-                    />
+                  <TableCell className="px-4 py-3 hidden md:table-cell">
+                    {statusBadge(client.status)}
                   </TableCell>
-
-                  {/* Contact */}
-                  <TableCell className="px-3 py-1.5 text-sm hidden lg:table-cell font-[family-name:var(--font-body)]">
-                    <InlineEditCell
-                      value={client.contact_name}
-                      isEditing={isCellEditing(client.id, 'contact_name')}
-                      onStartEdit={() => startEdit(client.id, 'contact_name', client.contact_name)}
-                      editValue={editValue}
-                      onEditChange={setEditValue}
-                      onSave={handleInlineSave}
-                      onCancel={cancelEdit}
-                      colors={colors}
-                    />
+                  <TableCell className="px-4 py-3 text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                    {client.contact_name || '-'}
                   </TableCell>
-
-                  {/* Email */}
-                  <TableCell className="px-3 py-1.5 text-sm hidden lg:table-cell font-[family-name:var(--font-body)]">
-                    <InlineEditCell
-                      value={client.contact_email}
-                      isEditing={isCellEditing(client.id, 'contact_email')}
-                      onStartEdit={() => startEdit(client.id, 'contact_email', client.contact_email)}
-                      editValue={editValue}
-                      onEditChange={setEditValue}
-                      onSave={handleInlineSave}
-                      onCancel={cancelEdit}
-                      colors={colors}
-                    />
+                  <TableCell className="px-4 py-3 text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                    {client.contact_email || '-'}
                   </TableCell>
-
-                  {/* Phone */}
-                  <TableCell className="px-3 py-1.5 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]">
-                    <InlineEditCell
-                      value={client.contact_phone}
-                      isEditing={isCellEditing(client.id, 'contact_phone')}
-                      onStartEdit={() => startEdit(client.id, 'contact_phone', client.contact_phone)}
-                      editValue={editValue}
-                      onEditChange={setEditValue}
-                      onSave={handleInlineSave}
-                      onCancel={cancelEdit}
-                      colors={colors}
-                    />
+                  <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                    {client.contact_phone || '-'}
                   </TableCell>
-
-                  {/* Industry */}
-                  <TableCell className="px-3 py-1.5 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]">
-                    <InlineEditCell
-                      value={client.industry}
-                      isEditing={isCellEditing(client.id, 'industry')}
-                      onStartEdit={() => startEdit(client.id, 'industry', client.industry)}
-                      editValue={editValue}
-                      onEditChange={setEditValue}
-                      onSave={handleInlineSave}
-                      onCancel={cancelEdit}
-                      colors={colors}
-                    />
+                  <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                    {client.industry || '-'}
                   </TableCell>
-
-                  {/* Domain */}
-                  <TableCell className="px-3 py-1.5 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]">
-                    <InlineEditCell
-                      value={client.domain}
-                      isEditing={isCellEditing(client.id, 'domain')}
-                      onStartEdit={() => startEdit(client.id, 'domain', client.domain)}
-                      editValue={editValue}
-                      onEditChange={setEditValue}
-                      onSave={handleInlineSave}
-                      onCancel={cancelEdit}
-                      colors={colors}
-                    />
+                  <TableCell className="px-4 py-3 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                    {client.domain || '-'}
                   </TableCell>
-
-                  {/* Employees */}
-                  <TableCell className="px-3 py-1.5 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]">
-                    <InlineEditCell
-                      value={client.employee_count}
-                      isEditing={isCellEditing(client.id, 'employee_count')}
-                      onStartEdit={() => startEdit(client.id, 'employee_count', client.employee_count)}
-                      editValue={editValue}
-                      onEditChange={setEditValue}
-                      onSave={handleInlineSave}
-                      onCancel={cancelEdit}
-                      type="number"
-                      colors={colors}
-                    />
+                  <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                    {client.employee_count || '-'}
                   </TableCell>
-
-                  {/* Date Added (read-only) */}
-                  <TableCell className="px-3 py-1.5 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+                  <TableCell className="px-4 py-3 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
                     {client.created_at ? format(new Date(client.created_at), 'dd MMM yyyy') : '-'}
                   </TableCell>
-
-                  {/* Actions */}
-                  <TableCell className="px-3 py-1.5">
-                    <div className="flex items-center gap-0.5">
+                  <TableCell className="px-4 py-3">
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
-                        title="Edit all fields"
-                        onClick={(e) => { e.stopPropagation(); openEdit(client) }}
+                        className="h-8 w-8"
+                        title="Edit client"
+                        onClick={() => openEdit(client)}
                       >
                         <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="h-8 w-8"
                         disabled={deletingId === client.id}
-                        onClick={(e) => { e.stopPropagation(); handleDelete(client) }}
+                        onClick={() => handleDelete(client)}
                       >
                         {deletingId === client.id ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.text.muted }} />
