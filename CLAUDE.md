@@ -31,7 +31,7 @@ src/
         audit-log/    # Audit trail viewer
         clients/      # Client management
         feature-requests/
-        payrolls/     # Payroll runs & checklists
+        payrolls/     # Payroll configs, runs & checklists
         pensions/     # Pension management
         settings/     # User/tenant settings
         subscription/ # Stripe subscription management
@@ -77,6 +77,7 @@ npx playwright test  # E2E tests
 - **Data fetching:** SWR for client-side caching.
 - **Cron routes:** Protected by `CRON_SECRET` bearer token.
 - **Admin routes:** Protected by `PLATFORM_ADMIN_EMAILS` env check.
+- **Clients vs Payrolls:** Separate tables — one client can have multiple payrolls. Payroll config fields (frequency, pay day, PAYE ref, pension) live on `payrolls` table, not `clients`. Payroll runs reference `payroll_id`.
 
 ## Security Notes (from audit 2026-03-07)
 
@@ -116,9 +117,16 @@ npx playwright test  # E2E tests
 - Deployment build fixes (fonts, Sentry)
 - Production performance optimizations (non-blocking badges, dashboard date filter, import batching)
 - Profile image auto-resize on upload (client-side Canvas API, 256x256 square, WebP output)
+- Clients & payrolls data model separation (new `payrolls` table, one client → many payrolls)
+- Clients page redesign (dense flat table, sidebar Sheet form, sortable columns, pagination, CSV export, AlertDialog delete)
+- Payrolls config page with table + sidebar form (Details, Pay Schedule, HMRC, Pension, Checklist sections)
+- Payroll runs moved to `/dashboard/payrolls/runs` sub-route with `?payroll=` filter
+- `prospect` client status removed — only `active` and `inactive`
+- Full-width responsive dashboard layout (removed `max-w-6xl` constraint from `DashboardWrapper.tsx`)
+- 7 new client fields: domain, secondary contact (name/email/phone), accountant (name/email/phone)
+- CSV export endpoint for clients (`/api/clients/export`) with rate limiting
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
-- Show frequency name in payroll run summary rows
 - Reorder pension tasks after payroll run in checklists
 - Global auth context for reactive user tracking
 - Reduce SWR `dedupingInterval` or add explicit revalidation on login
@@ -186,6 +194,10 @@ npx playwright test  # E2E tests
 - API error responses: `{ error: string }` with appropriate HTTP status.
 - Dates: use `date-fns` for formatting/manipulation.
 - Keep all Supabase migrations numbered sequentially in `supabase/migrations/`.
+- Client statuses: `active | inactive` only — no `prospect`. Enforced in Zod schemas, UI dropdowns, and KPI filters.
+- **Table design (ChangePen style):** Flat tables — no border wrapper, light gray header row, thin `border-b` dividers only, no alternating row backgrounds, CSS-only hover (`purple/3%`). Row height ~48px with `px-4 py-3` cell padding.
+- **Add/Edit forms:** Use shadcn `Sheet` sidebar pattern with grouped collapsible sections — not full-page forms or modals.
+- Use shadcn `AlertDialog` for destructive confirmations — never `window.confirm()` or browser `confirm()`.
 
 ## Design Consistency & Brand Standards
 
@@ -281,7 +293,7 @@ npx playwright test  # E2E tests
 **Dashboard layout constants:**
 - Sidebar width: `252px` (`w-[252px]`)
 - Navbar height: `52px` (`h-[52px]`)
-- Page content padding: `p-4 md:p-6`
+- Page content padding: `p-4 md:px-6 md:py-6`
 - Card padding: `p-4` to `p-6`
 - Card gap in grids: `gap-3 md:gap-4`
 - Section vertical spacing: `space-y-5`
@@ -291,8 +303,8 @@ npx playwright test  # E2E tests
 - **Shadows:** `shadow-sm` for cards, `shadow-md` for dropdowns/modals — no inline shadow definitions
 - **Spacing:** 4px grid — use Tailwind scale (`p-1` = 4px, `p-2` = 8px, `p-4` = 16px, `p-6` = 24px, `p-8` = 32px)
 - **Cards:** White bg (light) / `var(--login-surface)` (dark), 1px border via `var(--login-border)`, `rounded-xl`, `shadow-sm`
-- **Page layout:** `max-w-7xl mx-auto` with `px-4 sm:px-6 lg:px-8` padding
-- **Tables:** Alternating row backgrounds, sticky headers, consistent `px-4 py-3` cell padding
+- **Page layout:** Full-width (no `max-w` constraint on dashboard content). `DashboardWrapper.tsx` handles outer padding (`md:px-6 md:py-6`)
+- **Tables:** Flat (no border wrapper), light gray header, thin `border-b` dividers only, no alternating rows, CSS-only hover. Row height ~48px, `px-4 py-3` cell padding. Sortable column headers with purple highlight + arrow indicator. Reference: ChangePen design language
 - **Dividers:** Use `border-b` with `var(--login-border)` — never raw gray values
 - **Empty states:** Centered icon (in rounded container with `${colors.primary}12` background) + heading + description + CTA button
 
@@ -393,6 +405,11 @@ Every new page or component **must** satisfy all of these before it's considered
 | Marketing components | `src/components/marketing/` |
 | Landing page reference | `src/app/page.tsx` |
 | Image processing utils | `src/lib/image-utils.ts` (`processAvatarImage()`) |
+| Clients page (table reference) | `src/app/(dashboard)/dashboard/clients/page.tsx` |
+| Payrolls config page | `src/app/(dashboard)/dashboard/payrolls/page.tsx` |
+| Payroll runs page | `src/app/(dashboard)/dashboard/payrolls/runs/page.tsx` |
+| Client CSV export API | `src/app/api/clients/export/route.ts` |
+| Dashboard layout wrapper | `src/components/layout/DashboardWrapper.tsx` |
 
 ## Session Log
 
@@ -529,7 +546,7 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Files modified**: `src/app/api/feedback/route.ts`, `src/app/api/feature-requests/route.ts`
 - **Note**: If emails still don't arrive after deploy, check Resend dashboard (API key, `mail.thepaybureau.com` domain verification)
 - Branch: `claude/fix-email-delivery-Z7vOS`
-### Session 16 — Auto-Resize Profile Images on Upload (2026-03-13)
+### Session 17 — Auto-Resize Profile Images on Upload (2026-03-13)
 - **Problem**: Profile images uploaded at full size (up to 2MB) with no processing; planned use across multiple platform areas (feedback, consultant ID, training logs) would cause performance issues
 - **Decision**: Client-side Canvas API resize — zero dependencies, processing before upload
 - **Built**: `src/lib/image-utils.ts` with `processAvatarImage()` utility
@@ -541,3 +558,24 @@ _Add notes from each Claude Code session below so context carries forward._
 - **No changes needed**: Supabase bucket already accepts WebP/JPEG; Navbar/Sidebar display unchanged; CSP headers already allow `blob:`/`data:`
 - **Future use cases discussed**: User feedback attribution, consultant identification in payroll runs (v2), training & CPD log
 - Branch: `claude/auto-resize-profile-images-lPoEO`
+
+### Session 18 — Clients & Payrolls Separation + Clients Page Redesign (2026-03-13)
+- **Architecture change**: Split clients and payrolls into separate database tables — one client can now have multiple payrolls
+- **New `payrolls` table**: Payroll config fields (frequency, pay day, PAYE ref, pension, etc.) moved from `clients` to `payrolls`
+- **Migration 015**: Data migration from clients to payrolls, backfills `payroll_id` on existing `payroll_runs` and `checklist_templates`
+- **Migration 016**: Added 7 new client fields — `domain`, `secondary_contact_name/email/phone`, `accountant_name/email/phone`
+- **Status change**: Removed `prospect` client status — only `active` and `inactive` remain (updated Zod schemas, UI dropdowns, KPI filters, badges)
+- **New routes**:
+  - `/dashboard/clients` — rewritten as dense flat table with sidebar Sheet form
+  - `/dashboard/payrolls` — new payroll config table page with sidebar form (Details, Pay Schedule, HMRC, Pension, Checklist)
+  - `/dashboard/payrolls/runs` — payroll runs moved to sub-route, supports `?payroll=` filter param
+  - `/api/payrolls` + `/api/payrolls/[id]` — new CRUD routes
+  - `/api/clients/export` — CSV export with rate limiting (5 req/15 min)
+- **Clients page iterations**:
+  1. Table + sidebar + inline editing — rejected (too busy)
+  2. Clean flat table matching ChangePen design — no borders, no alternating rows, thin dividers, ~48px rows, CSS-only hover
+  3. Full-width responsive — removed `max-w-6xl mx-auto` from `DashboardWrapper.tsx`, reduced desktop padding
+  4. Added sortable column headers, pagination (25/page), CSV export, delete AlertDialog
+- **Design conventions established**: ChangePen as primary UI reference for tables; flat table style; full-width dashboard layout; sidebar Sheet pattern for add/edit forms
+- **Files changed (13 modified, 4 new)**: migrations 015/016, `database.ts`, `validations.ts`, `swr.ts`, payroll API routes, client API routes, clients page, payrolls page, payroll runs page, `DashboardWrapper.tsx`, `Sidebar.tsx`, AlertDialog component
+- Branch: `claude/add-clients-payrolls-pages-G0Jum`
