@@ -63,7 +63,9 @@ docs/plans/           # Design docs & feedback
 npm run dev          # Start dev server (Turbopack)
 npm run build        # Production build
 npm run lint         # ESLint
-npx jest             # Unit tests
+npm test             # Unit tests (Jest)
+npm run test:watch   # Unit tests in watch mode
+npm run test:coverage # Unit tests with coverage report
 npx playwright test  # E2E tests
 ```
 
@@ -83,13 +85,12 @@ npx playwright test  # E2E tests
 ## Security Notes (from audit 2026-03-07)
 
 - Health/status endpoints are intentionally unauthenticated.
-- `feature_requests` RLS UPDATE/DELETE policies need tightening (currently `USING (true)` — admin check only in API layer).
-- Some API routes use `SELECT *` — consider explicit column selection for list endpoints.
+- `feature_requests` RLS UPDATE/DELETE policies tightened in migration 011 (admin-only via `is_platform_admin()` function).
+- SELECT * audit completed (Session 22): 6 routes fixed to use explicit column selection. Remaining `SELECT *` usage is intentional (account export, audit diffs, clients/payrolls list endpoints that serve sidebar edit forms).
 
 ## Known Issues
 
 - **Incomplete domain migration**: 15+ `app.thepaybureau.com` references remain in email templates, fallback URLs, CI config, and Supabase config (see Session 11).
-- **Missing migration**: Vector search fix migration referenced in Session 10 was never committed.
 - **Serverless fire-and-forget caveat**: Never use unawaited promises for critical side effects (emails, webhooks) in Vercel serverless routes — the runtime may terminate before they complete. Always `await` or use `waitUntil()`. Fixed for feedback/feature-request emails in Session 16; audit other routes if adding new email sends.
 
 ## Current Status & Roadmap
@@ -132,6 +133,10 @@ npx playwright test  # E2E tests
 - Customizable table columns with localStorage persistence (toggle visibility, reorder)
 - Toast z-index fix (z-[100]) to render above Sheet/Dialog overlays
 - Sidebar logo: 36px icon mark + themed text (dark mode compatible), header height bumped to 60px
+- Jest test infrastructure with chainable Supabase mock pattern (44 tests across 7 API route test files)
+- Vector search migration 019: `match_threshold` 0.3→0.1, `ivfflat.probes` 1→10
+- API reference documentation (`docs/api-reference.md`) covering all 42 routes
+- SELECT * audit: 6 routes fixed to use explicit column selection
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Reorder pension tasks after payroll run in checklists
@@ -139,7 +144,7 @@ npx playwright test  # E2E tests
 - ~~Reduce SWR `dedupingInterval` or add explicit revalidation on login~~ (done: `revalidateAllSWR()` on SIGNED_IN, interval already at 2s)
 - Complete `app.thepaybureau.com` → `thepaybureau.com` domain migration
 - ~~Renumber duplicate `001_` migration files~~ (fixed: renamed to `014_`)
-- Create missing `014_fix_vector_search.sql` migration (or verify fixes applied directly)
+- ~~Create missing vector search fix migration~~ (done: `019_fix_vector_search.sql`)
 
 ## Workflow Orchestration
 
@@ -208,6 +213,8 @@ npx playwright test  # E2E tests
 - Toast z-index must be `z-[100]` — higher than Sheet/Dialog overlays (z-50) so toasts are always visible.
 - Table columns should be customizable where practical — toggle visibility + reorder, persist to localStorage.
 - Sidebar logo: use `logo.png` icon mark (36px) + themed text — never `logo-full.png` (dark text baked in, breaks dark mode).
+- **Testing:** Test files live alongside routes in `__tests__/` directories. Use `chainMock()` pattern for Supabase client mocking (two-pass init for chainable methods). Mock `@/lib/supabase-server` in every API route test. Suppress `console.error` in test setup.
+- **API route SELECT:** Use explicit column selection on list/read endpoints. Only use `select('*')` when the full record is needed (e.g., account export, audit diffs, edit forms that need all fields).
 
 ## Design Consistency & Brand Standards
 
@@ -422,6 +429,11 @@ Every new page or component **must** satisfy all of these before it's considered
 | Client CSV import API | `src/app/api/clients/import/route.ts` |
 | Tenant users API | `src/app/api/users/route.ts` |
 | Dashboard layout wrapper | `src/components/layout/DashboardWrapper.tsx` |
+| API reference docs | `docs/api-reference.md` |
+| Test helpers (Supabase mock) | `src/lib/__tests__/helpers/supabase-mock.ts` |
+| Test setup (global mocks) | `src/lib/__tests__/helpers/setup.ts` |
+| Jest config | `jest.config.js` |
+| Vector search migration | `supabase/migrations/019_fix_vector_search.sql` |
 
 ## Session Log
 
@@ -630,6 +642,35 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Files changed**: `Sidebar.tsx`, `Navbar.tsx`, `DashboardWrapper.tsx`
 - Branch: `claude/update-client-page-form-7T38L`
 
+### Session 22 — Test Coverage, Vector Search Migration, API Docs & SELECT * Audit (2026-03-13)
+- **Scope**: Addressed 4 outstanding items from security/quality audit (items 4, 5, 7, 8)
+- **Test infrastructure** (Item 4):
+  - Added `npm test`, `npm run test:watch`, `npm run test:coverage` scripts
+  - Created test helpers: `supabase-mock.ts` (chainable builder mock), `setup.ts` (global mocks for `next/headers`, audit, badges), `index.ts` (re-exports)
+  - Updated `jest.config.js` with `setupFiles` and `testPathIgnorePatterns`
+  - Created 7 test files with 44 tests covering: health, status, clients CRUD, clients [id], payrolls, payroll-run actions, dashboard stats
+  - **Key pattern**: `chainMock()` uses two-pass init — first creates all `jest.fn()` stubs, then sets `mockReturnValue` with spread (avoids eager evaluation bug)
+- **Vector search migration** (Item 5):
+  - Created `supabase/migrations/019_fix_vector_search.sql` — `CREATE OR REPLACE FUNCTION match_document_chunks()` with `match_threshold DEFAULT 0.1` (was 0.3) and `SET LOCAL ivfflat.probes = 10` (was default 1)
+  - Updated `src/lib/ai/rag.ts` line 35: `match_threshold: 0.3` → `0.1`
+- **API documentation** (Item 7):
+  - Created `docs/api-reference.md` — 2,175 lines covering all 42 API routes across 20 categories
+  - Includes method, path, auth, request/response shapes, error codes, rate limiting
+- **SELECT * audit** (Item 8):
+  - Fixed 6 routes to use explicit column selection:
+    - `feature-requests/route.ts` — 9 explicit columns
+    - `badges/route.ts` — 2 queries: 5 + 13 explicit columns
+    - `training/route.ts` — 12 explicit columns
+    - `ai-assistant/documents/route.ts` — 9 explicit columns
+    - `audit-logs/export/route.ts` — 7 columns (dropped `user_agent`, `user_id`, `id`, `tenant_id`)
+    - `payroll-runs/generate/route.ts` — `select('id, name, sort_order')` for checklist templates
+  - Intentionally skipped: account export (needs all), clients/payrolls list (sidebar edit needs all), audit diffs (needs full record)
+- **Bugs encountered & fixed**:
+  - `setupFilesAfterSetup` → `setupFiles` (Jest config key doesn't exist)
+  - `beforeAll` not defined in setup → removed (setupFiles runs before Jest framework)
+  - Helper files matched test pattern → added `testPathIgnorePatterns`
+  - `chainMock` spread operator eagerness → two-pass init
+- Branch: `claude/migration-vector-search-fix-KoFyk`
 ### Session 22 — SWR Login Revalidation & Unit Tests (2026-03-13)
 - **Goal**: Close backlog item #3 — reduce SWR `dedupingInterval` or add explicit revalidation on login
 - **Finding**: `dedupingInterval` was already at 2000ms (not 5s as backlog noted); SWR cache clear on both SIGNED_IN and SIGNED_OUT already existed in AuthContext
