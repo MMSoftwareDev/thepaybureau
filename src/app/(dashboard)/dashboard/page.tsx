@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
-import { createClientSupabaseClient } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
 import { useDashboardStats } from '@/lib/swr'
 import {
   Users,
@@ -100,19 +100,14 @@ const ACTIVITY_CONFIG: Record<
 export default function DashboardPage() {
   const { data: stats, isLoading: loading } = useDashboardStats() as { data: DashboardStats | undefined, isLoading: boolean }
   const [mounted, setMounted] = useState(false)
-  const [userName, setUserName] = useState('')
   const router = useRouter()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
+  const { user } = useAuth()
+  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || ''
 
   useEffect(() => {
     setMounted(true)
-    const supabase = createClientSupabaseClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setUserName(user.user_metadata?.name || user.email?.split('@')[0] || '')
-      }
-    })
   }, [])
 
   const isEmptyState =

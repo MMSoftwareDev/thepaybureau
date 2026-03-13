@@ -4,8 +4,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
-import { createClientSupabaseClient } from '@/lib/supabase'
-import { clearSWRCache } from '@/lib/swr'
+import { useAuth } from '@/contexts/AuthContext'
 import { Menu, ChevronRight, LogOut, ChevronDown } from 'lucide-react'
 import BadgeDropdown from '@/components/gamification/BadgeDropdown'
 import { usePathname } from 'next/navigation'
@@ -13,8 +12,6 @@ import Link from 'next/link'
 
 interface NavbarProps {
   onMenuToggle?: () => void
-  user?: { email?: string; user_metadata?: { name?: string } } | null
-  avatarUrl?: string | null
 }
 
 const PAGE_TITLES: Record<string, string> = {
@@ -79,14 +76,14 @@ function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
   return [{ label: title }]
 }
 
-export default function Navbar({ onMenuToggle, user, avatarUrl }: NavbarProps) {
+export default function Navbar({ onMenuToggle }: NavbarProps) {
   const [mounted, setMounted] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
-  const supabase = createClientSupabaseClient()
+  const { user, avatarUrl, signOut } = useAuth()
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -103,16 +100,6 @@ export default function Navbar({ onMenuToggle, user, avatarUrl }: NavbarProps) {
 
   // Close dropdown on route change
   useEffect(() => { setDropdownOpen(false) }, [pathname])
-
-  const handleLogout = async () => {
-    try {
-      clearSWRCache()
-      await supabase.auth.signOut()
-      window.location.href = '/login'
-    } catch (error) {
-      console.error('Error signing out:', error)
-    }
-  }
 
   const getUserName = () => {
     if (!mounted) return 'User'
@@ -259,7 +246,7 @@ export default function Navbar({ onMenuToggle, user, avatarUrl }: NavbarProps) {
 
             {/* Logout */}
             <button
-              onClick={handleLogout}
+              onClick={signOut}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150"
               style={{ color: colors.text.secondary }}
               onMouseEnter={(e) => {
