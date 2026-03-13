@@ -78,7 +78,7 @@ npx playwright test  # E2E tests
 - **Cron routes:** Protected by `CRON_SECRET` bearer token.
 - **Admin routes:** Protected by `PLATFORM_ADMIN_EMAILS` env check.
 - **Clients vs Payrolls:** Separate tables — one client can have multiple payrolls. Payroll config fields (frequency, pay day, PAYE ref, pension) live on `payrolls` table, not `clients`. Payroll runs reference `payroll_id`.
-- **Client data model:** 45+ fields across identity, company details, address, 3 contact types (primary, secondary, payroll), accountant, registered address, tax/compliance (VAT, UTR, CIS, HMRC 64-8, TPAS, AE status), billing/contract, and metadata (tags, assigned_to, referral_source, etc.).
+- **Client data model:** 45+ fields across identity, company details, address, 2 contact types (primary, secondary), accountant, tax/compliance (VAT, UTR, CIS, HMRC PAYE Online Auth, AE status), billing/contract (fee, billing frequency, payment method, contract type, notice period), and metadata (tags, assigned_to, referral_source, industry, etc.). Payroll Contact removed (primary contact covers this). Registered Address and TPAS deferred.
 
 ## Security Notes (from audit 2026-03-07)
 
@@ -128,6 +128,9 @@ npx playwright test  # E2E tests
 - CSV export endpoint for clients (`/api/clients/export`) with rate limiting
 - 25 additional client fields for full payroll bureau CRM (tax/compliance, billing, contacts, categorisation — see Session 19)
 - `/api/users` endpoint for tenant user listing (used by Assigned To dropdown)
+- Client page Phase 2: removed Payroll Contact/Registered Address/TPAS/Director Name; added Contract Type, Notice Period, UK Industries dropdown
+- Customizable table columns with localStorage persistence (toggle visibility, reorder)
+- Toast z-index fix (z-[100]) to render above Sheet/Dialog overlays
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Reorder pension tasks after payroll run in checklists
@@ -201,6 +204,8 @@ npx playwright test  # E2E tests
 - **Table design (ChangePen style):** Flat tables — no border wrapper, light gray header row, thin `border-b` dividers only, no alternating row backgrounds, CSS-only hover (`purple/3%`). Row height ~48px with `px-4 py-3` cell padding.
 - **Add/Edit forms:** Use shadcn `Sheet` sidebar pattern with grouped collapsible sections — not full-page forms or modals.
 - Use shadcn `AlertDialog` for destructive confirmations — never `window.confirm()` or browser `confirm()`.
+- Toast z-index must be `z-[100]` — higher than Sheet/Dialog overlays (z-50) so toasts are always visible.
+- Table columns should be customizable where practical — toggle visibility + reorder, persist to localStorage.
 
 ## Design Consistency & Brand Standards
 
@@ -599,3 +604,16 @@ _Add notes from each Claude Code session below so context carries forward._
 - **CSV export/import**: All 25 fields added to both export and import routes
 - **Files changed (8)**: migration 017 (new), `database.ts`, `validations.ts`, `clients/[id]/route.ts`, `clients/page.tsx`, `users/route.ts` (new), `clients/export/route.ts`, `clients/import/route.ts`
 - Branch: `claude/audit-client-fields-UcXzT`
+
+### Session 20 — Client Page Form Phase 2 & Customizable Table (2026-03-13)
+- **Fields removed**: Payroll Contact section (primary contact covers this), Registered Address section (deferred), TPAS Authorised field, Director Name field
+- **Fields renamed**: "HMRC Agent Authorised (64-8)" → "HMRC PAYE Online Authorisation"
+- **Fields updated**: Auto Enrolment Status options changed from enrolled/exempt/postponed → Exempt/Currently Not Required/Enrolled; Payment Method changed from free text to dropdown (BACS, Standing Order, Card, Invoice, Direct Debit); Industry changed from free text to UK Industries dropdown (20 sectors)
+- **Fields added**: Contract Type (Rolling / Fixed Term) — Contract End Date only shows when Fixed Term; Notice Period (number + unit: Days/Weeks/Months)
+- **Migration 018**: Added `contract_type`, `notice_period_value`, `notice_period_unit` columns; updated `auto_enrolment_status` CHECK constraint (postponed → currently_not_required)
+- **Customizable table columns**: "Columns" button opens dialog to toggle column visibility and reorder with up/down arrows; preferences persist in localStorage
+- **Table visual improvements**: Company initial avatars with deterministic colors, sticky header, compact rows (py-2.5), text truncation on overflow cells, left border accent on hover
+- **Bug fix**: Toast notifications hidden behind Sheet overlay — both used z-50; fixed toast to z-[100]
+- **Root cause of "Failed to create client"**: Migrations 016–018 not applied to Supabase database; guided user through running all three in SQL Editor
+- **Files changed**: `clients/page.tsx`, `validations.ts`, `database.ts`, `clients/export/route.ts`, `clients/import/route.ts`, migration 018 (new), `toast.tsx` (z-index fix)
+- Branch: `claude/update-client-page-fields-Q1fqU`
