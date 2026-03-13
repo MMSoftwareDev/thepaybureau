@@ -19,6 +19,14 @@ export function useClient(id: string | null) {
   return useSWR(id ? `/api/clients/${id}` : null, fetcher, defaultConfig)
 }
 
+export function usePayrolls() {
+  return useSWR('/api/payrolls', fetcher, defaultConfig)
+}
+
+export function usePayroll(id: string | null) {
+  return useSWR(id ? `/api/payrolls/${id}` : null, fetcher, defaultConfig)
+}
+
 export function useDashboardStats() {
   return useSWR('/api/dashboard/stats', fetcher, defaultConfig)
 }

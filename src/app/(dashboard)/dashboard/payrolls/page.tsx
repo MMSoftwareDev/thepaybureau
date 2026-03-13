@@ -1,11 +1,21 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo, Suspense, useRef } from 'react'
-import { createClientSupabaseClient } from '@/lib/supabase'
+import { useEffect, useState, useMemo, useCallback } from 'react'
+import { usePayrolls, useClients } from '@/lib/swr'
+import { useDebounce } from '@/hooks/useDebounce'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
-import { getPayrollStatus, getTaxMonth, type PayrollStatus } from '@/lib/hmrc-deadlines'
-import { format, differenceInDays, parseISO, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Sheet,
   SheetContent,
@@ -13,161 +23,84 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet'
+import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
+import { format, parseISO } from 'date-fns'
 import {
-  CalendarPlus,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  LayoutGrid,
-  List,
-  Loader2,
-  Plus,
-  AlertTriangle,
+  ClipboardCheck,
   Search,
+  Plus,
+  Edit,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  CalendarDays,
+  FileText,
+  Landmark,
+  Shield,
+  ListChecks,
+  Eye,
   X,
-  Clock,
-  CircleAlert,
-  CircleCheck,
 } from 'lucide-react'
-import Link from 'next/link'
-import { useSearchParams, useRouter } from 'next/navigation'
-import { emitBadgeEarned } from '@/components/gamification/BadgeToast'
+import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/toast'
+import { mutate } from 'swr'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-interface ChecklistItem {
-  id: string
-  payroll_run_id: string
-  template_id: string | null
+interface PayrollClient {
   name: string
-  is_completed: boolean
-  completed_at: string | null
-  completed_by: string | null
-  sort_order: number
 }
 
-interface PayrollRunClient {
-  name: string
-  pay_frequency: string | null
-}
-
-interface PayrollRun {
+interface LatestRun {
   id: string
-  client_id: string
-  tenant_id: string
-  period_start: string
-  period_end: string
   pay_date: string
   status: string
-  rti_due_date: string | null
-  eps_due_date: string | null
-  notes: string | null
+}
+
+interface Payroll {
+  id: string
+  tenant_id: string
+  client_id: string
+  name: string
+  paye_reference: string | null
+  accounts_office_ref: string | null
+  pay_frequency: string | null
+  pay_day: string | null
+  period_start: string | null
+  period_end: string | null
+  payroll_software: string | null
+  employment_allowance: boolean | null
+  pension_provider: string | null
+  pension_staging_date: string | null
+  pension_reenrolment_date: string | null
+  declaration_of_compliance_deadline: string | null
+  status: string
   created_at: string | null
-  updated_at: string | null
-  clients: PayrollRunClient
-  checklist_items: ChecklistItem[]
+  clients: PayrollClient
+  latestRun: LatestRun | null
 }
 
-type ViewMode = 'board' | 'list'
-type StatusFilter = 'all' | 'complete' | 'in_progress' | 'overdue'
-
-// ── Status Helpers ─────────────────────────────────────────────────────────────
-
-interface StatusConfig {
-  label: string
-  bg: string
-  text: string
-  border: string
-  dot: string
-}
-
-function getStatusConfig(status: PayrollStatus, isDark: boolean): StatusConfig {
-  switch (status) {
-    case 'complete':
-      return {
-        label: 'Complete',
-        bg: isDark ? 'rgba(34, 197, 94, 0.15)' : '#F0FDF4',
-        text: isDark ? '#4ADE80' : '#16A34A',
-        border: isDark ? 'rgba(34, 197, 94, 0.3)' : '#BBF7D0',
-        dot: '#22C55E',
-      }
-    case 'in_progress':
-      return {
-        label: 'In Progress',
-        bg: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
-        text: isDark ? '#FBBF24' : '#D97706',
-        border: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
-        dot: '#F59E0B',
-      }
-    case 'due_soon':
-      return {
-        label: 'Due Soon',
-        bg: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
-        text: isDark ? '#FBBF24' : '#D97706',
-        border: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
-        dot: '#F59E0B',
-      }
-    case 'overdue':
-      return {
-        label: 'Overdue',
-        bg: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
-        text: isDark ? '#F87171' : '#DC2626',
-        border: isDark ? 'rgba(239, 68, 68, 0.3)' : '#FECACA',
-        dot: '#EF4444',
-      }
-    case 'not_started':
-    default:
-      return {
-        label: 'Not Started',
-        bg: isDark ? 'rgba(156, 163, 175, 0.15)' : '#F9FAFB',
-        text: isDark ? '#9CA3AF' : '#6B7280',
-        border: isDark ? 'rgba(156, 163, 175, 0.3)' : '#E5E7EB',
-        dot: '#9CA3AF',
-      }
-  }
+interface ClientOption {
+  id: string
+  name: string
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function formatPayFrequency(freq: string | null): string {
-  if (!freq) return 'N/A'
+const formatFrequency = (freq: string | null | undefined): string => {
+  if (!freq) return '-'
   const map: Record<string, string> = {
     weekly: 'Weekly',
-    fortnightly: 'Fortnightly',
-    four_weekly: 'Four-Weekly',
+    two_weekly: 'Fortnightly',
+    four_weekly: '4-Weekly',
     monthly: 'Monthly',
     annually: 'Annually',
   }
-  return map[freq] ?? freq
+  return map[freq] || freq
 }
 
-function getFreqBadge(freq: string | null): { letter: string; color: string } {
-  switch (freq) {
-    case 'monthly': return { letter: 'M', color: '#22C55E' }
-    case 'weekly': return { letter: 'W', color: '#3B82F6' }
-    case 'fortnightly': return { letter: 'F', color: '#8B5CF6' }
-    case 'four_weekly': return { letter: '4W', color: '#F59E0B' }
-    case 'annually': return { letter: 'A', color: '#EC4899' }
-    default: return { letter: '?', color: '#9CA3AF' }
-  }
-}
-
-function computeStatus(run: PayrollRun): PayrollStatus {
-  const items = run.checklist_items ?? []
-  const completedCount = items.filter((i) => i.is_completed).length
-  return getPayrollStatus(parseISO(run.pay_date), items.length, completedCount)
-}
-
-function getCurrentStep(run: PayrollRun): string {
-  const items = [...(run.checklist_items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
-  const status = computeStatus(run)
-  if (status === 'complete') return 'Complete'
-  const nextIncomplete = items.find((i) => !i.is_completed)
-  return nextIncomplete?.name ?? 'No steps'
-}
-
-function formatDate(dateStr: string | null): string {
+function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '-'
   try {
     return format(parseISO(dateStr), 'd MMM yyyy')
@@ -176,1413 +109,760 @@ function formatDate(dateStr: string | null): string {
   }
 }
 
-function formatDateShort(dateStr: string | null): string {
-  if (!dateStr) return '-'
-  try {
-    return format(parseISO(dateStr), 'd MMM')
-  } catch {
-    return '-'
+const formatPayDay = (payDay: string | null | undefined): string => {
+  if (!payDay) return '-'
+  if (payDay === 'last_day_of_month') return 'Last day'
+  if (payDay === 'last_working_day') return 'Last working day'
+  if (payDay.startsWith('last_')) return `Last ${payDay.replace('last_', '').replace(/_/g, ' ')}`
+  if (payDay.includes('from_last')) return payDay.replace(/_/g, ' ')
+  const num = parseInt(payDay)
+  if (!isNaN(num)) {
+    const suffix = num === 1 ? 'st' : num === 2 ? 'nd' : num === 3 ? 'rd' : 'th'
+    return `${num}${suffix}`
   }
+  return payDay.charAt(0).toUpperCase() + payDay.slice(1)
 }
 
-/** Sort priority: overdue first, then due soonest, then by status weight */
-function sortByUrgency(a: PayrollRun, b: PayrollRun): number {
-  const statusWeight: Record<PayrollStatus, number> = {
-    overdue: 0,
-    due_soon: 1,
-    in_progress: 2,
-    not_started: 3,
-    complete: 4,
-  }
-  const sa = computeStatus(a)
-  const sb = computeStatus(b)
-  if (statusWeight[sa] !== statusWeight[sb]) return statusWeight[sa] - statusWeight[sb]
-  return new Date(a.pay_date).getTime() - new Date(b.pay_date).getTime()
-}
+const PENSION_PROVIDERS = [
+  'NEST', 'NOW Pensions', 'Smart Pension', 'The People\'s Pension',
+  'Aviva', 'Royal London', 'Scottish Widows', 'Legal & General',
+  'Aegon', 'Standard Life', 'Hargreaves Lansdown', 'AJ Bell',
+  'Fidelity', 'Other', 'Exempt',
+]
 
-// ── Progress Dots Component ─────────────────────────────────────────────────
+const DEFAULT_CHECKLIST = [
+  { name: 'Receive payroll changes', sort_order: 0 },
+  { name: 'Process payroll', sort_order: 1 },
+  { name: 'Review & approve', sort_order: 2 },
+  { name: 'Send payslips', sort_order: 3 },
+  { name: 'Submit RTI to HMRC', sort_order: 4 },
+  { name: 'BACS payment', sort_order: 5 },
+  { name: 'Pension submission', sort_order: 6 },
+]
 
-function ProgressDots({ items, isDark }: { items: ChecklistItem[]; isDark: boolean }) {
-  const sorted = [...items].sort((a, b) => a.sort_order - b.sort_order)
+const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
-  if (sorted.length === 0) {
-    return <span style={{ color: isDark ? '#6B7280' : '#9CA3AF', fontSize: '0.72rem' }}>No steps</span>
-  }
+// ── Collapsible Section ────────────────────────────────────────────────────────
 
-  // If too many items, show condensed
-  const maxDots = 8
-  const displayItems = sorted.length > maxDots
-    ? [...sorted.slice(0, maxDots - 1), sorted[sorted.length - 1]]
-    : sorted
-  const hasOverflow = sorted.length > maxDots
-
+function FormSection({
+  title,
+  icon: Icon,
+  defaultOpen = true,
+  colors,
+  children,
+}: {
+  title: string
+  icon: React.ComponentType<{ className?: string }>
+  defaultOpen?: boolean
+  colors: ReturnType<typeof getThemeColors>
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="flex items-center gap-1">
-      {displayItems.map((item, idx) => {
-        if (hasOverflow && idx === maxDots - 1) {
-          // Show "..." indicator before last dot
-          return (
-            <div key="overflow" className="flex items-center gap-1">
-              <span style={{ color: isDark ? '#6B7280' : '#9CA3AF', fontSize: '0.6rem', lineHeight: 1 }}>...</span>
-              <div
-                className="w-3 h-3 rounded-full flex-shrink-0 transition-all"
-                style={{ backgroundColor: item.is_completed ? '#22C55E' : isDark ? '#4B5563' : '#D1D5DB' }}
-              />
-            </div>
-          )
-        }
-        return (
-          <div
-            key={item.id}
-            className="w-3 h-3 rounded-full flex-shrink-0 transition-all"
-            title={`${item.name}${item.is_completed ? ' ✓' : ''}`}
-            style={{ backgroundColor: item.is_completed ? '#22C55E' : isDark ? '#4B5563' : '#D1D5DB' }}
-          />
-        )
-      })}
-    </div>
-  )
-}
-
-// ── Celebration Overlay ──────────────────────────────────────────────────────
-
-function CelebrationOverlay({ clientName, onDone }: { clientName: string; onDone: () => void }) {
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const timer = setTimeout(onDone, 4000)
-    return () => clearTimeout(timer)
-  }, [onDone])
-
-  // Generate confetti particles
-  const particles = useMemo(() => {
-    const colors = ['#22C55E', '#3B82F6', '#F59E0B', '#EC4899', '#8B5CF6', '#EF4444', '#14B8A6', '#F97316']
-    return Array.from({ length: 60 }, (_, i) => ({
-      id: i,
-      color: colors[i % colors.length],
-      left: Math.random() * 100,
-      delay: Math.random() * 0.8,
-      duration: 1.5 + Math.random() * 2,
-      size: 6 + Math.random() * 8,
-      rotation: Math.random() * 360,
-      shape: i % 3, // 0 = circle, 1 = square, 2 = rectangle
-    }))
-  }, [])
-
-  return (
-    <div
-      ref={containerRef}
-      className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center"
-      onClick={onDone}
-      style={{ pointerEvents: 'auto' }}
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'rgba(0, 0, 0, 0.3)',
-          animation: 'celebFadeIn 0.3s ease-out',
-        }}
-      />
-
-      {/* Confetti particles */}
-      {particles.map((p) => (
-        <div
-          key={p.id}
-          className="absolute"
-          style={{
-            left: `${p.left}%`,
-            top: '-5%',
-            width: p.shape === 2 ? p.size * 1.5 : p.size,
-            height: p.shape === 0 ? p.size : p.size * 0.6,
-            backgroundColor: p.color,
-            borderRadius: p.shape === 0 ? '50%' : '2px',
-            transform: `rotate(${p.rotation}deg)`,
-            animation: `celebFall ${p.duration}s ease-in ${p.delay}s both`,
-            opacity: 0,
-          }}
-        />
-      ))}
-
-      {/* Success message */}
-      <div
-        className="relative z-10 text-center px-8 py-6 rounded-2xl"
-        style={{
-          background: 'rgba(255, 255, 255, 0.95)',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
-          animation: 'celebBounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
-        }}
+    <div style={{ borderBottom: `1px solid ${colors.border}` }}>
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 px-5 py-3 text-left text-sm font-semibold font-[family-name:var(--font-inter)] transition-colors"
+        style={{ color: colors.text.primary }}
+        onClick={() => setOpen(!open)}
       >
-        <div className="text-4xl mb-2">🎉</div>
-        <h2 className="text-xl font-bold text-gray-900 mb-1">Payroll Complete!</h2>
-        <p className="text-sm text-gray-600">{clientName}</p>
-        <p className="text-xs text-gray-400 mt-2">Click anywhere to dismiss</p>
-      </div>
-
-      <style jsx>{`
-        @keyframes celebFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes celebBounceIn {
-          0% { transform: scale(0.3); opacity: 0; }
-          50% { transform: scale(1.05); }
-          70% { transform: scale(0.95); }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        @keyframes celebFall {
-          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
-        }
-      `}</style>
+        <Icon className="w-4 h-4" />
+        {title}
+        <span className="ml-auto">
+          {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </span>
+      </button>
+      {open && <div className="px-5 pb-4 space-y-3">{children}</div>}
     </div>
   )
 }
 
-// ── Main Component ─────────────────────────────────────────────────────────────
+// ── Main Page ──────────────────────────────────────────────────────────────────
 
-export default function PayrollsPageWrapper() {
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
-      <PayrollsPage />
-    </Suspense>
-  )
-}
-
-function PayrollsPage() {
-  const [runs, setRuns] = useState<PayrollRun[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
-
-  // View & filters
-  const [viewMode, setViewMode] = useState<ViewMode>('list')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [currentPeriod, setCurrentPeriod] = useState(startOfMonth(new Date()))
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showSearch, setShowSearch] = useState(false)
-
-  // Checklist panel
-  const [selectedRun, setSelectedRun] = useState<PayrollRun | null>(null)
-  const [panelOpen, setPanelOpen] = useState(false)
-
-  // Action states
-  const [togglingItem, setTogglingItem] = useState<string | null>(null)
-  const [savingNotes, setSavingNotes] = useState<string | null>(null)
-  const [addingStep, setAddingStep] = useState(false)
-  const [newStepName, setNewStepName] = useState('')
-  const [celebration, setCelebration] = useState<string | null>(null) // client name when celebrating
-
+export default function PayrollsPage() {
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
-  const searchParams = useSearchParams()
+  const { toast } = useToast()
   const router = useRouter()
-  const clientFilter = searchParams.get('client')
-  const supabase = createClientSupabaseClient()
 
-  // Persist view mode
-  useEffect(() => {
-    setMounted(true)
-    const saved = localStorage.getItem('payroll-runs-view')
-    if (saved === 'board' || saved === 'list') setViewMode(saved)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  // Data
+  const { data: payrolls, isLoading } = usePayrolls()
+  const { data: clientsData } = useClients()
+  const clientOptions: ClientOption[] = useMemo(() => {
+    if (!clientsData) return []
+    return (clientsData as ClientOption[]).map((c) => ({ id: c.id, name: c.name }))
+  }, [clientsData])
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearch = useDebounce(searchQuery, 300)
+
+  // Sidebar state
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editingPayroll, setEditingPayroll] = useState<Payroll | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  // Form fields
+  const [formName, setFormName] = useState('')
+  const [formClientId, setFormClientId] = useState('')
+  const [formPayFrequency, setFormPayFrequency] = useState('')
+  const [formPayDay, setFormPayDay] = useState('')
+  const [formPayeReference, setFormPayeReference] = useState('')
+  const [formAccountsOfficeRef, setFormAccountsOfficeRef] = useState('')
+  const [formPayrollSoftware, setFormPayrollSoftware] = useState('')
+  const [formEmploymentAllowance, setFormEmploymentAllowance] = useState(false)
+  const [formPensionProvider, setFormPensionProvider] = useState('')
+  const [formPensionStagingDate, setFormPensionStagingDate] = useState('')
+  const [formPensionReenrolmentDate, setFormPensionReenrolmentDate] = useState('')
+  const [formDocDeadline, setFormDocDeadline] = useState('')
+  const [formChecklist, setFormChecklist] = useState(DEFAULT_CHECKLIST)
+  const [newStepName, setNewStepName] = useState('')
+
+  // Delete state
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const resetForm = useCallback(() => {
+    setFormName('')
+    setFormClientId('')
+    setFormPayFrequency('')
+    setFormPayDay('')
+    setFormPayeReference('')
+    setFormAccountsOfficeRef('')
+    setFormPayrollSoftware('')
+    setFormEmploymentAllowance(false)
+    setFormPensionProvider('')
+    setFormPensionStagingDate('')
+    setFormPensionReenrolmentDate('')
+    setFormDocDeadline('')
+    setFormChecklist(DEFAULT_CHECKLIST)
+    setNewStepName('')
+    setEditingPayroll(null)
   }, [])
 
-  useEffect(() => {
-    if (mounted) localStorage.setItem('payroll-runs-view', viewMode)
-  }, [viewMode, mounted])
+  const openAdd = useCallback(() => {
+    resetForm()
+    setSheetOpen(true)
+  }, [resetForm])
 
-  // ── Data fetching ──────────────────────────────────────────────────────────
+  const openEdit = useCallback((payroll: Payroll) => {
+    setEditingPayroll(payroll)
+    setFormName(payroll.name || '')
+    setFormClientId(payroll.client_id || '')
+    setFormPayFrequency(payroll.pay_frequency || '')
+    setFormPayDay(payroll.pay_day || '')
+    setFormPayeReference(payroll.paye_reference || '')
+    setFormAccountsOfficeRef(payroll.accounts_office_ref || '')
+    setFormPayrollSoftware(payroll.payroll_software || '')
+    setFormEmploymentAllowance(payroll.employment_allowance || false)
+    setFormPensionProvider(payroll.pension_provider || '')
+    setFormPensionStagingDate(payroll.pension_staging_date || '')
+    setFormPensionReenrolmentDate(payroll.pension_reenrolment_date || '')
+    setFormDocDeadline(payroll.declaration_of_compliance_deadline || '')
+    setSheetOpen(true)
+  }, [])
 
-  const fetchRuns = useCallback(async () => {
+  // Pay day options based on frequency
+  const payDayOptions = useMemo(() => {
+    if (formPayFrequency === 'monthly') {
+      const days = Array.from({ length: 31 }, (_, i) => ({
+        value: String(i + 1),
+        label: String(i + 1),
+      }))
+      return [
+        ...days,
+        { value: 'last_day_of_month', label: 'Last day of month' },
+        { value: 'last_working_day', label: 'Last working day' },
+      ]
+    }
+    if (formPayFrequency === 'annually') {
+      return [] // Uses date picker
+    }
+    // weekly, two_weekly, four_weekly
+    return WEEKDAYS.map((d) => ({
+      value: d,
+      label: d.charAt(0).toUpperCase() + d.slice(1),
+    }))
+  }, [formPayFrequency])
+
+  const handleSave = async () => {
+    if (!formName.trim()) {
+      toast('Payroll name is required', 'error')
+      return
+    }
+    if (!editingPayroll && !formClientId) {
+      toast('Please select a client', 'error')
+      return
+    }
+    if (!formPayFrequency) {
+      toast('Pay frequency is required', 'error')
+      return
+    }
+    if (!formPayDay) {
+      toast('Pay day is required', 'error')
+      return
+    }
+
+    setSaving(true)
     try {
-      setLoading(true)
-      setError(null)
-
-      const periodStart = format(currentPeriod, 'yyyy-MM-dd')
-      const periodEnd = format(endOfMonth(currentPeriod), 'yyyy-MM-dd')
-
-      let query = supabase
-        .from('payroll_runs')
-        .select('*, clients(name, pay_frequency), checklist_items(*)')
-        .gte('pay_date', periodStart)
-        .lte('pay_date', periodEnd)
-        .order('pay_date', { ascending: true })
-
-      if (clientFilter) {
-        query = query.eq('client_id', clientFilter)
-      }
-
-      const { data, error: fetchError } = await query
-      if (fetchError) throw fetchError
-      setRuns((data as unknown as PayrollRun[]) ?? [])
-    } catch (err) {
-      console.error('Error fetching payroll runs:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load payroll runs')
-    } finally {
-      setLoading(false)
-    }
-  }, [supabase, clientFilter, currentPeriod])
-
-  useEffect(() => {
-    if (mounted) fetchRuns()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientFilter, currentPeriod, mounted])
-
-  // ── Filtering & sorting ─────────────────────────────────────────────────────
-
-  const filteredRuns = useMemo(() => {
-    let result = runs
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter((run) => run.clients?.name?.toLowerCase().includes(q))
-    }
-
-    // Filter by status — default ('all') hides completed runs
-    result = result.filter((run) => {
-      const s = computeStatus(run)
-      if (statusFilter === 'all') return s !== 'complete'
-      if (statusFilter === 'in_progress') return s === 'in_progress' || s === 'due_soon' || s === 'not_started'
-      if (statusFilter === 'overdue') return s === 'overdue'
-      if (statusFilter === 'complete') return s === 'complete'
-      return true
-    })
-
-    return [...result].sort(sortByUrgency)
-  }, [runs, statusFilter, searchQuery])
-
-  // Status counts
-  const counts = useMemo(() => {
-    const c = { total: runs.length, complete: 0, in_progress: 0, overdue: 0 }
-    for (const run of runs) {
-      const s = computeStatus(run)
-      if (s === 'complete') c.complete++
-      else if (s === 'overdue') c.overdue++
-      else c.in_progress++
-    }
-    return c
-  }, [runs])
-
-  // ── Actions ────────────────────────────────────────────────────────────────
-
-  const toggleChecklistItem = async (item: ChecklistItem) => {
-    setTogglingItem(item.id)
-    try {
-      const res = await fetch('/api/payroll-runs/actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'toggle_item', item_id: item.id, is_completed: !item.is_completed }),
-      })
-      if (!res.ok) throw new Error('Failed to toggle item')
-
-      // Check for new badges
-      const resData = await res.json().catch(() => ({}))
-      if (resData.newBadges?.length > 0) {
-        emitBadgeEarned(resData.newBadges)
-      }
-
-      // Optimistic update
-      const updatedChecklist = (runItems: ChecklistItem[]) =>
-        runItems.map((ci) =>
-          ci.id === item.id
-            ? { ...ci, is_completed: !item.is_completed, completed_at: !item.is_completed ? new Date().toISOString() : null }
-            : ci
-        )
-
-      setRuns((prev) =>
-        prev.map((r) =>
-          r.id === item.payroll_run_id
-            ? { ...r, checklist_items: updatedChecklist(r.checklist_items) }
-            : r
-        )
-      )
-      setSelectedRun((prev) =>
-        prev && prev.id === item.payroll_run_id
-          ? { ...prev, checklist_items: updatedChecklist(prev.checklist_items) }
-          : prev
-      )
-
-      // Check if this was the last item — auto-generate next period
-      if (!item.is_completed) {
-        const parentRun = runs.find((r) => r.id === item.payroll_run_id)
-        if (parentRun) {
-          const allItems = parentRun.checklist_items
-          const otherIncomplete = allItems.filter((ci) => ci.id !== item.id && !ci.is_completed)
-          if (otherIncomplete.length === 0) {
-            setCelebration(parentRun.clients?.name ?? 'Payroll')
-            setPanelOpen(false)
-            setSelectedRun(null)
-            try {
-              const res = await fetch('/api/payroll-runs/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ client_id: parentRun.client_id }),
-              })
-              if (res.ok) {
-                const newRun = await res.json()
-                if (newRun.pay_date) {
-                  const newPayDate = parseISO(newRun.pay_date)
-                  const newMonth = startOfMonth(newPayDate)
-                  if (newMonth.getTime() !== currentPeriod.getTime()) {
-                    setCurrentPeriod(newMonth)
-                  }
-                }
-              } else {
-                const body = await res.json().catch(() => ({}))
-                console.error('Auto-generate next period failed:', body.error || res.status)
-              }
-            } catch (err) {
-              console.error('Auto-generate network error:', err)
-            }
-          }
+      if (editingPayroll) {
+        const payload = {
+          name: formName.trim(),
+          pay_frequency: formPayFrequency,
+          pay_day: formPayDay,
+          paye_reference: formPayeReference.trim() || undefined,
+          accounts_office_ref: formAccountsOfficeRef.trim() || undefined,
+          payroll_software: formPayrollSoftware.trim() || undefined,
+          employment_allowance: formEmploymentAllowance,
+          pension_provider: formPensionProvider || undefined,
+          pension_staging_date: formPensionStagingDate || undefined,
+          pension_reenrolment_date: formPensionReenrolmentDate || undefined,
+          declaration_of_compliance_deadline: formDocDeadline || undefined,
         }
-      }
-    } catch (err) {
-      console.error('Error toggling checklist item:', err)
-      await fetchRuns()
-    } finally {
-      setTogglingItem(null)
-    }
-  }
 
-  const markAllComplete = async (run: PayrollRun) => {
-    const incompleteIds = run.checklist_items.filter((i) => !i.is_completed).map((i) => i.id)
-    if (incompleteIds.length === 0) return
-    try {
-      const res = await fetch('/api/payroll-runs/actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'mark_all_complete', payroll_run_id: run.id }),
-      })
-      if (!res.ok) throw new Error('Failed to mark all complete')
+        const res = await fetch(`/api/payrolls/${editingPayroll.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
 
-      // Check for new badges
-      const resData = await res.json().catch(() => ({}))
-      if (resData.newBadges?.length > 0) {
-        emitBadgeEarned(resData.newBadges)
-      }
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error || 'Failed to update payroll')
+        }
+      } else {
+        const payload = {
+          name: formName.trim(),
+          client_id: formClientId,
+          pay_frequency: formPayFrequency,
+          pay_day: formPayDay,
+          paye_reference: formPayeReference.trim() || undefined,
+          accounts_office_ref: formAccountsOfficeRef.trim() || undefined,
+          payroll_software: formPayrollSoftware.trim() || undefined,
+          employment_allowance: formEmploymentAllowance,
+          pension_provider: formPensionProvider || undefined,
+          pension_staging_date: formPensionStagingDate || undefined,
+          pension_reenrolment_date: formPensionReenrolmentDate || undefined,
+          declaration_of_compliance_deadline: formDocDeadline || undefined,
+          checklist_items: formChecklist,
+        }
 
-      setCelebration(run.clients?.name ?? 'Payroll')
-
-      if (selectedRun?.id === run.id) {
-        setPanelOpen(false)
-        setSelectedRun(null)
-      }
-
-      // Auto-generate next period
-      try {
-        const res = await fetch('/api/payroll-runs/generate', {
+        const res = await fetch('/api/payrolls', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ client_id: run.client_id }),
+          body: JSON.stringify(payload),
         })
-        if (res.ok) {
-          const newRun = await res.json()
-          if (newRun.pay_date) {
-            const newPayDate = parseISO(newRun.pay_date)
-            const newMonth = startOfMonth(newPayDate)
-            if (newMonth.getTime() !== currentPeriod.getTime()) {
-              setCurrentPeriod(newMonth)
-              return
-            }
-          }
-        } else {
-          const body = await res.json().catch(() => ({}))
-          console.error('Auto-generate next period failed:', body.error || res.status)
+
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error || 'Failed to create payroll')
         }
-      } catch (err) {
-        console.error('Auto-generate network error:', err)
       }
 
-      await fetchRuns()
+      toast(editingPayroll ? 'Payroll updated' : 'Payroll created')
+      mutate('/api/payrolls')
+      setSheetOpen(false)
+      resetForm()
     } catch (err) {
-      console.error('Error marking all complete:', err)
-    }
-  }
-
-  const saveNotes = async (runId: string, newNotes: string) => {
-    setSavingNotes(runId)
-    try {
-      const res = await fetch('/api/payroll-runs/actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save_notes', payroll_run_id: runId, notes: newNotes }),
-      })
-      if (!res.ok) throw new Error('Failed to save notes')
-    } catch (err) {
-      console.error('Error saving notes:', err)
+      toast((err as Error).message, 'error')
     } finally {
-      setSavingNotes(null)
+      setSaving(false)
     }
   }
 
-  const addStep = async (runId: string) => {
+  const handleDelete = async (payroll: Payroll) => {
+    if (!confirm(`Delete "${payroll.name}"? This will also delete all payroll runs.`)) return
+    setDeletingId(payroll.id)
+    try {
+      const res = await fetch(`/api/payrolls/${payroll.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete')
+      toast('Payroll deleted')
+      mutate('/api/payrolls')
+    } catch {
+      toast('Failed to delete payroll', 'error')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const addChecklistStep = () => {
     if (!newStepName.trim()) return
-    setAddingStep(true)
-    try {
-      const run = runs.find((r) => r.id === runId)
-      const maxOrder = run ? Math.max(0, ...run.checklist_items.map((i) => i.sort_order)) : 0
-      const res = await fetch('/api/payroll-runs/actions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'add_step', payroll_run_id: runId, name: newStepName.trim(), sort_order: maxOrder + 1 }),
-      })
-      if (!res.ok) throw new Error('Failed to add step')
-      setNewStepName('')
-      await fetchRuns()
-      const updated = runs.find((r) => r.id === runId)
-      if (updated) setSelectedRun(updated)
-    } catch (err) {
-      console.error('Error adding step:', err)
-    } finally {
-      setAddingStep(false)
+    setFormChecklist([...formChecklist, { name: newStepName.trim(), sort_order: formChecklist.length }])
+    setNewStepName('')
+  }
+
+  const removeChecklistStep = (index: number) => {
+    setFormChecklist(formChecklist.filter((_, i) => i !== index).map((item, i) => ({ ...item, sort_order: i })))
+  }
+
+  // Filtered data
+  const payrollList: Payroll[] = useMemo(() => {
+    if (!payrolls) return []
+    let filtered = payrolls as Payroll[]
+
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase()
+      filtered = filtered.filter((p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.clients?.name?.toLowerCase().includes(q)
+      )
     }
-  }
 
-  const openChecklist = (run: PayrollRun) => {
-    setSelectedRun(run)
-    setPanelOpen(true)
-  }
+    return filtered
+  }, [payrolls, debouncedSearch])
 
-  // Keep selectedRun in sync with runs data
-  useEffect(() => {
-    if (selectedRun) {
-      const updated = runs.find((r) => r.id === selectedRun.id)
-      if (updated) setSelectedRun(updated)
+  // KPI counts
+  const counts = useMemo(() => {
+    const all = (payrolls || []) as Payroll[]
+    return {
+      total: all.length,
+      weekly: all.filter((p) => p.pay_frequency === 'weekly').length,
+      monthly: all.filter((p) => p.pay_frequency === 'monthly').length,
+      other: all.filter((p) => p.pay_frequency && !['weekly', 'monthly'].includes(p.pay_frequency)).length,
     }
-  }, [runs, selectedRun])
+  }, [payrolls])
 
-  // ── Period navigation ────────────────────────────────────────────────────────
+  // ── Skeleton ───────────────────────────────────────────────────────────────
 
-  const periodLabel = format(currentPeriod, 'MMMM yyyy')
-  const goToPrevPeriod = () => setCurrentPeriod(subMonths(currentPeriod, 1))
-  const goToNextPeriod = () => setCurrentPeriod(addMonths(currentPeriod, 1))
-
-  // ── Prevent hydration mismatch ──────────────────────────────────────────────
-
-  if (!mounted) {
+  if (!mounted || isLoading) {
     return (
-      <div className="space-y-5 animate-pulse">
-        <div className="h-14 rounded-xl" style={{ background: colors.border }} />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-20 rounded-lg" style={{ background: colors.border }} />
-          ))}
-        </div>
-        <div className="h-96 rounded-lg" style={{ background: colors.border }} />
-      </div>
-    )
-  }
-
-  // ── Loading: Skeleton ─────────────────────────────────────────────────────
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
+      <div className="p-4 md:p-6 space-y-5">
         <div className="flex items-center justify-between">
-          <div className="h-8 w-40 rounded-lg animate-pulse" style={{ background: colors.border }} />
-          <div className="h-9 w-44 rounded-lg animate-pulse" style={{ background: colors.border }} />
+          <div className="h-8 w-48 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
+          <div className="h-9 w-36 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-20 rounded-lg animate-pulse" style={{ background: colors.border }} />
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-20 rounded-xl animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
           ))}
         </div>
-        <div className="h-96 rounded-lg animate-pulse" style={{ background: colors.border }} />
+        <div className="h-96 rounded-xl animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
       </div>
     )
   }
 
-  // ── Error State ─────────────────────────────────────────────────────────────
-
-  if (error) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center p-8 rounded-xl" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
-          <AlertTriangle className="w-12 h-12 mx-auto mb-4" style={{ color: '#F59E0B' }} />
-          <h3 className="text-base font-semibold mb-2" style={{ color: colors.text.primary }}>
-            Could not load payroll runs
-          </h3>
-          <p className="text-sm mb-4" style={{ color: colors.text.secondary }}>Try refreshing.</p>
-          <Button
-            onClick={fetchRuns}
-            className="text-white font-semibold px-5 py-2 rounded-md border-0"
-            style={{ backgroundColor: '#F59E0B' }}
-          >
-            Refresh
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Empty State ─────────────────────────────────────────────────────────────
-
-  if (runs.length === 0 && !loading) {
-    return (
-      <div className="space-y-4">
-        <PageHeader
-          periodLabel={periodLabel}
-          viewMode={viewMode}
-          onViewChange={setViewMode}
-          onPrevPeriod={goToPrevPeriod}
-          onNextPeriod={goToNextPeriod}
-          colors={colors}
-        />
-        <div className="min-h-[50vh] flex items-center justify-center">
-          <div className="text-center p-10">
-            <div
-              className="w-12 h-12 mx-auto mb-4 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: `${colors.primary}12` }}
-            >
-              <CalendarPlus className="w-8 h-8" style={{ color: colors.primary }} />
-            </div>
-            <h3 className="text-base font-semibold mb-2" style={{ color: colors.text.primary }}>
-              No payroll runs for {periodLabel}
-            </h3>
-            <p className="text-sm mb-5" style={{ color: colors.text.muted }}>
-              Add your first client to start tracking payroll runs.
-            </p>
-            <Link href="/dashboard/clients/add">
-              <Button
-                className="text-white font-semibold px-5 py-2.5 rounded-md border-0"
-                style={{ backgroundColor: colors.primary }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Client
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Main content ─────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4">
+    <div className="p-4 md:p-6 space-y-5">
       {/* Header */}
-      <PageHeader
-        periodLabel={periodLabel}
-        viewMode={viewMode}
-        onViewChange={setViewMode}
-        onPrevPeriod={goToPrevPeriod}
-        onNextPeriod={goToNextPeriod}
-        colors={colors}
-        showSearch={showSearch}
-        searchQuery={searchQuery}
-        onToggleSearch={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery('') }}
-        onSearchChange={setSearchQuery}
-      />
-
-      {/* Client filter banner */}
-      {clientFilter && runs.length > 0 && (
-        <div
-          className="flex items-center justify-between px-4 py-2.5 rounded-lg"
-          style={{ backgroundColor: `${colors.primary}08`, border: `1px solid ${colors.primary}20` }}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h1
+          className="text-xl md:text-2xl font-bold tracking-tight font-[family-name:var(--font-inter)]"
+          style={{ color: colors.text.primary }}
         >
-          <p className="text-[0.82rem] font-semibold" style={{ color: colors.text.primary }}>
-            Showing payrolls for <span style={{ color: colors.primary }}>{runs[0]?.clients?.name}</span>
-          </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push('/dashboard/payrolls')}
-            className="rounded-lg text-xs font-semibold h-7 px-2"
-            style={{ color: colors.primary }}
-          >
-            Show All
-          </Button>
-        </div>
-      )}
-
-      {/* Summary Cards */}
-      <SummaryBar
-        counts={counts}
-        statusFilter={statusFilter}
-        onFilterChange={(f) => setStatusFilter(statusFilter === f ? 'all' : f)}
-        colors={colors}
-        isDark={isDark}
-      />
-
-      {/* Board or List */}
-      {viewMode === 'board' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredRuns.map((run) => (
-            <RunCard
-              key={run.id}
-              run={run}
-              colors={colors}
-              isDark={isDark}
-              onOpenChecklist={() => openChecklist(run)}
-              onMarkComplete={() => markAllComplete(run)}
-            />
-          ))}
-        </div>
-      ) : (
-        <RunListView
-          runs={filteredRuns}
-          colors={colors}
-          isDark={isDark}
-          onOpenChecklist={openChecklist}
-          onMarkComplete={markAllComplete}
-        />
-      )}
-
-      {filteredRuns.length === 0 && runs.length > 0 && (
-        <div className="text-center py-16">
-          <FileText className="w-10 h-10 mx-auto mb-3" style={{ color: colors.text.muted }} />
-          <p className="text-sm font-medium" style={{ color: colors.text.secondary }}>
-            No payroll runs match this filter.
-          </p>
-          <button
-            onClick={() => setStatusFilter('all')}
-            className="mt-2 text-xs font-semibold"
-            style={{ color: colors.primary }}
-          >
-            Show all runs
-          </button>
-        </div>
-      )}
-
-      {/* Footer count */}
-      <p className="text-[0.72rem] font-medium text-center" style={{ color: colors.text.muted }}>
-        Showing {filteredRuns.length} of {runs.length} payroll runs
-      </p>
-
-      {/* Celebration overlay */}
-      {celebration && (
-        <CelebrationOverlay
-          clientName={celebration}
-          onDone={() => setCelebration(null)}
-        />
-      )}
-
-      {/* Checklist Side Panel */}
-      <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-[420px] overflow-y-auto p-0" style={{ backgroundColor: colors.surface }}>
-          {selectedRun && (
-            <ChecklistPanel
-              run={selectedRun}
-              colors={colors}
-              isDark={isDark}
-              togglingItem={togglingItem}
-              savingNotes={savingNotes}
-              addingStep={addingStep}
-              newStepName={newStepName}
-              onToggleItem={toggleChecklistItem}
-              onMarkAllComplete={() => markAllComplete(selectedRun)}
-              onSaveNotes={saveNotes}
-              onNewStepNameChange={setNewStepName}
-              onAddStep={() => addStep(selectedRun.id)}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
-    </div>
-  )
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Sub-components
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// ── Page Header ────────────────────────────────────────────────────────────────
-
-interface PageHeaderProps {
-  periodLabel: string
-  viewMode: ViewMode
-  onViewChange: (v: ViewMode) => void
-  onPrevPeriod: () => void
-  onNextPeriod: () => void
-  colors: ReturnType<typeof getThemeColors>
-  showSearch?: boolean
-  searchQuery?: string
-  onToggleSearch?: () => void
-  onSearchChange?: (q: string) => void
-}
-
-function PageHeader({
-  periodLabel,
-  viewMode,
-  onViewChange,
-  onPrevPeriod,
-  onNextPeriod,
-  colors,
-  showSearch,
-  searchQuery,
-  onToggleSearch,
-  onSearchChange,
-}: PageHeaderProps) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-xl md:text-2xl font-bold" style={{ color: colors.text.primary }}>
-          Payroll Runs
+          Payrolls
         </h1>
-        <div className="flex items-center gap-2">
-          {/* Period navigation */}
-          <div className="flex items-center gap-1 rounded-lg px-1 py-0.5" style={{ border: `1px solid ${colors.border}` }}>
-            <button onClick={onPrevPeriod} className="p-1.5 rounded-md hover:opacity-70 transition-opacity" style={{ color: colors.text.secondary }}>
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-[0.82rem] font-semibold px-2 min-w-[120px] text-center" style={{ color: colors.text.primary }}>
-              {periodLabel}
-            </span>
-            <button onClick={onNextPeriod} className="p-1.5 rounded-md hover:opacity-70 transition-opacity" style={{ color: colors.text.secondary }}>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* View toggle */}
-          <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${colors.border}` }}>
-            <button
-              onClick={() => onViewChange('list')}
-              className="p-1.5 transition-all"
-              style={{
-                backgroundColor: viewMode === 'list' ? colors.primary : 'transparent',
-                color: viewMode === 'list' ? '#FFFFFF' : colors.text.muted,
-              }}
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => onViewChange('board')}
-              className="p-1.5 transition-all"
-              style={{
-                backgroundColor: viewMode === 'board' ? colors.primary : 'transparent',
-                color: viewMode === 'board' ? '#FFFFFF' : colors.text.muted,
-              }}
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Search toggle */}
-          {onToggleSearch && (
-            <button
-              onClick={onToggleSearch}
-              className="p-1.5 rounded-lg transition-opacity hover:opacity-70"
-              style={{ color: showSearch ? colors.primary : colors.text.muted }}
-            >
-              {showSearch ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
-            </button>
-          )}
-
-          {/* Add button */}
-          <Link href="/dashboard/clients/add">
-            <Button
-              className="text-white font-semibold text-xs rounded-md border-0 h-8 px-3"
-              style={{ backgroundColor: colors.primary }}
-            >
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Add Payroll Run
-            </Button>
-          </Link>
-        </div>
+        <Button
+          onClick={openAdd}
+          className="text-white text-sm"
+          style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+        >
+          <Plus className="w-4 h-4 mr-1.5" />
+          Add Payroll
+        </Button>
       </div>
 
-      {/* Search bar */}
-      {showSearch && onSearchChange && (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
-          <input
-            type="text"
-            value={searchQuery ?? ''}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search payrolls..."
-            autoFocus
-            className="w-full pl-9 pr-4 py-2 rounded-lg text-sm font-medium focus:outline-none transition-all"
-            style={{
-              backgroundColor: colors.surface,
-              color: colors.text.primary,
-              border: `1px solid ${colors.border}`,
-            }}
-            onFocus={(e) => { e.target.style.borderColor = `${colors.primary}60` }}
-            onBlur={(e) => { e.target.style.borderColor = colors.border }}
-          />
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Summary Bar ────────────────────────────────────────────────────────────────
-
-interface SummaryBarProps {
-  counts: { total: number; complete: number; in_progress: number; overdue: number }
-  statusFilter: StatusFilter
-  onFilterChange: (f: StatusFilter) => void
-  colors: ReturnType<typeof getThemeColors>
-  isDark: boolean
-}
-
-function SummaryBar({ counts, statusFilter, onFilterChange, colors, isDark }: SummaryBarProps) {
-  const cards: { key: StatusFilter; label: string; count: number; color: string; icon: React.ReactNode }[] = [
-    { key: 'all', label: 'Active', count: counts.total - counts.complete, color: colors.primary, icon: <Clock className="w-4 h-4" /> },
-    { key: 'in_progress', label: 'In Progress', count: counts.in_progress, color: '#F59E0B', icon: <Loader2 className="w-4 h-4" /> },
-    { key: 'overdue', label: 'Overdue', count: counts.overdue, color: '#EF4444', icon: <CircleAlert className="w-4 h-4" /> },
-    { key: 'complete', label: 'Complete', count: counts.complete, color: colors.success, icon: <CircleCheck className="w-4 h-4" /> },
-  ]
-
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {cards.map((card) => {
-        const isActive = statusFilter === card.key
-        return (
-          <button
-            key={card.key}
-            onClick={() => onFilterChange(card.key)}
-            className="relative flex flex-col items-center py-4 px-3 rounded-xl transition-all duration-150"
-            style={{
-              backgroundColor: colors.surface,
-              border: `2px solid ${isActive ? card.color : colors.border}`,
-              ...(isActive ? { backgroundColor: isDark ? `${card.color}10` : `${card.color}08` } : {}),
-            }}
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Payrolls', count: counts.total, icon: ClipboardCheck, color: colors.primary },
+          { label: 'Weekly', count: counts.weekly, icon: CalendarDays, color: colors.success },
+          { label: 'Monthly', count: counts.monthly, icon: CalendarDays, color: colors.accent },
+          { label: 'Other', count: counts.other, icon: CalendarDays, color: colors.text.muted },
+        ].map((kpi) => (
+          <Card
+            key={kpi.label}
+            className="rounded-xl shadow-sm"
+            style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}
           >
-            <span className="text-3xl font-bold leading-none" style={{ color: card.color }}>
-              {card.count}
-            </span>
-            <span className="text-[0.75rem] font-medium mt-1.5" style={{ color: colors.text.muted }}>
-              {card.label}
-            </span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-// ── Run Card (Board View) ──────────────────────────────────────────────────────
-
-interface RunCardProps {
-  run: PayrollRun
-  colors: ReturnType<typeof getThemeColors>
-  isDark: boolean
-  onOpenChecklist: () => void
-  onMarkComplete: () => void
-}
-
-function RunCard({ run, colors, isDark, onOpenChecklist, onMarkComplete }: RunCardProps) {
-  const status = computeStatus(run)
-  const config = getStatusConfig(status, isDark)
-  const items = run.checklist_items ?? []
-  const completedCount = items.filter((i) => i.is_completed).length
-  const totalCount = items.length
-  const isOverdue = status === 'overdue'
-  const isComplete = status === 'complete'
-  const currentStep = getCurrentStep(run)
-  const freqBadge = getFreqBadge(run.clients?.pay_frequency ?? null)
-
-  const daysUntil = differenceInDays(parseISO(run.pay_date), new Date())
-  const isDueToday = daysUntil === 0
-
-  let payDateLabel = formatDateShort(run.pay_date)
-  let payDateColor = colors.text.muted
-  if (isOverdue) {
-    payDateLabel = `OVERDUE · ${formatDateShort(run.pay_date)}`
-    payDateColor = '#EF4444'
-  } else if (isDueToday && !isComplete) {
-    payDateLabel = 'Today'
-    payDateColor = '#F59E0B'
-  }
-
-  return (
-    <div
-      className="relative group cursor-pointer"
-      onClick={onOpenChecklist}
-      style={{
-        backgroundColor: colors.surface,
-        borderRadius: '10px',
-        border: `1px solid ${isOverdue ? '#EF444440' : colors.border}`,
-        borderLeft: isOverdue ? '4px solid #EF4444' : undefined,
-        opacity: isComplete ? 0.7 : 1,
-        boxShadow: isOverdue
-          ? '0 4px 12px rgba(239, 68, 68, 0.12)'
-          : `0 1px 3px ${colors.shadow.light}`,
-        transition: 'transform 150ms, box-shadow 150ms',
-        ...(isOverdue ? { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.04)' : '#FFF5F5' } : {}),
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-2px)'
-        e.currentTarget.style.boxShadow = isOverdue
-          ? '0 8px 20px rgba(239, 68, 68, 0.18)'
-          : `0 4px 12px ${colors.shadow.medium}`
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)'
-        e.currentTarget.style.boxShadow = isOverdue
-          ? '0 4px 12px rgba(239, 68, 68, 0.12)'
-          : `0 1px 3px ${colors.shadow.light}`
-      }}
-    >
-      {/* Status strip */}
-      <div className="rounded-t-[10px]" style={{ height: '3px', backgroundColor: config.dot }} />
-
-      <div className="p-4 space-y-3">
-        {/* Client name + freq badge */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[0.6rem] font-bold text-white"
-              style={{ backgroundColor: freqBadge.color }}
-            >
-              {freqBadge.letter}
-            </div>
-            <div className="min-w-0">
-              <p className="text-[0.9rem] font-semibold truncate" style={{ color: colors.text.primary }}>
-                {run.clients?.name ?? 'Unknown Client'}
-              </p>
-              <p className="text-[0.72rem]" style={{ color: colors.text.muted }}>
-                {formatDateShort(run.period_start)} – {formatDateShort(run.period_end)}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {isOverdue && (
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
-              </span>
-            )}
-            <span
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.68rem] font-bold"
-              style={{ backgroundColor: config.bg, color: config.text, border: `1px solid ${config.border}` }}
-            >
-              {config.label}
-            </span>
-          </div>
-        </div>
-
-        {/* Progress dots */}
-        <div className="flex items-center justify-between">
-          <ProgressDots items={items} isDark={isDark} />
-          <span className="text-[0.72rem] font-medium ml-2 flex-shrink-0" style={{ color: colors.text.muted }}>
-            {completedCount}/{totalCount}
-          </span>
-        </div>
-
-        {/* Current step */}
-        <div className="flex items-center justify-between" style={{ borderTop: `1px solid ${colors.border}`, paddingTop: '10px' }}>
-          <p className="text-[0.78rem] truncate" style={{ color: isComplete ? colors.success : colors.text.secondary }}>
-            {currentStep}
-          </p>
-          <span
-            className="text-[0.72rem] font-semibold flex-shrink-0 ml-2"
-            style={{ color: payDateColor }}
-          >
-            {payDateLabel}
-          </span>
-        </div>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
+                    {kpi.label}
+                  </p>
+                  <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                    {kpi.count}
+                  </p>
+                </div>
+                <div className="p-2 rounded-lg" style={{ backgroundColor: `${kpi.color}12` }}>
+                  <kpi.icon className="w-5 h-5" style={{ color: kpi.color }} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
-    </div>
-  )
-}
 
-// ── List View ──────────────────────────────────────────────────────────────────
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
+        <Input
+          placeholder="Search payrolls or clients..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 text-sm"
+          style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+        />
+      </div>
 
-interface RunListViewProps {
-  runs: PayrollRun[]
-  colors: ReturnType<typeof getThemeColors>
-  isDark: boolean
-  onOpenChecklist: (run: PayrollRun) => void
-  onMarkComplete: (run: PayrollRun) => void
-}
-
-function RunListView({ runs, colors, isDark, onOpenChecklist }: RunListViewProps) {
-  const [sortField, setSortField] = useState<'client' | 'status' | 'progress' | 'pay_date'>('pay_date')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
-
-  const sorted = useMemo(() => {
-    return [...runs].sort((a, b) => {
-      const dir = sortDir === 'asc' ? 1 : -1
-      switch (sortField) {
-        case 'client':
-          return dir * (a.clients?.name ?? '').localeCompare(b.clients?.name ?? '')
-        case 'status': {
-          const w: Record<PayrollStatus, number> = { overdue: 0, due_soon: 1, in_progress: 2, not_started: 3, complete: 4 }
-          return dir * (w[computeStatus(a)] - w[computeStatus(b)])
-        }
-        case 'progress': {
-          const pa = a.checklist_items?.length ? a.checklist_items.filter((i) => i.is_completed).length / a.checklist_items.length : 0
-          const pb = b.checklist_items?.length ? b.checklist_items.filter((i) => i.is_completed).length / b.checklist_items.length : 0
-          return dir * (pa - pb)
-        }
-        case 'pay_date':
-        default:
-          return dir * (new Date(a.pay_date).getTime() - new Date(b.pay_date).getTime())
-      }
-    })
-  }, [runs, sortField, sortDir])
-
-  const handleSort = (field: typeof sortField) => {
-    if (field === sortField) setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
-    else { setSortField(field); setSortDir('asc') }
-  }
-
-  const thStyle: React.CSSProperties = {
-    color: colors.text.muted,
-    fontSize: '0.68rem',
-    fontWeight: 700,
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-    cursor: 'pointer',
-    userSelect: 'none',
-    padding: '10px 12px',
-    whiteSpace: 'nowrap',
-  }
-
-  const SortArrow = ({ field }: { field: typeof sortField }) => {
-    if (sortField !== field) return null
-    return <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>
-  }
-
-  return (
-    <div className="overflow-x-auto rounded-xl" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
-      <table className="w-full">
-        <thead>
-          <tr style={{ borderBottom: `1px solid ${colors.border}`, backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)' }}>
-            <th style={thStyle} className="text-left" onClick={() => handleSort('client')}>
-              Payroll<SortArrow field="client" />
-            </th>
-            <th style={thStyle} className="text-center hidden lg:table-cell">Freq</th>
-            <th style={thStyle} className="text-left hidden xl:table-cell">Tax Year</th>
-            <th style={thStyle} className="text-left hidden md:table-cell">Period</th>
-            <th style={thStyle} className="text-left hidden sm:table-cell" onClick={() => handleSort('progress')}>
-              Progress<SortArrow field="progress" />
-            </th>
-            <th style={thStyle} className="text-left" onClick={() => handleSort('status')}>
-              Current Status<SortArrow field="status" />
-            </th>
-            <th style={thStyle} className="text-left" onClick={() => handleSort('pay_date')}>
-              Pay Date<SortArrow field="pay_date" />
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((run) => {
-            const status = computeStatus(run)
-            const config = getStatusConfig(status, isDark)
-            const items = run.checklist_items ?? []
-            const isOverdue = status === 'overdue'
-            const isComplete = status === 'complete'
-            const daysUntil = differenceInDays(parseISO(run.pay_date), new Date())
-            const currentStep = getCurrentStep(run)
-            const freqBadge = getFreqBadge(run.clients?.pay_frequency ?? null)
-
-            // Tax year calculation
-            const payDate = parseISO(run.pay_date)
-            const taxYear = payDate.getMonth() >= 3 && payDate.getDate() >= 6 || payDate.getMonth() > 3
-              ? `${payDate.getFullYear()}/${(payDate.getFullYear() + 1).toString().slice(-2)}`
-              : `${payDate.getFullYear() - 1}/${payDate.getFullYear().toString().slice(-2)}`
-            const taxMonth = getTaxMonth(payDate)
-
-            return (
-              <tr
-                key={run.id}
-                className="group transition-colors cursor-pointer"
-                style={{
-                  borderBottom: `1px solid ${colors.border}`,
-                  opacity: isComplete ? 0.65 : 1,
-                }}
-                onClick={() => onOpenChecklist(run)}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.02)' : '#F9FAFB' }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+      {/* Table */}
+      {payrollList.length === 0 ? (
+        <Card className="rounded-xl shadow-sm" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
+          <CardContent className="p-12 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: `${colors.primary}12` }}>
+              <ClipboardCheck className="w-6 h-6" style={{ color: colors.primary }} />
+            </div>
+            <h3 className="text-sm font-semibold mb-1 font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+              No payrolls found
+            </h3>
+            <p className="text-xs mb-4 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+              {debouncedSearch ? 'Try a different search term.' : 'Add a payroll to start managing pay runs.'}
+            </p>
+            {!debouncedSearch && (
+              <Button
+                onClick={openAdd}
+                size="sm"
+                className="text-white text-xs"
+                style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
               >
-                {/* Payroll (Client name) */}
-                <td className="px-3 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <Link
-                      href={`/dashboard/clients/${run.client_id}`}
-                      className="text-[0.85rem] font-semibold hover:underline truncate"
-                      style={{ color: colors.text.primary }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {run.clients?.name ?? 'Unknown'}
-                    </Link>
-                  </div>
-                </td>
-
-                {/* Freq badge */}
-                <td className="px-3 py-3 hidden lg:table-cell">
-                  <div className="flex justify-center">
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-[0.6rem] font-bold text-white"
-                      title={formatPayFrequency(run.clients?.pay_frequency ?? null)}
-                      style={{ backgroundColor: freqBadge.color }}
-                    >
-                      {freqBadge.letter}
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Add Payroll
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="rounded-xl shadow-sm overflow-hidden" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
+          <Table>
+            <TableHeader>
+              <TableRow style={{ borderColor: colors.border }}>
+                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Payroll Name</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Client</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden md:table-cell" style={{ color: colors.text.muted }}>Frequency</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden md:table-cell" style={{ color: colors.text.muted }}>Pay Day</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>PAYE Ref</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>Next Pay Date</TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {payrollList.map((payroll) => (
+                <TableRow
+                  key={payroll.id}
+                  className="cursor-pointer transition-colors"
+                  style={{ borderColor: colors.border }}
+                  onClick={() => openEdit(payroll)}
+                >
+                  <TableCell className="font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${colors.primary}12` }}>
+                        <ClipboardCheck className="w-4 h-4" style={{ color: colors.primary }} />
+                      </div>
+                      {payroll.name}
                     </div>
-                  </div>
-                </td>
+                  </TableCell>
+                  <TableCell className="text-sm font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                    {payroll.clients?.name || '-'}
+                  </TableCell>
+                  <TableCell className="text-sm hidden md:table-cell">
+                    <Badge className="text-xs" style={{ backgroundColor: `${colors.primary}15`, color: colors.primary, border: `1px solid ${colors.primary}30` }}>
+                      {formatFrequency(payroll.pay_frequency)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm hidden md:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                    {formatPayDay(payroll.pay_day)}
+                  </TableCell>
+                  <TableCell className="text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                    {payroll.paye_reference || '-'}
+                  </TableCell>
+                  <TableCell className="text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                    {payroll.latestRun ? formatDate(payroll.latestRun.pay_date) : '-'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="View Runs"
+                        onClick={() => router.push(`/dashboard/payrolls/runs?payroll=${payroll.id}`)}
+                      >
+                        <Eye className="w-3.5 h-3.5" style={{ color: colors.primary }} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => openEdit(payroll)}
+                      >
+                        <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        disabled={deletingId === payroll.id}
+                        onClick={() => handleDelete(payroll)}
+                      >
+                        {deletingId === payroll.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.text.muted }} />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" style={{ color: colors.error }} />
+                        )}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
 
-                {/* Tax Year */}
-                <td className="px-3 py-3 hidden xl:table-cell">
-                  <span className="text-[0.82rem]" style={{ color: colors.text.secondary }}>
-                    {taxYear}
-                  </span>
-                </td>
+      {/* Add/Edit Sidebar */}
+      <Sheet open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open) resetForm() }}>
+        <SheetContent side="right" className="w-full sm:max-w-[480px] overflow-y-auto p-0" style={{ backgroundColor: colors.surface }}>
+          <SheetHeader className="px-5 pt-5 pb-3" style={{ borderBottom: `1px solid ${colors.border}` }}>
+            <SheetTitle className="text-lg font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+              {editingPayroll ? 'Edit Payroll' : 'Add Payroll'}
+            </SheetTitle>
+            <SheetDescription className="text-xs font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+              {editingPayroll ? 'Update the payroll configuration below.' : 'Set up a new payroll for a client.'}
+            </SheetDescription>
+          </SheetHeader>
 
-                {/* Period */}
-                <td className="px-3 py-3 hidden md:table-cell">
-                  <span className="text-[0.82rem]" style={{ color: colors.text.secondary }}>
-                    {taxMonth}
-                  </span>
-                </td>
-
-                {/* Progress dots */}
-                <td className="px-3 py-3 hidden sm:table-cell">
-                  <ProgressDots items={items} isDark={isDark} />
-                </td>
-
-                {/* Current Status */}
-                <td className="px-3 py-3">
-                  <span
-                    className="text-[0.82rem] font-medium"
-                    style={{ color: isComplete ? colors.success : isOverdue ? '#EF4444' : colors.text.secondary }}
-                  >
-                    {currentStep}
-                  </span>
-                </td>
-
-                {/* Pay Date */}
-                <td className="px-3 py-3">
-                  <span
-                    className="text-[0.82rem]"
-                    style={{
-                      color: isOverdue ? '#EF4444' : daysUntil === 0 ? '#F59E0B' : colors.text.secondary,
-                      fontWeight: isOverdue || daysUntil === 0 ? 700 : 400,
-                    }}
-                  >
-                    {isOverdue && '⚠ '}{formatDateShort(run.pay_date)}
-                  </span>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// ── Checklist Side Panel ───────────────────────────────────────────────────────
-
-interface ChecklistPanelProps {
-  run: PayrollRun
-  colors: ReturnType<typeof getThemeColors>
-  isDark: boolean
-  togglingItem: string | null
-  savingNotes: string | null
-  addingStep: boolean
-  newStepName: string
-  onToggleItem: (item: ChecklistItem) => void
-  onMarkAllComplete: () => void
-  onSaveNotes: (runId: string, notes: string) => void
-  onNewStepNameChange: (name: string) => void
-  onAddStep: () => void
-}
-
-function ChecklistPanel({
-  run,
-  colors,
-  isDark,
-  togglingItem,
-  savingNotes,
-  addingStep,
-  newStepName,
-  onToggleItem,
-  onMarkAllComplete,
-  onSaveNotes,
-  onNewStepNameChange,
-  onAddStep,
-}: ChecklistPanelProps) {
-  const [localNotes, setLocalNotes] = useState(run.notes ?? '')
-  const items = [...(run.checklist_items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
-  const completedCount = items.filter((i) => i.is_completed).length
-  const totalCount = items.length
-  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
-  const allComplete = totalCount > 0 && completedCount === totalCount
-  const status = computeStatus(run)
-  const config = getStatusConfig(status, isDark)
-  const freqBadge = getFreqBadge(run.clients?.pay_frequency ?? null)
-
-  useEffect(() => {
-    setLocalNotes(run.notes ?? '')
-  }, [run.notes])
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Panel header */}
-      <div className="p-6 pb-4" style={{ borderBottom: `1px solid ${colors.border}` }}>
-        <SheetHeader className="p-0">
-          <SheetTitle className="text-lg font-bold flex items-center gap-2.5" style={{ color: colors.text.primary }}>
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[0.6rem] font-bold text-white"
-              style={{ backgroundColor: freqBadge.color }}
-            >
-              {freqBadge.letter}
-            </div>
-            {run.clients?.name ?? 'Unknown Client'}
-          </SheetTitle>
-          <SheetDescription className="text-[0.82rem] font-medium" style={{ color: colors.text.muted }}>
-            {formatDateShort(run.period_start)} – {formatDateShort(run.period_end)} · {formatPayFrequency(run.clients?.pay_frequency ?? null)}
-          </SheetDescription>
-        </SheetHeader>
-
-        {/* Status + Progress */}
-        <div className="mt-4 flex items-center gap-3">
-          <span
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.72rem] font-bold"
-            style={{ backgroundColor: config.bg, color: config.text, border: `1px solid ${config.border}` }}
-          >
-            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: config.dot }} />
-            {config.label}
-          </span>
-          <span className="text-[0.82rem] font-medium" style={{ color: colors.text.muted }}>
-            {completedCount} of {totalCount} steps
-          </span>
-        </div>
-
-        {/* Progress dots */}
-        <div className="mt-3">
-          <ProgressDots items={items} isDark={isDark} />
-          <p className="text-[0.72rem] font-bold text-right mt-1.5" style={{ color: config.text }}>
-            {progressPercent}%
-          </p>
-        </div>
-      </div>
-
-      {/* Checklist items */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-1">
-        {items.length === 0 ? (
-          <p className="text-[0.82rem] italic" style={{ color: colors.text.muted }}>No checklist items yet.</p>
-        ) : (
-          items.map((item) => (
-            <label
-              key={item.id}
-              className="flex items-center gap-3 py-2.5 px-3 rounded-lg cursor-pointer transition-colors duration-100"
-              style={{
-                backgroundColor: item.is_completed
-                  ? isDark ? 'rgba(34, 197, 94, 0.08)' : 'rgba(34, 197, 94, 0.04)'
-                  : 'transparent',
-              }}
-              onMouseEnter={(e) => {
-                if (!item.is_completed) e.currentTarget.style.backgroundColor = isDark ? 'rgba(124, 92, 191, 0.08)' : '#F5F3FF'
-              }}
-              onMouseLeave={(e) => {
-                if (!item.is_completed) e.currentTarget.style.backgroundColor = 'transparent'
-              }}
-            >
-              <div className="relative flex-shrink-0">
-                <input
-                  type="checkbox"
-                  checked={item.is_completed}
-                  onChange={() => onToggleItem(item)}
-                  disabled={togglingItem === item.id}
-                  className="w-4.5 h-4.5 rounded cursor-pointer accent-emerald-600"
-                  style={{ width: '18px', height: '18px' }}
+          <div className="divide-y" style={{ borderColor: colors.border }}>
+            {/* Payroll Details */}
+            <FormSection title="Payroll Details" icon={FileText} colors={colors}>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
+                  Payroll Name <span style={{ color: colors.error }}>*</span>
+                </Label>
+                <Input
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="e.g. Weekly Staff Payroll"
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
                 />
-                {togglingItem === item.id && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin" style={{ color: colors.primary }} />
-                  </div>
+              </div>
+              {!editingPayroll && (
+                <div>
+                  <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
+                    Client <span style={{ color: colors.error }}>*</span>
+                  </Label>
+                  <Select value={formClientId} onValueChange={setFormClientId}>
+                    <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                      <SelectValue placeholder="Select a client..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clientOptions.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </FormSection>
+
+            {/* Pay Schedule */}
+            <FormSection title="Pay Schedule" icon={CalendarDays} colors={colors}>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
+                  Pay Frequency <span style={{ color: colors.error }}>*</span>
+                </Label>
+                <Select value={formPayFrequency} onValueChange={(v) => { setFormPayFrequency(v); setFormPayDay('') }}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                    <SelectValue placeholder="Select frequency..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="two_weekly">Fortnightly</SelectItem>
+                    <SelectItem value="four_weekly">4-Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="annually">Annually</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
+                  Pay Day <span style={{ color: colors.error }}>*</span>
+                </Label>
+                {formPayFrequency === 'annually' ? (
+                  <Input
+                    type="date"
+                    value={formPayDay}
+                    onChange={(e) => setFormPayDay(e.target.value)}
+                    className="mt-1 text-sm"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                  />
+                ) : payDayOptions.length > 0 ? (
+                  <Select value={formPayDay} onValueChange={setFormPayDay}>
+                    <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                      <SelectValue placeholder="Select pay day..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {payDayOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="mt-1 text-xs" style={{ color: colors.text.muted }}>Select a frequency first</p>
                 )}
               </div>
-              <span
-                className={`text-[0.85rem] font-medium flex-1 ${item.is_completed ? 'line-through' : ''}`}
-                style={{ color: item.is_completed ? '#22C55E' : colors.text.primary }}
-              >
-                {item.name}
-              </span>
-              {item.is_completed && item.completed_at && (
-                <span className="text-[0.68rem] flex-shrink-0" style={{ color: colors.text.muted }}>
-                  {formatDateShort(item.completed_at)}
-                </span>
-              )}
-            </label>
-          ))
-        )}
+            </FormSection>
 
-        {/* Add step input */}
-        <div className="flex items-center gap-2 mt-3 pt-3" style={{ borderTop: `1px solid ${colors.border}` }}>
-          <input
-            type="text"
-            value={newStepName}
-            onChange={(e) => onNewStepNameChange(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') onAddStep() }}
-            placeholder="Add a step..."
-            className="flex-1 text-[0.82rem] font-medium px-3 py-2 rounded-lg focus:outline-none transition-all"
-            style={{
-              backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#F9FAFB',
-              color: colors.text.primary,
-              border: `1px solid ${colors.border}`,
-            }}
-            onFocus={(e) => { e.target.style.borderColor = `${colors.primary}60` }}
-            onBlur={(e) => { e.target.style.borderColor = colors.border }}
-          />
-          <Button
-            onClick={onAddStep}
-            disabled={addingStep || !newStepName.trim()}
-            className="text-white font-semibold text-xs rounded-md border-0 h-8 px-3"
-            style={{ backgroundColor: colors.primary }}
-          >
-            {addingStep ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add'}
-          </Button>
-        </div>
-      </div>
+            {/* HMRC */}
+            <FormSection title="HMRC" icon={Landmark} defaultOpen={false} colors={colors}>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>PAYE Reference</Label>
+                <Input
+                  value={formPayeReference}
+                  onChange={(e) => setFormPayeReference(e.target.value)}
+                  placeholder="e.g. 123/AB45678"
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Accounts Office Reference</Label>
+                <Input
+                  value={formAccountsOfficeRef}
+                  onChange={(e) => setFormAccountsOfficeRef(e.target.value)}
+                  placeholder="e.g. 123PA00012345"
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Payroll Software</Label>
+                <Input
+                  value={formPayrollSoftware}
+                  onChange={(e) => setFormPayrollSoftware(e.target.value)}
+                  placeholder="e.g. Sage, BrightPay"
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="employment-allowance"
+                  checked={formEmploymentAllowance}
+                  onChange={(e) => setFormEmploymentAllowance(e.target.checked)}
+                  className="rounded"
+                />
+                <Label htmlFor="employment-allowance" className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
+                  Employment Allowance
+                </Label>
+              </div>
+            </FormSection>
 
-      {/* Panel footer */}
-      <div className="p-6 pt-4 space-y-2" style={{ borderTop: `1px solid ${colors.border}` }}>
-        {/* Notes */}
-        <div>
-          <p className="text-[0.72rem] font-bold uppercase tracking-wider mb-1.5" style={{ color: colors.text.muted }}>
-            Notes {savingNotes === run.id && <span className="font-normal normal-case">· Saving...</span>}
-          </p>
-          <textarea
-            value={localNotes}
-            onChange={(e) => setLocalNotes(e.target.value)}
-            onBlur={() => { if (localNotes !== (run.notes ?? '')) onSaveNotes(run.id, localNotes) }}
-            placeholder="Add notes..."
-            rows={2}
-            className="w-full rounded-lg p-2.5 text-[0.82rem] font-medium resize-none focus:outline-none transition-all"
-            style={{
-              backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#F9FAFB',
-              color: colors.text.primary,
-              border: `1px solid ${colors.border}`,
-            }}
-            onFocus={(e) => { e.target.style.borderColor = `${colors.primary}60` }}
-            onBlurCapture={(e) => { e.target.style.borderColor = colors.border }}
-          />
-        </div>
+            {/* Pension */}
+            <FormSection title="Pension" icon={Shield} defaultOpen={false} colors={colors}>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Pension Provider</Label>
+                <Select value={formPensionProvider} onValueChange={setFormPensionProvider}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                    <SelectValue placeholder="Select provider..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PENSION_PROVIDERS.map((p) => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Pension Staging Date</Label>
+                <Input
+                  type="date"
+                  value={formPensionStagingDate}
+                  onChange={(e) => setFormPensionStagingDate(e.target.value)}
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Re-enrolment Date</Label>
+                <Input
+                  type="date"
+                  value={formPensionReenrolmentDate}
+                  onChange={(e) => setFormPensionReenrolmentDate(e.target.value)}
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Declaration of Compliance Deadline</Label>
+                <Input
+                  type="date"
+                  value={formDocDeadline}
+                  onChange={(e) => setFormDocDeadline(e.target.value)}
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+            </FormSection>
 
-        {/* Deadlines */}
-        <div className="rounded-lg p-3 space-y-1.5" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F9FAFB', border: `1px solid ${colors.border}` }}>
-          {[
-            { label: 'FPS Due', value: formatDate(run.rti_due_date) },
-            { label: 'EPS Due', value: formatDate(run.eps_due_date) },
-            { label: 'Pay Date', value: formatDate(run.pay_date) },
-          ].map((d) => (
-            <div key={d.label} className="flex items-center justify-between">
-              <span className="text-[0.75rem] font-medium" style={{ color: colors.text.muted }}>{d.label}</span>
-              <span className="text-[0.75rem] font-bold" style={{ color: colors.text.primary }}>{d.value}</span>
-            </div>
-          ))}
-        </div>
+            {/* Checklist Template — only for new payrolls */}
+            {!editingPayroll && (
+              <FormSection title="Checklist Template" icon={ListChecks} defaultOpen={false} colors={colors}>
+                <div className="space-y-2">
+                  {formChecklist.map((item, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-xs w-5 text-center font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>{i + 1}</span>
+                      <span className="flex-1 text-sm font-[family-name:var(--font-body)]" style={{ color: colors.text.primary }}>{item.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeChecklistStep(i)}
+                        className="p-1 rounded hover:bg-red-50 transition-colors"
+                      >
+                        <X className="w-3 h-3" style={{ color: colors.error }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <Input
+                    value={newStepName}
+                    onChange={(e) => setNewStepName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addChecklistStep() } }}
+                    placeholder="Add a step..."
+                    className="text-sm flex-1"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                  />
+                  <Button variant="outline" size="sm" onClick={addChecklistStep} disabled={!newStepName.trim()}>
+                    <Plus className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </FormSection>
+            )}
+          </div>
 
-        {/* Action buttons */}
-        {!allComplete && totalCount > 0 && (
-          <Button
-            onClick={onMarkAllComplete}
-            className="w-full text-white font-semibold text-[0.82rem] rounded-md border-0"
-            style={{ backgroundColor: colors.success }}
-          >
-            <CheckCircle2 className="w-4 h-4 mr-1.5" />
-            Mark All Complete
-          </Button>
-        )}
-      </div>
+          {/* Save Button */}
+          <div className="px-5 py-4" style={{ borderTop: `1px solid ${colors.border}` }}>
+            <Button
+              onClick={handleSave}
+              disabled={saving || !formName.trim() || !formPayFrequency || !formPayDay}
+              className="w-full text-white text-sm"
+              style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                  Saving...
+                </>
+              ) : editingPayroll ? 'Update Payroll' : 'Add Payroll'}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

@@ -21,80 +21,44 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Get or create user
-    let { data: user } = await supabase
+    const { data: user } = await supabase
       .from('users')
       .select('tenant_id')
       .eq('id', authUser.id)
       .single()
 
     if (!user) {
-      const { data: newTenant, error: tenantError } = await supabase
-        .from('tenants')
-        .insert({
-          name: authUser.email?.split('@')[0] || 'My Bureau',
-          plan: 'free',
-        })
-        .select()
-        .single()
-
-      if (tenantError) {
-        return NextResponse.json({ error: 'Failed to create tenant' }, { status: 500 })
-      }
-
-      const { data: newUser, error: newUserError } = await supabase
-        .from('users')
-        .insert({
-          id: authUser.id,
-          tenant_id: newTenant.id,
-          email: authUser.email!,
-          name:
-            authUser.user_metadata?.name ||
-            authUser.email?.split('@')[0] ||
-            'User',
-        })
-        .select()
-        .single()
-
-      if (newUserError) {
-        return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
-      }
-
-      user = newUser
-    }
-
-    if (!user) {
-      return NextResponse.json({ error: 'Failed to resolve user' }, { status: 500 })
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     // Validate body
     const body = await request.json()
     const validatedData = generatePayrollRunSchema.parse(body)
 
-    // Fetch client to get pay_frequency and pay_day (verify tenant ownership)
-    const { data: client, error: clientError } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('id', validatedData.client_id)
+    // Fetch payroll to get config (verify tenant ownership)
+    const { data: payroll, error: payrollError } = await supabase
+      .from('payrolls')
+      .select('*, clients(name)')
+      .eq('id', validatedData.payroll_id)
       .eq('tenant_id', user.tenant_id)
       .single()
 
-    if (clientError || !client) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 })
+    if (payrollError || !payroll) {
+      return NextResponse.json({ error: 'Payroll not found' }, { status: 404 })
     }
 
-    if (!client.pay_frequency || !client.pay_day) {
+    if (!payroll.pay_frequency || !payroll.pay_day) {
       return NextResponse.json(
-        { error: 'Client is missing pay frequency or pay day configuration' },
+        { error: 'Payroll is missing pay frequency or pay day configuration' },
         { status: 400 }
       )
     }
 
-    // Get the latest payroll run for this client to find the last pay date
+    // Get the latest payroll run for this payroll to find the last pay date
     const { data: latestRun } = await supabase
       .from('payroll_runs')
       .select('pay_date')
-      .eq('client_id', client.id)
+      .eq('payroll_id', payroll.id)
       .order('pay_date', { ascending: false })
       .limit(1)
       .single()
@@ -103,12 +67,12 @@ export async function POST(request: NextRequest) {
 
     // Calculate dates
     const nextPayDate = calculateNextPayDate(
-      client.pay_frequency as PayFrequency,
-      client.pay_day,
+      payroll.pay_frequency as PayFrequency,
+      payroll.pay_day,
       lastPayDate
     )
     const { periodStart, periodEnd } = calculatePeriodDates(
-      client.pay_frequency as PayFrequency,
+      payroll.pay_frequency as PayFrequency,
       nextPayDate
     )
     const rtiDueDate = calculateRtiDueDate(nextPayDate)
@@ -118,7 +82,8 @@ export async function POST(request: NextRequest) {
     const { data: payrollRun, error: runError } = await supabase
       .from('payroll_runs')
       .insert({
-        client_id: client.id,
+        client_id: payroll.client_id,
+        payroll_id: payroll.id,
         tenant_id: user.tenant_id,
         period_start: periodStart.toISOString().split('T')[0],
         period_end: periodEnd.toISOString().split('T')[0],
@@ -135,11 +100,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to generate payroll run' }, { status: 400 })
     }
 
-    // Fetch active checklist templates for this client
+    // Fetch active checklist templates for this payroll
     const { data: templates } = await supabase
       .from('checklist_templates')
       .select('*')
-      .eq('client_id', client.id)
+      .eq('payroll_id', payroll.id)
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
 
@@ -166,7 +131,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Audit log: payroll run created
+    const clientName = (payroll as unknown as { clients: { name: string } }).clients?.name || 'Unknown'
+
+    // Audit log
     writeAuditLog({
       tenantId: user.tenant_id,
       userId: authUser.id,
@@ -174,7 +141,7 @@ export async function POST(request: NextRequest) {
       action: 'CREATE',
       resourceType: 'payroll_run',
       resourceId: payrollRun.id,
-      resourceName: `${client.name} — ${payrollRun.pay_date}`,
+      resourceName: `${clientName} — ${payrollRun.pay_date}`,
       request,
     })
 
