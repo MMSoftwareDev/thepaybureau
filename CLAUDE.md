@@ -128,6 +128,8 @@ npx playwright test  # E2E tests
 - CSV export endpoint for clients (`/api/clients/export`) with rate limiting
 - 25 additional client fields for full payroll bureau CRM (tax/compliance, billing, contacts, categorisation — see Session 19)
 - `/api/users` endpoint for tenant user listing (used by Assigned To dropdown)
+- Client page Phase 2: removed director_name/payroll_contact/registered_address/tpas from UI, UK Industries dropdown, contract type/notice period fields, customizable table columns (localStorage), table avatars + sticky header + compact rows
+- Toast z-index fix (`z-[100]`) so toasts render above Sheet/Dialog overlays
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Reorder pension tasks after payroll run in checklists
@@ -201,6 +203,8 @@ npx playwright test  # E2E tests
 - **Table design (ChangePen style):** Flat tables — no border wrapper, light gray header row, thin `border-b` dividers only, no alternating row backgrounds, CSS-only hover (`purple/3%`). Row height ~48px with `px-4 py-3` cell padding.
 - **Add/Edit forms:** Use shadcn `Sheet` sidebar pattern with grouped collapsible sections — not full-page forms or modals.
 - Use shadcn `AlertDialog` for destructive confirmations — never `window.confirm()` or browser `confirm()`.
+- **Toast z-index**: Toast container uses `z-[100]` to render above Radix portals (Sheet, Dialog, AlertDialog all use `z-50`). Never lower the toast z-index.
+- **Table columns**: Clients table supports user-customizable columns persisted in localStorage (`tpb_client_columns`). Column definitions live in `ALL_COLUMNS` array in `clients/page.tsx`.
 
 ## Design Consistency & Brand Standards
 
@@ -599,3 +603,19 @@ _Add notes from each Claude Code session below so context carries forward._
 - **CSV export/import**: All 25 fields added to both export and import routes
 - **Files changed (8)**: migration 017 (new), `database.ts`, `validations.ts`, `clients/[id]/route.ts`, `clients/page.tsx`, `users/route.ts` (new), `clients/export/route.ts`, `clients/import/route.ts`
 - Branch: `claude/audit-client-fields-UcXzT`
+
+### Session 20 — Client Page Phase 2: Field Cleanup, Industries Dropdown, Table Visuals (2026-03-13)
+- **Removed fields from UI** (DB columns kept, non-destructive): `director_name`, `payroll_contact_*`, `registered_address`, `tpas_authorised`
+- **Renamed**: "HMRC Agent Authorised (64-8)" → "HMRC PAYE Online Authorisation"
+- **Auto Enrolment Status**: Changed from `enrolled/exempt/postponed` to `enrolled/exempt/currently_not_required` (migration 018 updates CHECK constraint)
+- **Payment Method**: Changed from free text `<Input>` to `<Select>` dropdown (BACS, Standing Order, Card, Invoice, Direct Debit)
+- **Contract Type**: New `<Select>` (Rolling/Fixed Term); Contract End Date only shown for Fixed Term
+- **Notice Period**: New compound field — number `<Input>` + unit `<Select>` (Days/Weeks/Months)
+- **Customizable table columns**: Users can add/remove/reorder columns via dialog; preferences persisted in localStorage (`tpb_client_columns`)
+- **UK Industries dropdown**: Replaced free-text Industry input with `<Select>` of 20 standardized UK sectors (Agriculture through Other)
+- **Table visual improvements**: Company initial avatar circles (deterministic colors from name hash), sticky header, compact rows (`py-2.5`), text truncation with title tooltips, left border accent on hover
+- **Migration 018**: Added `contract_type`, `notice_period_value`, `notice_period_unit` columns; updated `auto_enrolment_status` CHECK constraint
+- **Bug fix**: Toast notifications hidden behind Sheet overlay — increased toast z-index from `z-50` to `z-[100]` in `src/components/ui/toast.tsx`
+- **Bug fix**: "Failed to create client" — user needed to apply migrations 016-018 to Supabase database
+- **Files changed**: `clients/page.tsx`, `validations.ts`, `clients/export/route.ts`, `clients/import/route.ts`, `toast.tsx`, migration 018 (new)
+- Branch: `claude/update-client-page-fields-Q1fqU`
