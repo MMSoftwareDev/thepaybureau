@@ -169,7 +169,7 @@ export default function Sidebar({ isAdmin = false, plan = 'free', mobileOpen = f
           onClick={() => navigate('/dashboard')}
           className="flex items-center group"
         >
-          <Image src="/logo-full.png" alt="ThePayBureau" width={180} height={40} className="flex-shrink-0" priority />
+          <Image src="/logo-full.png" alt="ThePayBureau" width={275} height={150} className="flex-shrink-0 h-[38px] w-auto" priority />
         </button>
       </div>
 
