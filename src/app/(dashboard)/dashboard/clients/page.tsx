@@ -23,6 +23,14 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import {
@@ -33,6 +41,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Loader2,
   Building2,
   UserCheck,
@@ -43,6 +52,9 @@ import {
   Calculator,
   Filter,
   X,
+  ArrowUp,
+  ArrowDown,
+  Download,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
@@ -75,7 +87,10 @@ interface Client {
 }
 
 type StatusFilter = 'all' | 'active' | 'inactive'
-type SortOption = 'name-asc' | 'name-desc' | 'date-newest' | 'date-oldest' | 'employees-high' | 'employees-low'
+type SortField = 'name' | 'status' | 'contact_name' | 'contact_email' | 'industry' | 'employee_count' | 'created_at'
+type SortDirection = 'asc' | 'desc'
+
+const PAGE_SIZE = 25
 
 // ── Collapsible Form Section ───────────────────────────────────────────────────
 
@@ -112,6 +127,44 @@ function FormSection({
   )
 }
 
+// ── Sortable Table Header ─────────────────────────────────────────────────────
+
+function SortableHeader({
+  label,
+  field,
+  currentField,
+  currentDirection,
+  onSort,
+  colors,
+  className = '',
+}: {
+  label: string
+  field: SortField
+  currentField: SortField
+  currentDirection: SortDirection
+  onSort: (field: SortField) => void
+  colors: ReturnType<typeof getThemeColors>
+  className?: string
+}) {
+  const isActive = currentField === field
+  return (
+    <TableHead
+      className={`px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] cursor-pointer select-none ${className}`}
+      style={{ color: isActive ? colors.primary : colors.text.muted }}
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {isActive && (
+          currentDirection === 'asc'
+            ? <ArrowUp className="w-3 h-3" />
+            : <ArrowDown className="w-3 h-3" />
+        )}
+      </div>
+    </TableHead>
+  )
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function ClientsPage() {
@@ -130,10 +183,16 @@ export default function ClientsPage() {
   const debouncedSearch = useDebounce(searchQuery, 300)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [industryFilter, setIndustryFilter] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<SortOption>('name-asc')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+
+  // Sort
+  const [sortField, setSortField] = useState<SortField>('name')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
 
   // Sidebar state
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -163,6 +222,10 @@ export default function ClientsPage() {
 
   // Delete state
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
+
+  // Export state
+  const [exporting, setExporting] = useState(false)
 
   // ── Form Handlers ────────────────────────────────────────────────────────
 
@@ -277,8 +340,8 @@ export default function ClientsPage() {
   }
 
   const handleDelete = async (client: Client) => {
-    if (!confirm(`Delete "${client.name}"? This will also delete all their payrolls and payroll runs.`)) return
     setDeletingId(client.id)
+    setClientToDelete(null)
     try {
       const res = await fetch(`/api/clients/${client.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Failed to delete')
@@ -290,6 +353,41 @@ export default function ClientsPage() {
       setDeletingId(null)
     }
   }
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const params = new URLSearchParams()
+      if (debouncedSearch) params.set('search', debouncedSearch)
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      if (industryFilter !== 'all') params.set('industry', industryFilter)
+
+      const res = await fetch(`/api/clients/export?${params}`)
+      if (!res.ok) throw new Error('Export failed')
+
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `clients-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast('Clients exported')
+    } catch {
+      toast('Failed to export clients', 'error')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  // ── Sort handler ───────────────────────────────────────────────────────
+
+  const handleSort = useCallback((field: SortField) => {
+    setSortDirection(prev => sortField === field ? (prev === 'asc' ? 'desc' : 'asc') : 'asc')
+    setSortField(field)
+  }, [sortField])
 
   // ── Derived Data ─────────────────────────────────────────────────────────
 
@@ -303,20 +401,18 @@ export default function ClientsPage() {
   const activeFilterCount = useMemo(() => {
     let count = 0
     if (industryFilter !== 'all') count++
-    if (sortBy !== 'name-asc') count++
     if (dateFrom) count++
     if (dateTo) count++
     return count
-  }, [industryFilter, sortBy, dateFrom, dateTo])
+  }, [industryFilter, dateFrom, dateTo])
 
   const clearFilters = useCallback(() => {
     setIndustryFilter('all')
-    setSortBy('name-asc')
     setDateFrom('')
     setDateTo('')
   }, [])
 
-  const clientList: Client[] = useMemo(() => {
+  const filteredSorted: Client[] = useMemo(() => {
     if (!clients) return []
     let filtered = clients as Client[]
 
@@ -347,19 +443,43 @@ export default function ClientsPage() {
     }
 
     filtered = [...filtered].sort((a, b) => {
-      switch (sortBy) {
-        case 'name-asc': return a.name.localeCompare(b.name)
-        case 'name-desc': return b.name.localeCompare(a.name)
-        case 'date-newest': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        case 'date-oldest': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        case 'employees-high': return (b.employee_count || 0) - (a.employee_count || 0)
-        case 'employees-low': return (a.employee_count || 0) - (b.employee_count || 0)
-        default: return 0
+      const dir = sortDirection === 'asc' ? 1 : -1
+
+      switch (sortField) {
+        case 'name':
+          return dir * a.name.localeCompare(b.name)
+        case 'status':
+          return dir * a.status.localeCompare(b.status)
+        case 'contact_name':
+          return dir * (a.contact_name || '').localeCompare(b.contact_name || '')
+        case 'contact_email':
+          return dir * (a.contact_email || '').localeCompare(b.contact_email || '')
+        case 'industry':
+          return dir * (a.industry || '').localeCompare(b.industry || '')
+        case 'employee_count': {
+          const aVal = a.employee_count ?? -1
+          const bVal = b.employee_count ?? -1
+          return dir * (aVal - bVal)
+        }
+        case 'created_at':
+          return dir * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        default:
+          return 0
       }
     })
 
     return filtered
-  }, [clients, statusFilter, industryFilter, debouncedSearch, sortBy, dateFrom, dateTo])
+  }, [clients, statusFilter, industryFilter, debouncedSearch, sortField, sortDirection, dateFrom, dateTo])
+
+  // Reset page when filters/sort change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [statusFilter, industryFilter, debouncedSearch, sortField, sortDirection, dateFrom, dateTo])
+
+  const totalPages = Math.max(1, Math.ceil(filteredSorted.length / PAGE_SIZE))
+  const paginatedClients = filteredSorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+  const showingFrom = filteredSorted.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
+  const showingTo = Math.min(currentPage * PAGE_SIZE, filteredSorted.length)
 
   const counts = useMemo(() => {
     const all = (clients || []) as Client[]
@@ -417,14 +537,31 @@ export default function ClientsPage() {
         >
           Clients
         </h1>
-        <Button
-          onClick={openAdd}
-          className="text-white text-sm"
-          style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          Add Client
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-sm gap-1.5"
+            style={{ borderColor: colors.border, color: colors.text.secondary }}
+            onClick={handleExport}
+            disabled={exporting}
+          >
+            {exporting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            Export
+          </Button>
+          <Button
+            onClick={openAdd}
+            className="text-white text-sm"
+            style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Add Client
+          </Button>
+        </div>
       </div>
 
       {/* KPI Pills + Search Row */}
@@ -505,22 +642,6 @@ export default function ClientsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="min-w-[170px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Sort By</Label>
-                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="name-asc">Name (A-Z)</SelectItem>
-                    <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-                    <SelectItem value="date-newest">Date Added (Newest)</SelectItem>
-                    <SelectItem value="date-oldest">Date Added (Oldest)</SelectItem>
-                    <SelectItem value="employees-high">Employees (High-Low)</SelectItem>
-                    <SelectItem value="employees-low">Employees (Low-High)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="min-w-[130px]">
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Added From</Label>
                 <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
@@ -541,7 +662,7 @@ export default function ClientsPage() {
       )}
 
       {/* Table */}
-      {clientList.length === 0 ? (
+      {filteredSorted.length === 0 ? (
         <div className="py-20 text-center">
           <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: `${colors.primary}12` }}>
             <Users className="w-6 h-6" style={{ color: colors.primary }} />
@@ -560,89 +681,170 @@ export default function ClientsPage() {
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow style={{ backgroundColor: colors.lightBg, borderBottom: `1px solid ${colors.border}` }}>
-                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Client Name</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden md:table-cell" style={{ color: colors.text.muted }}>Status</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>Contact</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>Email</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Phone</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Industry</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden 2xl:table-cell" style={{ color: colors.text.muted }}>Domain</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Employees</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden 2xl:table-cell" style={{ color: colors.text.muted }}>Date Added</TableHead>
-                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clientList.map((client) => (
-                <TableRow
-                  key={client.id}
-                  className="cursor-pointer transition-colors hover:bg-[var(--login-purple)]/[0.03]"
-                  style={{ borderBottom: `1px solid ${colors.border}` }}
-                  onClick={() => openEdit(client)}
-                >
-                  <TableCell className="px-4 py-3 font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
-                    {client.name}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 hidden md:table-cell">
-                    {statusBadge(client.status)}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {client.contact_name || '-'}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {client.contact_email || '-'}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {client.contact_phone || '-'}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {client.industry || '-'}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {client.domain || '-'}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {client.employee_count || '-'}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
-                    {client.created_at ? format(new Date(client.created_at), 'dd MMM yyyy') : '-'}
-                  </TableCell>
-                  <TableCell className="px-4 py-3">
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Edit client"
-                        onClick={() => openEdit(client)}
-                      >
-                        <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        disabled={deletingId === client.id}
-                        onClick={() => handleDelete(client)}
-                      >
-                        {deletingId === client.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.text.muted }} />
-                        ) : (
-                          <Trash2 className="w-3.5 h-3.5" style={{ color: colors.error }} />
-                        )}
-                      </Button>
-                    </div>
-                  </TableCell>
+        <>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow style={{ backgroundColor: colors.lightBg, borderBottom: `1px solid ${colors.border}` }}>
+                  <SortableHeader label="Client Name" field="name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} />
+                  <SortableHeader label="Status" field="status" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden md:table-cell" />
+                  <SortableHeader label="Contact" field="contact_name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden lg:table-cell" />
+                  <SortableHeader label="Email" field="contact_email" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden lg:table-cell" />
+                  <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden xl:table-cell" style={{ color: colors.text.muted }}>Phone</TableHead>
+                  <SortableHeader label="Industry" field="industry" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden xl:table-cell" />
+                  <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden 2xl:table-cell" style={{ color: colors.text.muted }}>Domain</TableHead>
+                  <SortableHeader label="Employees" field="employee_count" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden xl:table-cell" />
+                  <SortableHeader label="Date Added" field="created_at" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} className="hidden 2xl:table-cell" />
+                  <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {paginatedClients.map((client) => (
+                  <TableRow
+                    key={client.id}
+                    className="cursor-pointer transition-colors hover:bg-[var(--login-purple)]/[0.03]"
+                    style={{ borderBottom: `1px solid ${colors.border}` }}
+                    onClick={() => openEdit(client)}
+                  >
+                    <TableCell className="px-4 py-3 font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                      {client.name}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 hidden md:table-cell">
+                      {statusBadge(client.status)}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.contact_name || '-'}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.contact_email || '-'}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.contact_phone || '-'}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.industry || '-'}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.domain || '-'}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm hidden xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {client.employee_count || '-'}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm hidden 2xl:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+                      {client.created_at ? format(new Date(client.created_at), 'dd MMM yyyy') : '-'}
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Edit client"
+                          onClick={() => openEdit(client)}
+                        >
+                          <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          disabled={deletingId === client.id}
+                          onClick={() => setClientToDelete(client)}
+                        >
+                          {deletingId === client.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.text.muted }} />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5" style={{ color: colors.error }} />
+                          )}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-1 py-2">
+              <p className="text-xs font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
+                Showing {showingFrom}–{showingTo} of {filteredSorted.length} clients
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8 gap-1"
+                  style={{ borderColor: colors.border, color: colors.text.secondary }}
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  Previous
+                </Button>
+                <span className="text-xs font-medium font-[family-name:var(--font-inter)] px-2" style={{ color: colors.text.secondary }}>
+                  {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8 gap-1"
+                  style={{ borderColor: colors.border, color: colors.text.secondary }}
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                >
+                  Next
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={clientToDelete !== null} onOpenChange={(open) => { if (!open) setClientToDelete(null) }}>
+        <DialogContent style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+          <DialogHeader>
+            <DialogTitle className="font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+              Delete Client
+            </DialogTitle>
+            <DialogDescription className="font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+              Delete &ldquo;{clientToDelete?.name}&rdquo;? This will also delete all their payrolls and payroll runs. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setClientToDelete(null)}
+              style={{ borderColor: colors.border, color: colors.text.secondary }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="text-white"
+              style={{ backgroundColor: colors.error }}
+              disabled={deletingId !== null}
+              onClick={() => clientToDelete && handleDelete(clientToDelete)}
+            >
+              {deletingId === clientToDelete?.id ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-3.5 h-3.5 mr-1" />
+                  Delete
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add/Edit Sidebar */}
       <Sheet open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open) resetForm() }}>
