@@ -1,16 +1,15 @@
 import type { MetadataRoute } from 'next'
+import { MARKETING_DOMAIN } from '@/lib/domains'
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.thepaybureau.com'
-
   return {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/terms', '/privacy', '/login', '/signup'],
+        allow: ['/', '/roadmap', '/terms', '/privacy', '/login', '/signup'],
         disallow: ['/dashboard/', '/api/', '/auth/'],
       },
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: `${MARKETING_DOMAIN}/sitemap.xml`,
   }
 }
