@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { BADGE_DEFINITIONS, TIER_COLORS, TOTAL_BADGES } from '@/lib/badges'
 import BadgeIcon from './BadgeIcon'
-import { Trophy, X, Lock } from 'lucide-react'
+import { Trophy, Lock } from 'lucide-react'
 import {
   Sheet,
   SheetContent,
@@ -41,11 +41,12 @@ interface BadgeData {
 interface BadgeDropdownProps {
   colors: ReturnType<typeof getThemeColors>
   isDark: boolean
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
-export default function BadgeDropdown({ colors, isDark }: BadgeDropdownProps) {
+export default function BadgeDropdown({ colors, isDark, open, onOpenChange }: BadgeDropdownProps) {
   const [data, setData] = useState<BadgeData | null>(null)
-  const [sheetOpen, setSheetOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -55,84 +56,13 @@ export default function BadgeDropdown({ colors, isDark }: BadgeDropdownProps) {
       .catch(() => setLoading(false))
   }, [])
 
-  if (loading) {
-    return (
-      <div className="px-3 py-2 border-b" style={{ borderColor: colors.border }}>
-        <div className="h-8 rounded animate-pulse" style={{ background: colors.border }} />
-      </div>
-    )
-  }
-
   const totalEarned = data?.totalEarned ?? 0
   const earnedSet = new Set((data?.badges ?? []).map((b) => `${b.badge_key}:${b.badge_tier}`))
 
-  // Get 5 most recent badges for the preview row
-  const recentBadges = (data?.badges ?? []).slice(0, 5)
-
   return (
     <>
-      {/* Inline badge preview in dropdown */}
-      <div className="px-3 py-2.5 border-b" style={{ borderColor: colors.border }}>
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5">
-            <Trophy className="w-3.5 h-3.5" style={{ color: '#FFD700' }} />
-            <span className="text-[0.72rem] font-bold" style={{ color: colors.text.primary }}>
-              Badges
-            </span>
-          </div>
-          <span className="text-[0.65rem] font-medium" style={{ color: colors.text.muted }}>
-            {totalEarned} of {TOTAL_BADGES}
-          </span>
-        </div>
-
-        {/* Badge preview row */}
-        {recentBadges.length > 0 ? (
-          <div className="flex items-center gap-1.5 mb-2">
-            {recentBadges.map((badge, i) => {
-              const def = BADGE_DEFINITIONS.find((d) => d.key === badge.badge_key)
-              if (!def) return null
-              return (
-                <BadgeIcon
-                  key={`${badge.badge_key}-${badge.badge_tier}-${i}`}
-                  icon={def.icon}
-                  tier={badge.badge_tier as 'bronze' | 'silver' | 'gold'}
-                  size="sm"
-                />
-              )
-            })}
-            {totalEarned > 5 && (
-              <span className="text-[0.65rem] font-medium ml-0.5" style={{ color: colors.text.muted }}>
-                +{totalEarned - 5}
-              </span>
-            )}
-          </div>
-        ) : (
-          <p className="text-[0.68rem] mb-2" style={{ color: colors.text.muted }}>
-            Complete payrolls to earn badges
-          </p>
-        )}
-
-        {/* View All button */}
-        <button
-          onClick={() => setSheetOpen(true)}
-          className="w-full text-[0.72rem] font-semibold py-1.5 rounded-md transition-colors"
-          style={{
-            color: colors.primary,
-            backgroundColor: isDark ? `${colors.primary}15` : `${colors.primary}08`,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = isDark ? `${colors.primary}25` : `${colors.primary}15`
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = isDark ? `${colors.primary}15` : `${colors.primary}08`
-          }}
-        >
-          View All Badges
-        </button>
-      </div>
-
       {/* Full badge grid sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-full sm:max-w-[440px] overflow-y-auto p-0" style={{ backgroundColor: colors.surface }}>
           <div className="p-6 pb-4" style={{ borderBottom: `1px solid ${colors.border}` }}>
             <SheetHeader className="p-0">

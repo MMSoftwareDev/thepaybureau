@@ -12,8 +12,6 @@ import {
 
   ClipboardCheck,
   Shield,
-  CreditCard,
-  Settings as SettingsIcon,
   Search,
   Sun,
   Moon,
@@ -345,68 +343,6 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             <span className="text-[0.8rem] font-medium">Analytics</span>
           </button>
         )}
-
-        {/* Settings */}
-        <button
-          onClick={() => navigate('/dashboard/settings')}
-          className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-px transition-all duration-150 relative"
-          style={{
-            background: pathname.startsWith('/dashboard/settings')
-              ? isDark ? 'rgba(255,255,255,0.08)' : `${colors.primary}08`
-              : 'transparent',
-            color: pathname.startsWith('/dashboard/settings') ? colors.text.primary : colors.text.secondary,
-          }}
-          onMouseEnter={(e) => {
-            if (!pathname.startsWith('/dashboard/settings')) {
-              e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : colors.lightBg
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!pathname.startsWith('/dashboard/settings')) {
-              e.currentTarget.style.background = 'transparent'
-            }
-          }}
-        >
-          {pathname.startsWith('/dashboard/settings') && (
-            <div
-              className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
-              style={{ background: `linear-gradient(180deg, ${colors.primary}, ${colors.secondary})` }}
-            />
-          )}
-          <SettingsIcon className="w-4 h-4" style={{ color: colors.text.muted }} />
-          <span className="text-[0.8rem] font-medium">Settings</span>
-        </button>
-
-        {/* Subscription */}
-        <button
-          onClick={() => navigate('/dashboard/subscription')}
-          className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-px transition-all duration-150 relative"
-          style={{
-            background: pathname.startsWith('/dashboard/subscription')
-              ? isDark ? 'rgba(255,255,255,0.08)' : `${colors.primary}08`
-              : 'transparent',
-            color: pathname.startsWith('/dashboard/subscription') ? colors.text.primary : colors.text.secondary,
-          }}
-          onMouseEnter={(e) => {
-            if (!pathname.startsWith('/dashboard/subscription')) {
-              e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : colors.lightBg
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!pathname.startsWith('/dashboard/subscription')) {
-              e.currentTarget.style.background = 'transparent'
-            }
-          }}
-        >
-          {pathname.startsWith('/dashboard/subscription') && (
-            <div
-              className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full"
-              style={{ background: `linear-gradient(180deg, ${colors.primary}, ${colors.secondary})` }}
-            />
-          )}
-          <CreditCard className="w-4 h-4" style={{ color: pathname.startsWith('/dashboard/subscription') ? colors.primary : colors.text.muted }} />
-          <span className={`text-[0.8rem] ${pathname.startsWith('/dashboard/subscription') ? 'font-semibold' : 'font-medium'}`}>Subscription</span>
-        </button>
 
         {/* Status indicator */}
         <SidebarStatusIndicator />
