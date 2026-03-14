@@ -26,16 +26,34 @@ export function SummaryCard({ phase, version, name, description, className }: Su
   return (
     <div
       className={cn(
-        'bg-white border border-gray-200 rounded-xl px-5 py-[22px] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_24px_rgba(64,29,108,0.07)]',
+        'rounded-xl px-5 py-[22px] border transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5',
         className
       )}
+      style={{
+        background: 'var(--mkt-surface)',
+        borderColor: 'var(--mkt-border)',
+        boxShadow: 'var(--mkt-card-shadow)',
+      }}
     >
       <div className={barVariants({ phase })} />
-      <div className="text-[0.58rem] font-bold tracking-[0.12em] uppercase text-gray-400 mb-1.5">
+      <div
+        className="text-[0.58rem] font-bold tracking-[0.12em] uppercase mb-1.5"
+        style={{ color: 'var(--mkt-text-3)' }}
+      >
         {version}
       </div>
-      <div className="text-[0.9rem] font-bold text-gray-800 mb-1">{name}</div>
-      <div className="text-[0.75rem] text-gray-500">{description}</div>
+      <div
+        className="text-[0.9rem] font-bold mb-1"
+        style={{ color: 'var(--mkt-text)' }}
+      >
+        {name}
+      </div>
+      <div
+        className="text-[0.75rem]"
+        style={{ color: 'var(--mkt-text-2)' }}
+      >
+        {description}
+      </div>
     </div>
   )
 }

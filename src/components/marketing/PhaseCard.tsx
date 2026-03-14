@@ -1,7 +1,6 @@
 import { cn } from '@/lib/utils'
 import { PhaseTag } from './PhaseTag'
 import { FeaturePill } from './FeaturePill'
-import type { VariantProps } from 'class-variance-authority'
 
 type Phase = 'v1' | 'v2' | 'v3' | 'fv'
 type Tier = 'free' | 'unlimited' | 'team' | 'business' | 'enterprise' | 'vision'
@@ -47,9 +46,14 @@ export function PhaseCard({ phase, tag, title, description, priceChip, tiers, cl
   return (
     <div
       className={cn(
-        'bg-white border border-gray-200 rounded-2xl p-7 relative overflow-hidden transition-[transform,box-shadow] duration-200 hover:-translate-y-[3px] hover:shadow-[0_12px_40px_rgba(64,29,108,0.09)]',
+        'rounded-2xl p-7 relative overflow-hidden border transition-[transform,box-shadow] duration-200 hover:-translate-y-[3px]',
         className
       )}
+      style={{
+        background: 'var(--mkt-surface)',
+        borderColor: 'var(--mkt-border)',
+        boxShadow: 'var(--mkt-card-shadow)',
+      }}
     >
       {/* Top colour bar */}
       <div className={cn('absolute top-0 left-0 right-0 h-[3px]', topBarColors[phase])} />
@@ -64,21 +68,34 @@ export function PhaseCard({ phase, tag, title, description, priceChip, tiers, cl
         dangerouslySetInnerHTML={{ __html: title }}
       />
 
-      <p className="text-[0.925rem] text-gray-500 leading-[1.72] mb-[18px] max-w-[400px] relative z-[1]">
+      <p
+        className="text-[0.925rem] leading-[1.72] mb-[18px] max-w-[400px] relative z-[1]"
+        style={{ color: 'var(--mkt-text-2)' }}
+      >
         {description}
       </p>
 
       {priceChip && (
-        <div className="inline-flex items-center gap-1.5 text-[0.78rem] font-semibold text-gray-700 bg-gray-50 border border-gray-200 px-3 py-[5px] rounded-lg mb-[22px] relative z-[1]">
+        <div
+          className="inline-flex items-center gap-1.5 text-[0.78rem] font-semibold border px-3 py-[5px] rounded-lg mb-[22px] relative z-[1]"
+          style={{
+            color: 'var(--mkt-text)',
+            background: 'var(--mkt-bg-alt)',
+            borderColor: 'var(--mkt-border)',
+          }}
+        >
           {priceChip}
         </div>
       )}
 
       {tiers.map((tierSection) => (
         <div key={tierSection.label} className="mt-[18px] relative z-[1]">
-          <div className="text-[0.68rem] font-bold tracking-[0.1em] uppercase text-gray-400 mb-2.5 flex items-center gap-2.5">
+          <div
+            className="text-[0.68rem] font-bold tracking-[0.1em] uppercase mb-2.5 flex items-center gap-2.5"
+            style={{ color: 'var(--mkt-text-3)' }}
+          >
             {tierSection.label}
-            <span className="flex-1 h-px bg-gray-100" />
+            <span className="flex-1 h-px" style={{ background: 'var(--mkt-border)' }} />
           </div>
           <div className="flex flex-wrap gap-1.5">
             {tierSection.features.map((feature) => (
