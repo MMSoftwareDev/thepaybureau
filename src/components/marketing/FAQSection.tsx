@@ -18,7 +18,7 @@ const FAQS = [
   },
   {
     q: 'Is it really free?',
-    a: 'Yes. The Free tier is free forever for individual payroll consultants managing up to 5 clients. No credit card required, no time limits. The Unlimited plan at \u00A39.99/month unlocks all features and unlimited clients.',
+    a: 'Yes. The Free tier is free forever for individual payroll consultants managing up to 50 clients. No credit card required, no time limits. The Unlimited plan at \u00A39.99/month unlocks all features and unlimited clients.',
   },
   {
     q: 'How long does setup take?',

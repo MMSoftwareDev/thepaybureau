@@ -1,7 +1,7 @@
 const STATS = [
   { value: '60s', label: 'Setup time' },
   { value: '0', label: 'Deadlines missed' },
-  { value: '500+', label: 'Specialists' },
+  { value: 'UK', label: 'Built & hosted' },
   { value: 'Free', label: 'Forever for individuals' },
 ]
 

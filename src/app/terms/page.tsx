@@ -25,7 +25,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">1. Acceptance of Terms</h2>
               <p>
-                By accessing or using ThePayBureau (&ldquo;the Service&rdquo;), operated by ThePayBureau Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;), you agree to be bound by these Terms of Service. If you do not agree to these terms, you must not use the Service.
+                By accessing or using ThePayBureau (&ldquo;the Service&rdquo;), operated by Intelligent Payroll Limited T/A The Pay Bureau (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;), you agree to be bound by these Terms of Service. If you do not agree to these terms, you must not use the Service.
               </p>
               <p>
                 These terms apply to all users of the Service, including individual payroll consultants using our free tier and bureau organisations using our paid tier.
@@ -79,7 +79,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">6. Intellectual Property</h2>
               <p>
-                The Service, including its design, features, code, and content, is the intellectual property of ThePayBureau Ltd and is protected by copyright, trademark, and other intellectual property laws.
+                The Service, including its design, features, code, and content, is the intellectual property of Intelligent Payroll Limited T/A The Pay Bureau and is protected by copyright, trademark, and other intellectual property laws.
               </p>
               <p>
                 You retain ownership of all data you input into the Service. By using the Service, you grant us a limited licence to store, process, and display your data solely for the purpose of providing the Service to you.
@@ -99,7 +99,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">8. Limitation of Liability</h2>
               <p>
-                To the maximum extent permitted by law, ThePayBureau Ltd shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or business opportunities, arising from your use of the Service.
+                To the maximum extent permitted by law, Intelligent Payroll Limited T/A The Pay Bureau shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or business opportunities, arising from your use of the Service.
               </p>
               <p>
                 The Service is provided on an &ldquo;as is&rdquo; and &ldquo;as available&rdquo; basis. We do not warrant that the Service will be uninterrupted, error-free, or secure. HMRC deadline calculations and reminders are provided as a convenience only and should not be relied upon as your sole means of compliance tracking.

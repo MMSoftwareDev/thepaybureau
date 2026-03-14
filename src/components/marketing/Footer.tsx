@@ -1,5 +1,3 @@
-'use client'
-
 import Link from 'next/link'
 import Image from 'next/image'
 import { APP_DOMAIN } from '@/lib/domains'
@@ -21,27 +19,6 @@ export function Footer() {
               Built by payroll professionals, for payroll professionals.
             </p>
 
-            {/* Newsletter signup */}
-            <div>
-              <p className="text-xs font-semibold text-white/60 mb-2" style={{ fontFamily: 'var(--font-inter)' }}>
-                Get payroll tips &amp; product updates
-              </p>
-              <form className="flex gap-2" onSubmit={(e) => e.preventDefault()}>
-                <input
-                  type="email"
-                  placeholder="you@bureau.co.uk"
-                  className="flex-1 h-8 px-3 rounded-md text-xs border bg-white/5 text-white/80 placeholder:text-white/30 outline-none focus:border-white/30 transition-colors duration-150"
-                  style={{ borderColor: 'rgba(255,255,255,0.1)', fontFamily: 'var(--font-inter)' }}
-                />
-                <button
-                  type="submit"
-                  className="h-8 px-3 rounded-md text-xs font-semibold text-white/80 border border-white/20 hover:bg-white/10 transition-colors duration-150"
-                  style={{ fontFamily: 'var(--font-inter)' }}
-                >
-                  Subscribe
-                </button>
-              </form>
-            </div>
           </div>
 
           {/* Product */}
@@ -119,7 +96,7 @@ export function Footer() {
         {/* Copyright */}
         <div className="mt-12 pt-6 border-t border-white/10">
           <p className="text-xs text-white/30" style={{ fontFamily: 'var(--font-inter)' }}>
-            &copy; {new Date().getFullYear()} ThePayBureau Ltd. Registered in England and Wales.
+            &copy; {new Date().getFullYear()} Intelligent Payroll Limited T/A The Pay Bureau. Registered in England and Wales.
           </p>
         </div>
       </div>
