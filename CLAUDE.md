@@ -81,6 +81,7 @@ npx playwright test  # E2E tests
 - **Admin routes:** Protected by `PLATFORM_ADMIN_EMAILS` env check.
 - **Clients vs Payrolls:** Separate tables — one client can have multiple payrolls. Payroll config fields (frequency, pay day, PAYE ref, pension) live on `payrolls` table, not `clients`. Payroll runs reference `payroll_id`.
 - **Client data model:** 45+ fields across identity, company details, address, 2 contact types (primary, secondary), accountant, tax/compliance (VAT, UTR, CIS, HMRC PAYE Online Auth, AE status), billing/contract (fee, billing frequency, payment method, contract type, notice period), and metadata (tags, assigned_to, referral_source, industry, etc.). Payroll Contact removed (primary contact covers this). Registered Address and TPAS deferred.
+- **Domain routing:** Middleware-based hostname routing — `www.thepaybureau.com` serves marketing pages only (`/`, `/roadmap`, `/terms`, `/privacy`), all other routes 301 redirect to `app.thepaybureau.com`. Marketing routes skip auth/CSRF entirely. Domain constants centralised in `src/lib/domains.ts`.
 
 ## Security Notes (from audit 2026-03-07)
 
@@ -90,7 +91,7 @@ npx playwright test  # E2E tests
 
 ## Known Issues
 
-- **Incomplete domain migration**: 15+ `app.thepaybureau.com` references remain in email templates, fallback URLs, CI config, and Supabase config (see Session 11).
+- **Remaining domain references**: Email templates, CI config, and Supabase config still reference `app.thepaybureau.com` (see Sessions 11, 25). Marketing pages and middleware now use `www.thepaybureau.com` correctly.
 - **Serverless fire-and-forget caveat**: Never use unawaited promises for critical side effects (emails, webhooks) in Vercel serverless routes — the runtime may terminate before they complete. Always `await` or use `waitUntil()`. Fixed for feedback/feature-request emails in Session 16; audit other routes if adding new email sends.
 
 ## Current Status & Roadmap
@@ -137,12 +138,13 @@ npx playwright test  # E2E tests
 - Vector search migration 019: `match_threshold` 0.3→0.1, `ivfflat.probes` 1→10
 - API reference documentation (`docs/api-reference.md`) covering all 42 routes
 - SELECT * audit: 6 routes fixed to use explicit column selection
+- Marketing pages domain routing: `www.thepaybureau.com` serves `/`, `/roadmap`, `/terms`, `/privacy` via middleware hostname detection; non-marketing routes 301 redirect to `app.thepaybureau.com`
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Reorder pension tasks after payroll run in checklists
 - Global auth context for reactive user tracking
 - ~~Reduce SWR `dedupingInterval` or add explicit revalidation on login~~ (done: `revalidateAllSWR()` on SIGNED_IN, interval already at 2s)
-- Complete `app.thepaybureau.com` → `thepaybureau.com` domain migration
+- ~~Complete `app.thepaybureau.com` → `thepaybureau.com` domain migration~~ (done for marketing pages in Session 25; email templates, CI config, and Supabase config still reference `app.` — intentional for now)
 - ~~Renumber duplicate `001_` migration files~~ (fixed: renamed to `014_`)
 - ~~Create missing vector search fix migration~~ (done: `019_fix_vector_search.sql`)
 
@@ -215,6 +217,7 @@ npx playwright test  # E2E tests
 - Sidebar logo: use `logo.png` icon mark (36px) + themed text — never `logo-full.png` (dark text baked in, breaks dark mode).
 - **Testing:** Test files live alongside routes in `__tests__/` directories. Use `chainMock()` pattern for Supabase client mocking (two-pass init for chainable methods). Mock `@/lib/supabase-server` in every API route test. Suppress `console.error` in test setup.
 - **API route SELECT:** Use explicit column selection on list/read endpoints. Only use `select('*')` when the full record is needed (e.g., account export, audit diffs, edit forms that need all fields).
+- **Cross-domain links:** On marketing pages, use `<a href={APP_DOMAIN + '/login'}>` (not `<Link>`) for links to `app.thepaybureau.com` — Next.js `<Link>` is for same-origin client-side navigation only. Import `APP_DOMAIN` from `@/lib/domains`.
 
 ## Design Consistency & Brand Standards
 
@@ -434,6 +437,7 @@ Every new page or component **must** satisfy all of these before it's considered
 | Test setup (global mocks) | `src/lib/__tests__/helpers/setup.ts` |
 | Jest config | `jest.config.js` |
 | Vector search migration | `supabase/migrations/019_fix_vector_search.sql` |
+| Domain constants | `src/lib/domains.ts` (`APP_DOMAIN`, `MARKETING_DOMAIN`, `MARKETING_ROUTES`) |
 
 ## Session Log
 
@@ -693,3 +697,20 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Session renumbering**: Duplicate "Session 22" (SWR Login Revalidation) renumbered to Session 23
 - **Files changed**: `CLAUDE.md`
 - Branch: `claude/review-claude-md-JQ571`
+
+### Session 25 — Marketing Pages on Main Domain (2026-03-14)
+- **Goal**: Serve marketing pages from `www.thepaybureau.com` while app stays on `app.thepaybureau.com`
+- **Decision**: Same Vercel project with middleware-based domain routing (not a separate project) — no code duplication, single deployment, cookies don't cross subdomains
+- **Domain routing rules**:
+  - `www.thepaybureau.com` → serves `/`, `/roadmap`, `/terms`, `/privacy` only (skips auth/CSRF entirely)
+  - `www.thepaybureau.com/login`, `/dashboard`, `/api/*` → 301 redirect to `app.thepaybureau.com`
+  - `thepaybureau.com` (bare) → 301 redirect to `www.thepaybureau.com`
+  - `app.thepaybureau.com` → serves everything (unchanged)
+  - `localhost:3000` → serves everything (dev, no hostname match)
+- **New file**: `src/lib/domains.ts` — centralised `APP_DOMAIN`, `MARKETING_DOMAIN`, `MARKETING_ROUTES` constants
+- **Middleware**: Domain check added as first middleware step, before Supabase client creation — marketing pages never touch auth
+- **Marketing links**: 8 login/signup links across `page.tsx` and `roadmap/page.tsx` changed from relative `<Link>` to absolute `<a href={APP_DOMAIN + '/...'}>` (Next.js `<Link>` is same-origin only)
+- **SEO**: Sitemap split by domain (marketing pages → `www.`, app pages → `app.`), `/roadmap` added to sitemap, canonical URLs updated
+- **Vercel setup required**: Add `www.thepaybureau.com` + `thepaybureau.com` domains to existing project, add `NEXT_PUBLIC_MARKETING_URL` env var
+- **Files changed (6)**: `domains.ts` (new), `middleware.ts`, `page.tsx`, `roadmap/page.tsx`, `sitemap.ts`, `robots.ts`
+- Branch: `claude/marketing-pages-main-domain-6GGqZ`
