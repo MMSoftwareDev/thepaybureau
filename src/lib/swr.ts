@@ -9,6 +9,7 @@ const fetcher = (url: string) => fetch(url).then(res => {
 const defaultConfig: SWRConfiguration = {
   revalidateOnFocus: false,
   dedupingInterval: 2000,
+  errorRetryCount: 3,
 }
 
 export function useClients() {

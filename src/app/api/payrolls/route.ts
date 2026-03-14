@@ -39,7 +39,7 @@ export async function GET() {
 
     if (error) {
       console.error('Database error in GET /api/payrolls:', error)
-      return NextResponse.json({ error: 'Failed to fetch payrolls' }, { status: 400 })
+      return NextResponse.json({ error: error.message || 'Failed to fetch payrolls' }, { status: 400 })
     }
 
     if (!payrolls || payrolls.length === 0) {
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     if (payrollError) {
       console.error('Payroll creation error:', payrollError)
-      return NextResponse.json({ error: 'Failed to create payroll' }, { status: 400 })
+      return NextResponse.json({ error: payrollError.message || 'Failed to create payroll' }, { status: 400 })
     }
 
     // 2. Insert checklist templates
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     if (templatesError) {
       console.error('Checklist templates creation error:', templatesError)
       await supabase.from('payrolls').delete().eq('id', payroll.id)
-      return NextResponse.json({ error: 'Failed to create checklist templates' }, { status: 400 })
+      return NextResponse.json({ error: templatesError.message || 'Failed to create checklist templates' }, { status: 400 })
     }
 
     // 3. Calculate dates for first payroll run
