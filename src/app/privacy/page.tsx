@@ -25,7 +25,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">1. Who We Are</h2>
               <p>
-                ThePayBureau Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;) is the data controller responsible for your personal data. We are a company registered in England and Wales, providing a payroll bureau management platform (&ldquo;the Service&rdquo;).
+                Intelligent Payroll Limited T/A The Pay Bureau (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;) is the data controller responsible for your personal data. We are a company registered in England and Wales, providing a payroll bureau management platform (&ldquo;the Service&rdquo;).
               </p>
               <p>
                 For any data protection queries, contact us at{' '}

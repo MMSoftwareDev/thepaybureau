@@ -11,9 +11,6 @@ const DASHBOARD_ROWS = [
   { client: 'Thompson Logistics', status: 'ON TRACK', statusColor: '#188038', due: '31st Jan' },
 ]
 
-/* Avatar stack colours for social proof */
-const AVATAR_COLORS = ['#7C5CBF', '#EC385D', '#FF8073', '#188038']
-
 export function Hero() {
   return (
     <section className="relative w-full pt-16 pb-0 md:pt-24 overflow-hidden">
@@ -70,30 +67,7 @@ export function Hero() {
           </a>
         </div>
 
-        {/* Social proof line */}
-        <div className="flex items-center gap-3 mb-16">
-          {/* Avatar stack */}
-          <div className="flex -space-x-2">
-            {AVATAR_COLORS.map((color, i) => (
-              <div
-                key={i}
-                className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-bold text-white"
-                style={{ background: color, borderColor: 'var(--mkt-bg)' }}
-              >
-                {['JD', 'MS', 'RT', 'AK'][i]}
-              </div>
-            ))}
-            <div
-              className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[9px] font-bold"
-              style={{ background: 'var(--mkt-bg-alt)', borderColor: 'var(--mkt-bg)', color: 'var(--mkt-text-3)' }}
-            >
-              +497
-            </div>
-          </div>
-          <span className="text-sm" style={{ color: 'var(--mkt-text-3)', fontFamily: 'var(--font-inter)' }}>
-            Trusted by <strong style={{ color: 'var(--mkt-text-2)' }}>500+</strong> UK payroll specialists
-          </span>
-        </div>
+        <div className="mb-16" />
 
         {/* Product Screenshot Mockup */}
         <div className="w-full max-w-[960px] mx-auto relative">

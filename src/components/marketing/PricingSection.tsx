@@ -8,13 +8,13 @@ interface PlanFeature {
 }
 
 const FEATURES: PlanFeature[] = [
-  { label: 'Client management', free: 'Up to 5 clients', unlimited: 'Unlimited' },
+  { label: 'Client management', free: 'Up to 50 clients', unlimited: 'Unlimited' },
   { label: 'Payroll checklists', free: 'Basic templates', unlimited: 'All templates' },
   { label: 'HMRC deadline tracking', free: true, unlimited: true },
   { label: 'AI Assistant', free: false, unlimited: true },
   { label: 'CPD / Training log', free: false, unlimited: true },
-  { label: 'CSV import & export', free: false, unlimited: true },
-  { label: 'Audit trail export', free: false, unlimited: true },
+  { label: 'CSV import & export', free: true, unlimited: true },
+  { label: 'Audit trail', free: 'Basic', unlimited: true },
   { label: 'Priority support', free: false, unlimited: true },
 ]
 
@@ -128,7 +128,7 @@ export function PricingSection() {
                 Unlimited
               </h3>
               <p className="text-sm mb-4" style={{ color: 'var(--mkt-text-3)', fontFamily: 'var(--font-inter)' }}>
-                For growing bureaux
+                For Payroll Pros
               </p>
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl font-bold" style={{ color: 'var(--mkt-text)', fontFamily: 'var(--font-inter)' }}>

@@ -134,13 +134,13 @@ export default function RoadmapPage() {
                     phase="v1"
                     tag="V1 · Available Now"
                     title="Individual<br>Consultant"
-                    description="Everything a payroll consultant needs in one place. Replace spreadsheets and missed deadlines with a professional dashboard — free, forever, for individual consultants."
+                    description="Everything a payroll consultant needs in one place. Replace spreadsheets and missed deadlines with a professional dashboard — free, forever, for up to 50 clients."
                     priceChip="Free Forever  ·  Unlimited from £9.99/mo"
                     tiers={[
                       {
                         label: 'Free tier — all consultants',
                         tier: 'free',
-                        features: ['Client Management', 'Payroll Management', 'Pension Declarations', 'Automated Emails', 'Audit Logs', 'Reporting (Basic)', 'Email Support'],
+                        features: ['Client Management (up to 50)', 'Payroll Management', 'Pension Declarations', 'Automated Emails', 'CSV Import & Export', 'Basic Audit Trail', 'Email Support'],
                       },
                       {
                         label: 'Unlimited only',
