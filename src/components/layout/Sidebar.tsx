@@ -62,7 +62,6 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'PAYROLL',
     items: [
       { name: 'Payrolls', href: '/dashboard/payrolls', icon: ClipboardCheck },
-      { name: 'Payroll Runs', href: '/dashboard/payrolls/runs', icon: ClipboardCheck },
       { name: 'Pension Declarations', href: '/dashboard/pensions', icon: Shield },
     ],
   },

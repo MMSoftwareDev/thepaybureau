@@ -25,6 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [plan, setPlan] = useState<string>('free')
   const [loading, setLoading] = useState(true)
   const supabaseRef = useRef(createClientSupabaseClient())
+  const currentUserIdRef = useRef<string | null>(null)
 
   const fetchUserData = useCallback(async (authUser: User) => {
     const supabase = supabaseRef.current
@@ -57,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Initial user fetch
     supabase.auth.getUser().then(({ data: { user: authUser } }) => {
       if (authUser) {
+        currentUserIdRef.current = authUser.id
         setUser(authUser)
         fetchUserData(authUser).finally(() => setLoading(false))
       } else {
@@ -67,17 +69,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
+        currentUserIdRef.current = null
         clearSWRCache()
         setUser(null)
         setAvatarUrl(null)
         setIsAdmin(false)
         setPlan('free')
       } else if (event === 'SIGNED_IN' && session?.user) {
-        // Clear stale cache from any previous session, then force refetch
-        clearSWRCache()
-        revalidateAllSWR()
+        const isNewUser = currentUserIdRef.current !== session.user.id
+        currentUserIdRef.current = session.user.id
+        if (isNewUser) {
+          // Only clear cache + refetch when switching accounts, not on session restore
+          clearSWRCache()
+          revalidateAllSWR()
+          fetchUserData(session.user)
+        }
         setUser(session.user)
-        fetchUserData(session.user)
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {
         setUser(session.user)
       }
