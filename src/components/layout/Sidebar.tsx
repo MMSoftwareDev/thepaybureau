@@ -17,6 +17,7 @@ import {
   Moon,
   Command,
   BarChart3,
+  ChevronDown,
   ScrollText,
   GraduationCap,
   Lightbulb,
@@ -100,9 +101,41 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const { isDark, toggleTheme } = useTheme()
   const colors = getThemeColors(isDark)
   useEffect(() => { setMounted(true) }, [])
+
+  // Auto-expand section containing the active route
+  useEffect(() => {
+    const activeSection = NAV_SECTIONS.find(section =>
+      section.items.some(item => {
+        if (item.href === '/dashboard') return pathname === '/dashboard'
+        if (item.href === '/dashboard/clients') return pathname === '/dashboard/clients' || (pathname.startsWith('/dashboard/clients/') && !pathname.includes('/add'))
+        return pathname.startsWith(item.href)
+      })
+    )
+    if (activeSection) {
+      setExpandedSections(prev => {
+        if (prev.has(activeSection.label)) return prev
+        const next = new Set(prev)
+        next.add(activeSection.label)
+        return next
+      })
+    }
+  }, [pathname])
+
+  const toggleSection = (label: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev)
+      if (next.has(label)) {
+        next.delete(label)
+      } else {
+        next.add(label)
+      }
+      return next
+    })
+  }
 
   // Keyboard shortcut: Cmd/Ctrl + K to toggle search
   useEffect(() => {
@@ -237,14 +270,37 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 pt-3 scrollbar-thin">
-        {NAV_SECTIONS.map((section) => (
+        {NAV_SECTIONS.map((section) => {
+          const isExpanded = expandedSections.has(section.label)
+          return (
           <div key={section.label} className="mb-3">
-            <div
-              className="px-2.5 pb-1 text-[0.65rem] font-semibold tracking-[0.08em] uppercase"
+            <button
+              onClick={() => toggleSection(section.label)}
+              className="w-full flex items-center justify-between px-2.5 pb-1 pt-0.5 rounded-md transition-colors duration-150"
               style={{ color: colors.text.muted }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent'
+              }}
             >
-              {section.label}
-            </div>
+              <span className="text-[0.65rem] font-semibold tracking-[0.08em] uppercase">
+                {section.label}
+              </span>
+              <ChevronDown
+                className="w-3 h-3 transition-transform duration-200"
+                style={{ transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}
+              />
+            </button>
+            <div
+              className="overflow-hidden transition-all duration-200"
+              style={{
+                display: 'grid',
+                gridTemplateRows: isExpanded ? '1fr' : '0fr',
+              }}
+            >
+              <div className="min-h-0">
             {section.items.map((item) => {
               const isActive = isActiveRoute(item.href)
               const Icon = item.icon
@@ -300,8 +356,11 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                 </button>
               )
             })}
+              </div>
+            </div>
           </div>
-        ))}
+          )
+        })}
 
         {/* Send Feedback — opens modal */}
         <div className="px-2.5 mb-3">
