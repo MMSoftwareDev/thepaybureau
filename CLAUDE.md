@@ -10,7 +10,7 @@ SaaS platform for UK payroll bureaux to manage clients, payroll runs, pensions, 
 - **Language:** TypeScript 5.9
 - **Auth & DB:** Supabase (auth, PostgreSQL with RLS, SSR helpers)
 - **Payments:** Stripe (subscriptions)
-- **Styling:** Tailwind CSS 4, Radix UI primitives, shadcn/ui (`components.json`)
+- **Styling:** Tailwind CSS 4, Radix UI primitives, shadcn/ui (`components.json`), Framer Motion (marketing animations only)
 - **AI:** Anthropic SDK (AI assistant feature), VoyageAI (embeddings)
 - **Email:** Resend
 - **Rate limiting:** Upstash Redis
@@ -113,7 +113,7 @@ npx playwright test  # E2E tests
 - CSV/bulk import for clients (batched, chunks of 50)
 - Duplicate/copy client workflow
 - GDPR compliance: account deletion + data export
-- Marketing landing page + `/roadmap` page with design system
+- Marketing landing page + `/roadmap` page redesigned with Notion/Stripe-inspired design system
 - Domain migration: `app.thepaybureau.com` → `thepaybureau.com` (partial — fallback URLs and email templates still reference `app.` subdomain)
 - AI assistant RAG pipeline debugging & fixes
 - SWR cache isolation fix on logout
@@ -139,6 +139,7 @@ npx playwright test  # E2E tests
 - API reference documentation (`docs/api-reference.md`) covering all 42 routes
 - SELECT * audit: 6 routes fixed to use explicit column selection
 - Marketing pages domain routing: `www.thepaybureau.com` serves `/`, `/roadmap`, `/terms`, `/privacy` via middleware hostname detection; non-marketing routes 301 redirect to `app.thepaybureau.com`
+- Marketing pages full redesign: Notion/Stripe-inspired aesthetic, 12 new reusable components, `framer-motion` scroll animations, accordion FAQ, pricing section, product showcase with tab-based mockups
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Reorder pension tasks after payroll run in checklists
@@ -714,3 +715,30 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Vercel setup required**: Add `www.thepaybureau.com` + `thepaybureau.com` domains to existing project, add `NEXT_PUBLIC_MARKETING_URL` env var
 - **Files changed (6)**: `domains.ts` (new), `middleware.ts`, `page.tsx`, `roadmap/page.tsx`, `sitemap.ts`, `robots.ts`
 - Branch: `claude/marketing-pages-main-domain-6GGqZ`
+
+### Session 26 — Redesign Marketing Pages (2026-03-14)
+- **Goal**: Complete visual redesign of marketing landing page and roadmap page with a premium Notion/Stripe-inspired aesthetic
+- **Landing page (`src/app/page.tsx`)**: Fully rewritten — went from ~900 lines of inline JSX to a clean composition of 12+ reusable components
+- **Design direction**: Two iterations — first pass was clean but too minimal; second pass added conversion-optimized sections (ProblemStatement, ProductShowcase, HowItWorks, PricingSection, FAQ, TrustBar, FinalCTA)
+- **12 new marketing components** (`src/components/marketing/`):
+  - `Navbar.tsx` — sticky nav with blur backdrop, mobile hamburger menu
+  - `Hero.tsx` — gradient headline, animated stats, dual CTAs
+  - `TrustBar.tsx` — social proof strip ("Trusted by X bureaux")
+  - `ProblemStatement.tsx` — pain points grid with icons
+  - `ProductShowcase.tsx` — tabbed feature showcase with mockup windows
+  - `MockupWindow.tsx` — browser-chrome-style preview frames
+  - `FeatureGrid.tsx` — icon + title + description grid cards
+  - `HowItWorks.tsx` — numbered 3-step process section
+  - `PricingSection.tsx` — tiered pricing cards with feature lists
+  - `FAQSection.tsx` — accordion FAQ using shadcn Accordion component
+  - `FinalCTA.tsx` — bottom conversion section with gradient background
+  - `FadeInOnScroll.tsx` — `framer-motion` scroll-triggered fade-in wrapper
+- **New shadcn component**: `src/components/ui/accordion.tsx` (Radix-based)
+- **New dependency**: `framer-motion` — used only for marketing page scroll animations via `FadeInOnScroll`
+- **Roadmap page (`src/app/roadmap/page.tsx`)**: Redesigned to match new marketing design system — shared Navbar/Footer, consistent spacing, updated PhaseCard styling
+- **Footer fix**: Footer was invisible in dark mode (white text on white bg) — fixed with explicit dark background (`bg-[#1a1025]`)
+- **CSS additions**: New gradient utilities and marketing-specific styles in `globals.css`
+- **Existing components updated**: `HeroBadge`, `HeroStats`, `LegendStrip`, `PhaseCard`, `SectionHeader`, `StatCard`, `SummaryCard` — simplified/restyled to match new design language
+- **Barrel export**: `src/components/marketing/index.ts` — clean re-exports for all marketing components
+- **Files changed (28)**: `page.tsx` (rewritten), `roadmap/page.tsx` (redesigned), `globals.css`, 13 new components, 8 updated components, `index.ts`, `accordion.tsx` (new), `package.json`/`package-lock.json`
+- Branch: `claude/redesign-marketing-pages-jEVvG`
