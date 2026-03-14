@@ -10,35 +10,43 @@ import {
 const FAQS = [
   {
     q: 'What is ThePayBureau?',
-    a: 'ThePayBureau is a CRM built specifically for UK payroll bureaux and independent consultants. It helps you manage clients, track HMRC deadlines, run payroll checklists, and stay on top of pension auto-enrolment — all in one place.',
+    a: 'ThePayBureau is a CRM built specifically for UK payroll bureaux and independent consultants. It helps you manage clients, track HMRC deadlines, run payroll checklists, and stay on top of pension auto-enrolment \u2014 all in one place.',
+  },
+  {
+    q: 'How is this different from payroll software?',
+    a: "We don\u2019t process payroll or calculate pay. ThePayBureau is a workflow management tool \u2014 think of it as the cockpit that keeps your payroll runs organised. You\u2019ll still use your existing payroll software (Sage, BrightPay, Moneysoft, etc.) to process the actual payroll.",
   },
   {
     q: 'Is it really free?',
     a: 'Yes. The Free tier is free forever for individual payroll consultants managing up to 5 clients. No credit card required, no time limits. The Unlimited plan at \u00A39.99/month unlocks all features and unlimited clients.',
   },
   {
-    q: 'How is this different from payroll software?',
-    a: "We don't process payroll or calculate pay. ThePayBureau is a workflow management tool — think of it as the cockpit that keeps your payroll runs organised. You'll still use your existing payroll software (Sage, BrightPay, Moneysoft, etc.) to process the actual payroll.",
+    q: 'How long does setup take?',
+    a: 'Under 60 seconds. Create your account, add your first client, and see your deadlines instantly. Most people are fully set up within a few minutes.',
+  },
+  {
+    q: 'Can I import my existing clients?',
+    a: 'Yes. You can bulk import clients via CSV upload. The importer handles up to 500 clients in batched chunks and validates data before import. You can also add clients individually.',
+  },
+  {
+    q: 'What HMRC deadlines do you track?',
+    a: 'RTI (Real Time Information), FPS (Full Payment Submission), and EPS (Employer Payment Summary) deadlines \u2014 all auto-calculated from your clients\u2019 pay dates and frequencies. Plus pension declaration tracking and re-enrolment date monitoring.',
   },
   {
     q: 'Is my data secure?',
     a: 'Absolutely. We use Supabase (built on PostgreSQL) with Row Level Security policies that isolate your data at the database level. All data is encrypted in transit (TLS 1.2+) and at rest. We are UK GDPR compliant and never share your data with third parties.',
   },
   {
-    q: 'Can I import my existing clients?',
-    a: 'Yes. You can bulk import clients via CSV upload. The importer handles up to 500 clients in batched chunks and validates data before import. You can also add clients individually — most people have their first client set up in under 30 seconds.',
-  },
-  {
-    q: 'What HMRC deadlines do you track?',
-    a: 'RTI (Real Time Information), FPS (Full Payment Submission), and EPS (Employer Payment Summary) deadlines — all auto-calculated from your clients\u2019 pay dates and frequencies. You also get pension declaration tracking and re-enrolment date monitoring.',
-  },
-  {
     q: 'Can my whole bureau use this?',
-    a: 'Yes. The Unlimited plan supports multi-user access within your bureau. Team features including bureau dashboards, org charts, and capacity planning are coming in V2. See our roadmap for the full timeline.',
+    a: 'Yes. The Unlimited plan supports multi-user access within your bureau. Team features including bureau dashboards, org charts, and capacity planning are on our roadmap.',
+  },
+  {
+    q: 'What if I want to leave?',
+    a: 'You can export all your data at any time via CSV. After cancellation, we retain your data for 90 days so you can change your mind. No lock-in, no hidden fees.',
   },
   {
     q: 'Can I cancel anytime?',
-    a: 'Yes. There are no long-term contracts. You can cancel your Unlimited subscription at any time and you\u2019ll keep access until the end of your billing period. Your data is retained for 90 days after cancellation.',
+    a: 'Yes. There are no long-term contracts. You can cancel your Unlimited subscription at any time and you\u2019ll keep access until the end of your billing period.',
   },
 ]
 

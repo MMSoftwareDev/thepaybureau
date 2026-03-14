@@ -17,19 +17,20 @@ export function FinalCTA() {
             <Image src="/logo.png" alt="ThePayBureau" width={56} height={56} className="object-contain w-10 h-10 md:w-14 md:h-14" />
           </div>
 
-          {/* Headline */}
+          {/* Headline — action-oriented */}
           <h2
-            className="text-white font-bold text-[clamp(1.8rem,4vw,3rem)] leading-[1.1] tracking-tight text-center max-w-[520px] mb-4"
+            className="text-white font-bold text-[clamp(1.8rem,4vw,3rem)] leading-[1.1] tracking-tight text-center max-w-[560px] mb-4"
             style={{ fontFamily: 'var(--font-display), DM Serif Display, serif' }}
           >
-            Ready to organise your payrolls?
+            Stop chasing deadlines.{' '}
+            <span className="text-white/80">Start managing them.</span>
           </h2>
 
           <p
-            className="text-white/60 text-base text-center max-w-[400px] mb-8"
+            className="text-white/60 text-base text-center max-w-[420px] mb-8"
             style={{ fontFamily: 'var(--font-body)' }}
           >
-            Join 500+ payroll specialists who never miss a deadline.
+            Set up in 60 seconds. Free forever for individuals.
           </p>
 
           {/* CTA */}
@@ -41,11 +42,12 @@ export function FinalCTA() {
             Get Started Free
           </a>
 
+          {/* Risk reversal */}
           <p
             className="mt-4 text-xs text-white/40 text-center"
             style={{ fontFamily: 'var(--font-inter)' }}
           >
-            60-second setup &bull; No credit card &bull; Free forever for individuals
+            No credit card required &bull; No lock-in &bull; Cancel anytime
           </p>
         </div>
       </div>

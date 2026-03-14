@@ -11,6 +11,9 @@ const DASHBOARD_ROWS = [
   { client: 'Thompson Logistics', status: 'ON TRACK', statusColor: '#188038', due: '31st Jan' },
 ]
 
+/* Avatar stack colours for social proof */
+const AVATAR_COLORS = ['#7C5CBF', '#EC385D', '#FF8073', '#188038']
+
 export function Hero() {
   return (
     <section className="relative w-full pt-16 pb-0 md:pt-24 overflow-hidden">
@@ -24,31 +27,31 @@ export function Hero() {
         {/* Badge */}
         <HeroBadge>For Bureau Owners &amp; Specialists</HeroBadge>
 
-        {/* Headline */}
+        {/* Headline — CRM positioning */}
         <h1
-          className="max-w-[720px] mx-auto mb-5 font-bold text-[clamp(2.2rem,4.5vw,3.6rem)] leading-[1.08] tracking-[-0.035em]"
+          className="max-w-[780px] mx-auto mb-5 font-bold text-[clamp(2.2rem,4.5vw,3.6rem)] leading-[1.08] tracking-[-0.035em]"
           style={{ color: 'var(--mkt-text)', fontFamily: 'var(--font-display), DM Serif Display, serif' }}
         >
-          Never Miss Another{' '}
-          <span style={{ color: 'var(--mkt-pink)' }}>Payroll Deadline</span>
+          The Payroll CRM That Runs{' '}
+          <span style={{ color: 'var(--mkt-pink)' }}>Your Bureau</span> For You
         </h1>
 
-        {/* Subtitle */}
+        {/* Subtitle — benefit-driven */}
         <p
-          className="max-w-[520px] mx-auto mb-8 text-base leading-relaxed"
+          className="max-w-[540px] mx-auto mb-8 text-base md:text-[17px] leading-relaxed"
           style={{ color: 'var(--mkt-text-2)', fontFamily: 'var(--font-body)' }}
         >
-          The professional dashboard for UK payroll specialists. Track HMRC deadlines, manage clients, and stay compliant — all in one place.
+          Stop juggling spreadsheets. Track every HMRC deadline, manage every client, and tick off every checklist — all from one dashboard. Set up in 60 seconds.
         </p>
 
         {/* CTAs */}
-        <div className="flex flex-col sm:flex-row gap-3 items-center mb-16">
+        <div className="flex flex-col sm:flex-row gap-3 items-center mb-6">
           <a
             href={`${APP_DOMAIN}/signup`}
             className="inline-flex items-center justify-center h-11 px-6 rounded-lg text-white font-semibold text-[15px] transition-opacity duration-150 hover:opacity-90"
             style={{ background: 'var(--mkt-purple)', fontFamily: 'var(--font-inter)' }}
           >
-            Start Free — No Credit Card
+            Start Free in 60 Seconds
           </a>
           <a
             href="#features"
@@ -67,9 +70,39 @@ export function Hero() {
           </a>
         </div>
 
+        {/* Social proof line */}
+        <div className="flex items-center gap-3 mb-16">
+          {/* Avatar stack */}
+          <div className="flex -space-x-2">
+            {AVATAR_COLORS.map((color, i) => (
+              <div
+                key={i}
+                className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-bold text-white"
+                style={{ background: color, borderColor: 'var(--mkt-bg)' }}
+              >
+                {['JD', 'MS', 'RT', 'AK'][i]}
+              </div>
+            ))}
+            <div
+              className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[9px] font-bold"
+              style={{ background: 'var(--mkt-bg-alt)', borderColor: 'var(--mkt-bg)', color: 'var(--mkt-text-3)' }}
+            >
+              +497
+            </div>
+          </div>
+          <span className="text-sm" style={{ color: 'var(--mkt-text-3)', fontFamily: 'var(--font-inter)' }}>
+            Trusted by <strong style={{ color: 'var(--mkt-text-2)' }}>500+</strong> UK payroll specialists
+          </span>
+        </div>
+
         {/* Product Screenshot Mockup */}
-        <div className="w-full max-w-[960px] mx-auto">
-          <MockupWindow title="Payroll Status Dashboard" className="hover-lift">
+        <div className="w-full max-w-[960px] mx-auto relative">
+          {/* Subtle glow behind mockup */}
+          <div
+            className="absolute inset-0 -inset-x-20 -inset-y-10 rounded-full pointer-events-none blur-3xl opacity-30"
+            style={{ background: 'radial-gradient(ellipse at center, var(--mkt-purple), transparent 70%)' }}
+          />
+          <MockupWindow title="Payroll Status Dashboard" className="relative hover-lift">
             {/* Status bar */}
             <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--mkt-border)' }}>
               <div className="flex items-center gap-2">

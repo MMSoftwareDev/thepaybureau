@@ -1,18 +1,16 @@
 import { AlertTriangle } from 'lucide-react'
 
 const PAIN_POINTS = [
-  "Can't remember if you submitted RTI for Smith & Co",
-  'Manager asking for an update whilst you scramble through 15 spreadsheets',
-  "3am wake-ups wondering if you missed someone's payroll",
-  'Racing against HMRC deadlines with no clear overview',
-  'Spending hours updating multiple spreadsheets for the same information',
-  'Getting client calls asking where their payslips are',
+  'Spending 3 hours updating spreadsheets that should take 10 minutes',
+  'Waking up at 3am wondering if you missed an RTI submission',
+  "Your manager asks for an update — and you're scrambling through 15 spreadsheets",
+  "Racing against HMRC deadlines with no single view of what's due",
 ]
 
 export function ProblemStatement() {
   return (
     <section style={{ background: 'var(--mkt-bg)' }}>
-      <div className="max-w-[720px] mx-auto px-5 py-20 md:py-28">
+      <div className="max-w-[680px] mx-auto px-5 py-20 md:py-28">
         {/* Eyebrow */}
         <div className="flex items-center gap-2 mb-4">
           <span className="w-5 h-0.5 rounded-sm" style={{ background: 'var(--mkt-pink)' }} />
@@ -24,16 +22,16 @@ export function ProblemStatement() {
           </span>
         </div>
 
-        {/* Headline */}
+        {/* Headline — emotional, personal */}
         <h2
-          className="text-2xl md:text-3xl font-bold tracking-tight mb-10"
+          className="text-3xl md:text-[2.5rem] font-bold tracking-tight mb-10 leading-tight"
           style={{ color: 'var(--mkt-text)', fontFamily: 'var(--font-display), DM Serif Display, serif' }}
         >
-          The daily struggles of every payroll specialist
+          You know the feeling.
         </h2>
 
-        {/* Pain points list */}
-        <ul className="space-y-4">
+        {/* Pain points list — tighter, 4 items */}
+        <ul className="space-y-5">
           {PAIN_POINTS.map((point) => (
             <li key={point} className="flex items-start gap-3">
               <div
@@ -51,6 +49,14 @@ export function ProblemStatement() {
             </li>
           ))}
         </ul>
+
+        {/* Transition line */}
+        <p
+          className="mt-10 text-lg font-semibold"
+          style={{ color: 'var(--mkt-purple)', fontFamily: 'var(--font-inter)' }}
+        >
+          There&apos;s a better way.
+        </p>
       </div>
     </section>
   )

@@ -1,3 +1,5 @@
+import { ArrowRight } from 'lucide-react'
+import { APP_DOMAIN } from '@/lib/domains'
 import { SectionHeader } from './SectionHeader'
 import { MockupWindow } from './MockupWindow'
 
@@ -55,8 +57,15 @@ export function ProductShowcase() {
               eyebrow="Client Management"
               title="Every client, one view"
               description="Add clients in seconds. Set their payroll frequency, pay date, and pension details. The system auto-generates every deadline and checklist."
-              className="mb-0"
+              className="mb-4"
             />
+            <a
+              href={`${APP_DOMAIN}/signup`}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold transition-opacity duration-150 hover:opacity-70"
+              style={{ color: 'var(--mkt-purple)', fontFamily: 'var(--font-inter)' }}
+            >
+              Try it free <ArrowRight className="w-3.5 h-3.5" />
+            </a>
           </div>
           <div className="md:w-[62%]">
             <MockupWindow title="Client Management" className="hover-lift">
@@ -114,8 +123,15 @@ export function ProductShowcase() {
               eyebrow="Deadline Tracking"
               title="HMRC deadlines, sorted"
               description="Every RTI, FPS, and EPS deadline auto-calculated from your pay dates. Colour-coded so you never miss a submission."
-              className="mb-0"
+              className="mb-4"
             />
+            <a
+              href={`${APP_DOMAIN}/signup`}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold transition-opacity duration-150 hover:opacity-70"
+              style={{ color: 'var(--mkt-purple)', fontFamily: 'var(--font-inter)' }}
+            >
+              Try it free <ArrowRight className="w-3.5 h-3.5" />
+            </a>
           </div>
           <div className="md:w-[62%]">
             <MockupWindow title="Upcoming Deadlines" className="hover-lift">
@@ -156,8 +172,15 @@ export function ProductShowcase() {
               eyebrow="Checklists"
               title="Tick off every step"
               description="Pre-built checklists for every payroll cycle. Monthly, weekly, 4-weekly — including year-end, new starters, and leavers."
-              className="mb-0"
+              className="mb-4"
             />
+            <a
+              href={`${APP_DOMAIN}/signup`}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold transition-opacity duration-150 hover:opacity-70"
+              style={{ color: 'var(--mkt-purple)', fontFamily: 'var(--font-inter)' }}
+            >
+              Try it free <ArrowRight className="w-3.5 h-3.5" />
+            </a>
           </div>
           <div className="md:w-[62%]">
             <MockupWindow title="Payroll Checklist — Miller & Associates" className="hover-lift">

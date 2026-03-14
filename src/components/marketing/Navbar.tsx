@@ -1,12 +1,25 @@
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Menu, X } from 'lucide-react'
 import { APP_DOMAIN } from '@/lib/domains'
 
 interface NavbarProps {
   showNav?: boolean
 }
 
+const NAV_LINKS = [
+  { label: 'Features', href: '#features' },
+  { label: 'Pricing', href: '#pricing' },
+  { label: 'FAQ', href: '#faq' },
+  { label: 'Roadmap', href: '/roadmap' },
+]
+
 export function Navbar({ showNav = true }: NavbarProps) {
+  const [mobileOpen, setMobileOpen] = useState(false)
+
   return (
     <nav
       className="sticky top-0 z-50 backdrop-blur-xl border-b"
@@ -27,18 +40,13 @@ export function Navbar({ showNav = true }: NavbarProps) {
           </span>
         </Link>
 
-        {/* Nav links + CTAs */}
+        {/* Desktop nav */}
         <div className="flex items-center gap-1">
           {showNav && (
             <div className="hidden md:flex items-center gap-1 mr-4">
-              {[
-                { label: 'Features', href: '#features' },
-                { label: 'Pricing', href: '#pricing' },
-                { label: 'FAQ', href: '#faq' },
-                { label: 'Roadmap', href: '/roadmap' },
-              ].map((link) => {
-                const isExternal = link.href.startsWith('/roadmap')
-                const Tag = isExternal ? Link : 'a'
+              {NAV_LINKS.map((link) => {
+                const isPage = link.href.startsWith('/')
+                const Tag = isPage ? Link : 'a'
                 return (
                   <Tag
                     key={link.label}
@@ -65,10 +73,56 @@ export function Navbar({ showNav = true }: NavbarProps) {
             className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white rounded-lg transition-opacity duration-150 hover:opacity-90"
             style={{ background: 'var(--mkt-purple)', fontFamily: 'var(--font-inter)' }}
           >
-            Get Started Free
+            Start Free
           </a>
+
+          {/* Mobile hamburger */}
+          {showNav && (
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="md:hidden ml-2 p-2 rounded-lg transition-colors duration-150 hover:bg-[var(--mkt-bg-alt)]"
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            >
+              {mobileOpen ? (
+                <X className="w-5 h-5" style={{ color: 'var(--mkt-text)' }} />
+              ) : (
+                <Menu className="w-5 h-5" style={{ color: 'var(--mkt-text)' }} />
+              )}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Mobile dropdown */}
+      {showNav && mobileOpen && (
+        <div
+          className="md:hidden border-t px-5 py-4 space-y-1"
+          style={{ borderColor: 'var(--mkt-border)', background: 'var(--mkt-bg)' }}
+        >
+          {NAV_LINKS.map((link) => {
+            const isPage = link.href.startsWith('/')
+            const Tag = isPage ? Link : 'a'
+            return (
+              <Tag
+                key={link.label}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className="block px-3 py-2.5 text-sm font-medium rounded-lg transition-colors duration-150 hover:bg-[var(--mkt-bg-alt)]"
+                style={{ color: 'var(--mkt-text-2)', fontFamily: 'var(--font-inter)' }}
+              >
+                {link.label}
+              </Tag>
+            )
+          })}
+          <a
+            href={`${APP_DOMAIN}/login`}
+            className="block px-3 py-2.5 text-sm font-medium rounded-lg transition-colors duration-150 hover:bg-[var(--mkt-bg-alt)]"
+            style={{ color: 'var(--mkt-text)', fontFamily: 'var(--font-inter)' }}
+          >
+            Log in
+          </a>
+        </div>
+      )}
     </nav>
   )
 }
