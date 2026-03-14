@@ -10,15 +10,24 @@ interface SectionHeaderProps {
 export function SectionHeader({ eyebrow, title, description, className }: SectionHeaderProps) {
   return (
     <div className={cn('mb-14', className)}>
-      <div className="inline-flex items-center gap-2 text-[0.68rem] font-bold tracking-[0.1em] uppercase text-[#EC385D] mb-3">
-        <span className="w-5 h-0.5 bg-[#EC385D] rounded-sm" />
+      <div
+        className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.1em] uppercase mb-3"
+        style={{ color: 'var(--mkt-pink)', fontFamily: 'var(--font-inter)' }}
+      >
+        <span className="w-5 h-0.5 rounded-sm" style={{ background: 'var(--mkt-pink)' }} />
         {eyebrow}
       </div>
-      <h2 className="text-[clamp(1.6rem,3vw,2.2rem)] font-extrabold tracking-[-0.025em] text-gray-900 leading-[1.15] mb-3">
+      <h2
+        className="text-[clamp(1.6rem,3vw,2.2rem)] font-bold tracking-[-0.025em] leading-[1.15] mb-3"
+        style={{ color: 'var(--mkt-text)', fontFamily: 'var(--font-display), DM Serif Display, serif' }}
+      >
         {title}
       </h2>
       {description && (
-        <p className="text-base text-gray-500 max-w-[520px] leading-[1.7]">
+        <p
+          className="text-base max-w-[520px] leading-relaxed"
+          style={{ color: 'var(--mkt-text-2)', fontFamily: 'var(--font-body)' }}
+        >
           {description}
         </p>
       )}
