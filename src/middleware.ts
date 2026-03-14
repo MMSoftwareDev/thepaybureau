@@ -1,7 +1,41 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { MARKETING_ROUTES } from '@/lib/domains'
+
+// Production hostnames
+const MARKETING_HOST = 'www.thepaybureau.com'
+const BARE_HOST = 'thepaybureau.com'
+const APP_HOST = 'app.thepaybureau.com'
 
 export async function middleware(request: NextRequest) {
+  const host = request.headers.get('host')?.replace(/:\d+$/, '') || ''
+  const pathname = request.nextUrl.pathname
+
+  // Bare domain → www redirect
+  if (host === BARE_HOST) {
+    const url = new URL(pathname, `https://${MARKETING_HOST}`)
+    url.search = request.nextUrl.search
+    return NextResponse.redirect(url, 301)
+  }
+
+  // Marketing domain — only serve marketing routes, redirect everything else to app
+  if (host === MARKETING_HOST) {
+    const isMarketingRoute = MARKETING_ROUTES.some((route) =>
+      route === '/' ? pathname === '/' : pathname === route || pathname.startsWith(route + '/')
+    )
+
+    if (!isMarketingRoute) {
+      const url = new URL(pathname, `https://${APP_HOST}`)
+      url.search = request.nextUrl.search
+      return NextResponse.redirect(url, 301)
+    }
+
+    // Marketing routes need no auth — return early
+    return NextResponse.next({ request })
+  }
+
+  // --- Below here: app.thepaybureau.com and localhost (existing logic) ---
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(

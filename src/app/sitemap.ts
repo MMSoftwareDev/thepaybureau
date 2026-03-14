@@ -1,38 +1,45 @@
 import type { MetadataRoute } from 'next'
+import { APP_DOMAIN, MARKETING_DOMAIN } from '@/lib/domains'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.thepaybureau.com'
-
   return [
+    // Marketing pages (canonical on marketing domain)
     {
-      url: baseUrl,
+      url: MARKETING_DOMAIN,
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 1,
     },
     {
-      url: `${baseUrl}/login`,
+      url: `${MARKETING_DOMAIN}/roadmap`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
-      priority: 0.8,
+      priority: 0.7,
     },
     {
-      url: `${baseUrl}/signup`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/terms`,
+      url: `${MARKETING_DOMAIN}/terms`,
       lastModified: new Date(),
       changeFrequency: 'yearly',
       priority: 0.3,
     },
     {
-      url: `${baseUrl}/privacy`,
+      url: `${MARKETING_DOMAIN}/privacy`,
       lastModified: new Date(),
       changeFrequency: 'yearly',
       priority: 0.3,
+    },
+    // App pages (public-facing)
+    {
+      url: `${APP_DOMAIN}/login`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${APP_DOMAIN}/signup`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
     },
   ]
 }

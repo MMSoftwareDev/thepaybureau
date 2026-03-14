@@ -14,13 +14,14 @@ import {
   LegendStrip,
   MarketingFooter,
 } from '@/components/marketing'
+import { APP_DOMAIN, MARKETING_DOMAIN } from '@/lib/domains'
 
 export const metadata: Metadata = {
   title: 'Product Roadmap — ThePayBureau',
   description:
     "Four phases from solo consultant to enterprise platform. See what's live, what's coming, and what's on the horizon for ThePayBureau.",
   alternates: {
-    canonical: '/roadmap',
+    canonical: `${MARKETING_DOMAIN}/roadmap`,
   },
 }
 
@@ -58,20 +59,20 @@ function RoadmapNav() {
           </span>
         </Link>
         <div className="flex items-center gap-3">
-          <Link
-            href="/login"
+          <a
+            href={`${APP_DOMAIN}/login`}
             className="hidden sm:inline-flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg transition-colors duration-100"
             style={{ color: brand.textPrimary }}
           >
             Log in
-          </Link>
-          <Link
-            href="/signup"
+          </a>
+          <a
+            href={`${APP_DOMAIN}/signup`}
             className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-bold text-white rounded-xl hover:opacity-90 transition-opacity duration-100"
             style={{ background: brand.purple }}
           >
             Get Started Free
-          </Link>
+          </a>
         </div>
       </div>
     </nav>

@@ -3,12 +3,13 @@ import Link from 'next/link'
 import Image from 'next/image'
 import type { Metadata } from 'next'
 import { HeroBadge, HeroStats, SectionHeader } from '@/components/marketing'
+import { APP_DOMAIN, MARKETING_DOMAIN } from '@/lib/domains'
 
 export const metadata: Metadata = {
   title: 'ThePayBureau - Never Miss Another Payroll Deadline',
   description: 'Professional payroll bureau management for UK specialists. Track HMRC deadlines, manage client checklists, auto-enrolment tracking, and pension compliance. Free forever for individuals.',
   alternates: {
-    canonical: '/',
+    canonical: MARKETING_DOMAIN,
   },
 }
 
@@ -205,20 +206,20 @@ export default function LandingPage() {
             </span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link
-              href="/login"
+            <a
+              href={`${APP_DOMAIN}/login`}
               className="hidden sm:inline-flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg transition-colors duration-100"
               style={{ color: brand.textPrimary, fontFamily: 'var(--font-inter)' }}
             >
               Log in
-            </Link>
-            <Link
-              href="/signup"
+            </a>
+            <a
+              href={`${APP_DOMAIN}/signup`}
               className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-bold text-white rounded-xl hover:opacity-90 transition-opacity duration-100"
               style={{ background: brand.purple, fontFamily: 'var(--font-inter)' }}
             >
               Get Started Free
-            </Link>
+            </a>
           </div>
         </div>
       </nav>
@@ -248,13 +249,13 @@ export default function LandingPage() {
 
           {/* CTA buttons */}
           <div className="flex flex-col sm:flex-row gap-4 items-center mb-8">
-            <Link
-              href="/signup"
+            <a
+              href={`${APP_DOMAIN}/signup`}
               className="inline-flex items-center justify-center h-12 px-6 rounded-xl text-white font-semibold text-lg tracking-tight hover:opacity-90 transition-opacity duration-100"
               style={{ background: brand.purple, fontFamily: 'var(--font-inter)', letterSpacing: '-0.36px' }}
             >
               Start Organising My Payrolls
-            </Link>
+            </a>
             <Link
               href="#features"
               className="inline-flex items-center gap-1 px-5 py-3 rounded-lg font-semibold text-sm transition-colors duration-100"
@@ -412,13 +413,13 @@ export default function LandingPage() {
               <h2 className="gradient-text-dark font-bold text-[40px] md:text-[76px] leading-[105%] tracking-[-0.04em] text-center pb-2" style={{ fontFamily: 'var(--font-display), DM Serif Display, serif' }}>
                 Everything You Actually Need
               </h2>
-              <Link
-                href="/signup"
+              <a
+                href={`${APP_DOMAIN}/signup`}
                 className="inline-flex items-center justify-center h-12 px-5 rounded-xl bg-white font-[650] text-lg cursor-pointer border-0 hover:opacity-90 transition-opacity duration-100"
                 style={{ color: brand.purple, fontFamily: 'var(--font-inter)', letterSpacing: '-0.36px' }}
               >
                 Get Started Free
-              </Link>
+              </a>
             </div>
 
             {/* Feature cards grid */}
@@ -784,13 +785,13 @@ export default function LandingPage() {
             </h2>
 
             {/* CTA Button */}
-            <Link
-              href="/signup"
+            <a
+              href={`${APP_DOMAIN}/signup`}
               className="inline-flex items-center justify-center h-12 px-5 rounded-xl bg-white font-bold text-lg tracking-tight border-0 hover:bg-white/90 transition-opacity duration-100"
               style={{ color: brand.purple, fontFamily: 'var(--font-inter)', letterSpacing: '-0.72px' }}
             >
               Start Organising My Payrolls Now
-            </Link>
+            </a>
 
             <p className="text-sm text-white/50 text-center max-w-[500px]" style={{ fontFamily: 'var(--font-inter)' }}>
               60-second setup &bull; No credit card &bull; Free forever for individuals &bull; Professional email required
@@ -852,7 +853,7 @@ export default function LandingPage() {
               <Link href="/privacy" className="text-[0.72rem] text-white/60 font-semibold no-underline hover:text-white/90 transition-colors">Privacy</Link>
               <a href="mailto:support@thepaybureau.com" className="text-[0.72rem] text-white/60 font-semibold no-underline hover:text-white/90 transition-colors">Support</a>
               <Link href="/roadmap" className="text-[0.72rem] text-white/60 font-semibold no-underline hover:text-white/90 transition-colors">Roadmap</Link>
-              <Link href="/login" className="text-[0.72rem] text-white/60 font-semibold no-underline hover:text-white/90 transition-colors">Log in</Link>
+              <a href={`${APP_DOMAIN}/login`} className="text-[0.72rem] text-white/60 font-semibold no-underline hover:text-white/90 transition-colors">Log in</a>
             </div>
           </div>
           <div className="mt-6 pt-4 border-t border-white/10 text-center md:text-right">
