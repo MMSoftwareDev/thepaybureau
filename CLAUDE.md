@@ -140,6 +140,10 @@ npx playwright test  # E2E tests
 - SELECT * audit: 6 routes fixed to use explicit column selection
 - Marketing pages domain routing: `www.thepaybureau.com` serves `/`, `/roadmap`, `/terms`, `/privacy` via middleware hostname detection; non-marketing routes 301 redirect to `app.thepaybureau.com`
 - Marketing copy overhaul: company name updated to "Intelligent Payroll Limited T/A The Pay Bureau", free tier updated to 50 clients, CSV import/export and basic audit trail included in free, removed fake social proof and dead newsletter form
+- Collapsible sidebar sections with auto-expand for active routes
+- Sidebar visual polish: indented child items, 36px row height, 18px icons, rounded-lg items
+- Sidebar search fix: clients page reads URL `?search=` param via `useSearchParams`
+- Sidebar section rename: "DEVELOPMENT" → "TRAINING"
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
@@ -220,6 +224,7 @@ npx playwright test  # E2E tests
 - **Testing:** Test files live alongside routes in `__tests__/` directories. Use `chainMock()` pattern for Supabase client mocking (two-pass init for chainable methods). Mock `@/lib/supabase-server` in every API route test. Suppress `console.error` in test setup.
 - **API route SELECT:** Use explicit column selection on list/read endpoints. Only use `select('*')` when the full record is needed (e.g., account export, audit diffs, edit forms that need all fields).
 - **Cross-domain links:** On marketing pages, use `<a href={APP_DOMAIN + '/login'}>` (not `<Link>`) for links to `app.thepaybureau.com` — Next.js `<Link>` is for same-origin client-side navigation only. Import `APP_DOMAIN` from `@/lib/domains`.
+- **Sidebar sections**: Collapsible with `ChevronDown` toggle. Auto-expand section containing active route. Nav items indented (`pl-2`), 36px rows (`h-9`), 18px icons, `rounded-lg`. Section labels are uppercase buttons.
 
 ## Design Consistency & Brand Standards
 
@@ -729,3 +734,12 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Deferred**: Real software screenshots for marketing pages (follow-up task — user will provide images with dummy data)
 - **Files changed (8)**: `TrustBar.tsx`, `Hero.tsx`, `PricingSection.tsx`, `FAQSection.tsx`, `Footer.tsx`, `terms/page.tsx`, `privacy/page.tsx`, `roadmap/page.tsx`
 - Branch: `claude/update-marketing-copy-VlmzO`
+
+### Session 27 — Sidebar Collapsible Sections & Polish (2026-03-14)
+- **Collapsible sections**: Section labels (OVERVIEW, CLIENTS, PAYROLL, etc.) are now clickable to expand/collapse child nav items; ChevronDown icon rotates to indicate state; smooth CSS grid-row animation
+- **Auto-expand active section**: When navigating to a route, the parent section auto-expands via `useEffect` on pathname
+- **Visual polish**: Nav items indented under section headers (`pl-2`), row height increased from 32px → 36px (`h-9`), icons bumped from 16px → 18px (`w-[18px]`), stronger active background (`${colors.primary}10`), `rounded-lg` on items
+- **Search fix**: Sidebar search navigated to `/dashboard/clients?search=<query>` but clients page never read the URL param — added `useSearchParams()` hook to initialize and sync `searchQuery` state from URL
+- **Rename**: "DEVELOPMENT" section → "TRAINING"
+- **Files changed (2)**: `Sidebar.tsx`, `clients/page.tsx`
+- Branch: `claude/move-settings-to-navbar-fVc8G`
