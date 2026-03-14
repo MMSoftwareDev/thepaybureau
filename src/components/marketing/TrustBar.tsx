@@ -1,31 +1,35 @@
-import { Clock, ShieldCheck, Users } from 'lucide-react'
-
 const STATS = [
-  { icon: Clock, value: '58s', label: 'Average setup time' },
-  { icon: ShieldCheck, value: '0', label: 'Missed deadlines last month' },
-  { icon: Users, value: '500+', label: 'Bureau specialists' },
+  { value: '60s', label: 'Setup time' },
+  { value: '0', label: 'Deadlines missed' },
+  { value: '500+', label: 'Specialists' },
+  { value: 'Free', label: 'Forever for individuals' },
 ]
 
 export function TrustBar() {
   return (
-    <section style={{ background: 'var(--mkt-bg-alt)' }}>
-      <div className="max-w-[1200px] mx-auto px-5 py-12 md:py-14">
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-8 md:gap-16">
+    <section
+      className="border-y"
+      style={{ background: 'var(--mkt-bg-alt)', borderColor: 'var(--mkt-border)' }}
+    >
+      <div className="max-w-[1200px] mx-auto px-5 py-8 md:py-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0">
           {STATS.map((stat) => (
-            <div key={stat.label} className="flex items-center gap-3">
+            <div
+              key={stat.label}
+              className="flex flex-col items-center text-center md:border-r md:last:border-r-0"
+              style={{ borderColor: 'var(--mkt-border)' }}
+            >
               <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ background: 'color-mix(in srgb, var(--mkt-purple) 8%, transparent)' }}
+                className="text-2xl md:text-3xl font-bold tracking-tight"
+                style={{ color: 'var(--mkt-text)', fontFamily: 'var(--font-inter)' }}
               >
-                <stat.icon className="w-5 h-5" style={{ color: 'var(--mkt-purple)' }} />
+                {stat.value}
               </div>
-              <div>
-                <div className="text-xl font-bold" style={{ color: 'var(--mkt-text)', fontFamily: 'var(--font-inter)' }}>
-                  {stat.value}
-                </div>
-                <div className="text-xs font-medium" style={{ color: 'var(--mkt-text-3)', fontFamily: 'var(--font-inter)' }}>
-                  {stat.label}
-                </div>
+              <div
+                className="text-xs font-medium mt-1"
+                style={{ color: 'var(--mkt-text-3)', fontFamily: 'var(--font-inter)' }}
+              >
+                {stat.label}
               </div>
             </div>
           ))}

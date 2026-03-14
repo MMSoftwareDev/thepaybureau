@@ -3,40 +3,41 @@ import {
   Bell,
   Users,
   ShieldCheck,
-  Bot,
   ClipboardList,
+  Bot,
 } from 'lucide-react'
 
 const FEATURES = [
   {
     icon: CheckSquare,
     title: 'Payroll Checklists',
-    description: 'Pre-built for monthly, weekly, and 4-weekly payrolls. Year-end, new starters, leavers — all ready to use.',
+    description: 'Stop building checklists from scratch. Get pre-built templates for every payroll cycle — monthly, weekly, year-end, new starters.',
   },
   {
     icon: Bell,
     title: 'HMRC Deadline Tracking',
-    description: 'Never miss RTI, FPS, or EPS deadlines. Auto-calculated from your pay dates and frequencies.',
+    description: 'Every RTI, FPS, and EPS deadline auto-calculated from your pay dates. See what\u2019s due today, tomorrow, and next week.',
+    popular: true,
   },
   {
     icon: Users,
     title: 'Client Management',
-    description: 'Full CRM for payroll bureaux. Track contacts, PAYE references, pension details, and billing in one place.',
+    description: 'One place for every client — contacts, PAYE references, pension status, billing. No more switching between spreadsheets.',
   },
   {
     icon: ShieldCheck,
     title: 'Pension & Auto-Enrolment',
-    description: 'Track postponement dates, opt-outs, and re-enrolment cycles. Never miss a pension declaration.',
-  },
-  {
-    icon: Bot,
-    title: 'AI Assistant',
-    description: 'Ask questions about your clients, deadlines, and payroll processes. Powered by Claude AI.',
+    description: 'Track auto-enrolment status, postponement dates, and re-enrolment cycles. Get alerts before you miss a declaration.',
   },
   {
     icon: ClipboardList,
     title: 'Audit Trail',
-    description: 'Every action logged automatically. Export audit reports for compliance and peace of mind.',
+    description: 'Every change logged automatically. Export audit reports in one click for compliance reviews.',
+  },
+  {
+    icon: Bot,
+    title: 'AI Assistant',
+    description: "Ask \u2018Which clients are due this week?\u2019 and get instant answers. Your AI-powered payroll assistant.",
   },
 ]
 
@@ -59,13 +60,13 @@ export function FeatureGrid() {
             className="text-2xl md:text-[2.5rem] font-bold tracking-tight leading-tight mb-4"
             style={{ color: 'var(--mkt-text)', fontFamily: 'var(--font-display), DM Serif Display, serif' }}
           >
-            Everything you actually need
+            Built for how you actually work
           </h2>
           <p
             className="text-base max-w-[480px] mx-auto"
             style={{ color: 'var(--mkt-text-2)', fontFamily: 'var(--font-body)' }}
           >
-            Built specifically for payroll professionals. No bloat, no complexity — just the tools that matter.
+            Purpose-built for payroll professionals. No bloat, no complexity — just the tools that matter.
           </p>
         </div>
 
@@ -74,13 +75,23 @@ export function FeatureGrid() {
           {FEATURES.map((feature) => (
             <div
               key={feature.title}
-              className="rounded-xl p-6 border transition-all duration-200 hover:-translate-y-0.5"
+              className="rounded-xl p-6 border transition-all duration-200 hover:-translate-y-0.5 relative"
               style={{
                 background: 'var(--mkt-surface)',
                 borderColor: 'var(--mkt-border)',
                 boxShadow: 'var(--mkt-card-shadow)',
               }}
             >
+              {/* Popular badge */}
+              {feature.popular && (
+                <span
+                  className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-white"
+                  style={{ background: 'var(--mkt-purple)', fontFamily: 'var(--font-inter)' }}
+                >
+                  Popular
+                </span>
+              )}
+
               <div
                 className="w-10 h-10 rounded-lg flex items-center justify-center mb-4"
                 style={{ background: 'color-mix(in srgb, var(--mkt-purple) 8%, transparent)' }}

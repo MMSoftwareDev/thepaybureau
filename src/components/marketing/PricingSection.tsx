@@ -11,8 +11,6 @@ const FEATURES: PlanFeature[] = [
   { label: 'Client management', free: 'Up to 5 clients', unlimited: 'Unlimited' },
   { label: 'Payroll checklists', free: 'Basic templates', unlimited: 'All templates' },
   { label: 'HMRC deadline tracking', free: true, unlimited: true },
-  { label: 'Pension & auto-enrolment', free: true, unlimited: true },
-  { label: 'Dashboard & reporting', free: true, unlimited: true },
   { label: 'AI Assistant', free: false, unlimited: true },
   { label: 'CPD / Training log', free: false, unlimited: true },
   { label: 'CSV import & export', free: false, unlimited: true },
@@ -96,14 +94,14 @@ export function PricingSection() {
             </div>
             <a
               href={`${APP_DOMAIN}/signup`}
-              className="w-full inline-flex items-center justify-center h-10 rounded-lg text-sm font-semibold border transition-colors duration-150"
+              className="w-full inline-flex items-center justify-center h-10 rounded-lg text-sm font-semibold border transition-colors duration-150 hover:opacity-90"
               style={{
                 color: 'var(--mkt-purple)',
                 borderColor: 'var(--mkt-border)',
                 fontFamily: 'var(--font-inter)',
               }}
             >
-              Get started free
+              Start with Free
             </a>
           </div>
 
@@ -111,8 +109,9 @@ export function PricingSection() {
           <div
             className="rounded-xl border-2 p-6 md:p-8 relative"
             style={{
-              background: 'var(--mkt-surface)',
+              background: 'color-mix(in srgb, var(--mkt-purple) 3%, var(--mkt-surface))',
               borderColor: 'var(--mkt-purple)',
+              boxShadow: '0 4px 24px color-mix(in srgb, var(--mkt-purple) 10%, transparent)',
             }}
           >
             <div
@@ -137,13 +136,16 @@ export function PricingSection() {
                 </span>
                 <span className="text-sm" style={{ color: 'var(--mkt-text-3)' }}>/month</span>
               </div>
+              <p className="text-xs mt-2" style={{ color: 'var(--mkt-text-3)', fontFamily: 'var(--font-inter)' }}>
+                Less than the cost of one missed HMRC penalty
+              </p>
             </div>
             <a
               href={`${APP_DOMAIN}/signup`}
               className="w-full inline-flex items-center justify-center h-10 rounded-lg text-sm font-semibold text-white transition-opacity duration-150 hover:opacity-90"
               style={{ background: 'var(--mkt-purple)', fontFamily: 'var(--font-inter)' }}
             >
-              Start free trial
+              Try Unlimited Free
             </a>
           </div>
         </div>
@@ -175,6 +177,14 @@ export function PricingSection() {
             </div>
           ))}
         </div>
+
+        {/* Note */}
+        <p
+          className="text-center text-xs mt-6"
+          style={{ color: 'var(--mkt-text-3)', fontFamily: 'var(--font-inter)' }}
+        >
+          All plans include HMRC deadline tracking, pension monitoring, and payroll checklists.
+        </p>
       </div>
     </section>
   )
