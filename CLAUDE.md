@@ -122,8 +122,11 @@ npx playwright test  # E2E tests
 - Profile image auto-resize on upload (client-side Canvas API, 256x256 square, WebP output)
 - Clients & payrolls data model separation (new `payrolls` table, one client → many payrolls)
 - Clients page redesign (dense flat table, sidebar Sheet form, sortable columns, pagination, CSV export, AlertDialog delete)
-- Payrolls config page with table + sidebar form (Details, Pay Schedule, HMRC, Pension, Checklist sections)
-- Payroll runs moved to `/dashboard/payrolls/runs` sub-route with `?payroll=` filter
+- Payrolls config page with table + sidebar form (Details, Pay Schedule, HMRC, Pension, Checklist sections), frequency-specific badge colors, sortable/reorderable columns, CSV export, filters, view sidebar, delete Dialog, clickable KPI filters, pagination
+- Payroll runs merged into payrolls page as Runs Sheet sidebar (removed `/dashboard/payrolls/runs` sub-route)
+- CSV export endpoint for payrolls (`/api/payrolls/export`) with rate limiting
+- SWR `errorRetryCount: 3` to prevent infinite retry loops on API errors
+- AuthContext SIGNED_IN guard: `currentUserIdRef` prevents SWR cache clear on session restore (only clears on actual account switch)
 - `prospect` client status removed — only `active` and `inactive`
 - Full-width responsive dashboard layout (removed `max-w-6xl` constraint from `DashboardWrapper.tsx`)
 - 7 new client fields: domain, secondary contact (name/email/phone), accountant (name/email/phone)
@@ -433,9 +436,9 @@ Every new page or component **must** satisfy all of these before it's considered
 | Landing page reference | `src/app/page.tsx` |
 | Image processing utils | `src/lib/image-utils.ts` (`processAvatarImage()`) |
 | Clients page (table reference) | `src/app/(dashboard)/dashboard/clients/page.tsx` |
-| Payrolls config page | `src/app/(dashboard)/dashboard/payrolls/page.tsx` |
-| Payroll runs page | `src/app/(dashboard)/dashboard/payrolls/runs/page.tsx` |
+| Payrolls page (table + runs Sheet) | `src/app/(dashboard)/dashboard/payrolls/page.tsx` |
 | Client CSV export API | `src/app/api/clients/export/route.ts` |
+| Payroll CSV export API | `src/app/api/payrolls/export/route.ts` |
 | Client CSV import API | `src/app/api/clients/import/route.ts` |
 | Tenant users API | `src/app/api/users/route.ts` |
 | Dashboard layout wrapper | `src/components/layout/DashboardWrapper.tsx` |
@@ -743,3 +746,23 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Rename**: "DEVELOPMENT" section → "TRAINING"
 - **Files changed (2)**: `Sidebar.tsx`, `clients/page.tsx`
 - Branch: `claude/move-settings-to-navbar-fVc8G`
+
+### Session 28 — Payrolls Page: Fix Refresh + Feature Parity with Clients (2026-03-14)
+- **Bug fix — constant page refresh**: `AuthContext.tsx` `SIGNED_IN` handler was calling `clearSWRCache()` + `revalidateAllSWR()` on every page load (session restore). Added `currentUserIdRef` to only clear cache when user actually changes (new login or account switch)
+- **Bug fix — SWR infinite retry**: Added `errorRetryCount: 3` to SWR `defaultConfig` in `swr.ts` — prevents infinite retry loops when API endpoints return errors
+- **Bug fix — generic API errors**: Payrolls POST handler now returns `payrollError.message` instead of generic "Failed to create payroll", same for GET and checklist template errors
+- **Payroll runs merged into payrolls page**: Deleted `/dashboard/payrolls/runs/page.tsx` (1,592 lines); all runs functionality now lives in a Runs Sheet sidebar on the main payrolls page, opened via Eye button
+- **Sidebar nav**: Removed "Payroll Runs" nav item from PAYROLL section
+- **Frequency-specific badge colors**: green (weekly), blue (fortnightly), amber (4-weekly), purple (monthly), pink (annually) — `getFrequencyColor()` helper
+- **Sortable column headers**: `SortableHeader` component with arrow indicators; default sort: Next Pay Date ascending
+- **Column customization**: Toggle visibility + reorder via Dialog; localStorage key `tpb_payroll_columns`; "Payroll Name" pinned
+- **CSV export**: New `/api/payrolls/export` endpoint (rate limited 5 req/15 min, auth + tenant scoped, supports search/frequency/status filters)
+- **Additional filters**: Collapsible filter bar with Status, Client dropdowns + active count badge
+- **Row click → view sidebar**: Read-only detail view with Edit/Runs buttons; only pencil icon opens edit mode; `viewMode` state (`'view' | 'edit'`)
+- **Delete via Dialog**: Replaced `window.confirm()` with shadcn Dialog matching clients page pattern; `payrollToDelete` state
+- **Clickable KPI cards**: 6 frequency KPIs act as table filters (Total, Weekly, Fortnightly, 4-Weekly, Monthly, Annually)
+- **Pagination**: 25 per page with showing X–Y of Z
+- **AuthContext tests**: Updated existing SIGNED_IN test + added 2 new tests (same-user no-clear, different-user-after-signout clears)
+- **SQL verification query provided**: For user to check if migration 015 (`payrolls` table) has been applied to Supabase
+- **Files changed**: `AuthContext.tsx`, `AuthContext.test.tsx`, `swr.ts`, `payrolls/route.ts`, `payrolls/page.tsx`, `payrolls/runs/page.tsx` (deleted), `Sidebar.tsx`, `payrolls/export/route.ts` (new)
+- Branch: `claude/fix-payrolls-refresh-JgT7P`
