@@ -33,9 +33,10 @@ function TimelineRow({ node, leftContent, rightContent, isLast }: TimelineRowPro
       <div className="flex justify-center pt-6 relative z-[2] max-[880px]:hidden">
         <div
           className={cn(
-            'w-14 h-14 rounded-full border-2 bg-white flex items-center justify-center text-[0.62rem] font-extrabold tracking-[0.06em] shadow-[0_2px_16px_rgba(0,0,0,0.08)] transition-[transform,box-shadow] duration-200 hover:scale-110 hover:shadow-[0_6px_24px_rgba(0,0,0,0.14)] select-none',
+            'w-14 h-14 rounded-full border-2 flex items-center justify-center text-[0.62rem] font-extrabold tracking-[0.06em] shadow-[0_2px_16px_rgba(0,0,0,0.08)] transition-[transform,box-shadow] duration-200 hover:scale-110 hover:shadow-[0_6px_24px_rgba(0,0,0,0.14)] select-none',
             nodeStyles[node.phase]
           )}
+          style={{ background: 'var(--mkt-surface)' }}
         >
           {node.label}
         </div>
@@ -58,7 +59,10 @@ function TimelineLayout({ children, className }: TimelineLayoutProps) {
   return (
     <div className={cn('relative', className)}>
       {/* Central spine */}
-      <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-200 -translate-x-1/2 pointer-events-none z-0 max-[880px]:hidden" />
+      <div
+        className="absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2 pointer-events-none z-0 max-[880px]:hidden"
+        style={{ background: 'var(--mkt-border)' }}
+      />
       {children}
     </div>
   )

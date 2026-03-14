@@ -29,18 +29,25 @@ export function StatCard({ phase, value, label, note, className }: StatCardProps
   return (
     <div
       className={cn(
-        'bg-white border border-gray-200 rounded-2xl px-6 py-7 text-center max-w-[200px] shadow-[0_1px_8px_rgba(0,0,0,0.04)] transition-shadow duration-200 hover:shadow-[0_4px_20px_rgba(0,0,0,0.07)]',
+        'rounded-2xl px-6 py-7 text-center max-w-[200px] border transition-shadow duration-200',
         className
       )}
+      style={{
+        background: 'var(--mkt-surface)',
+        borderColor: 'var(--mkt-border)',
+        boxShadow: 'var(--mkt-card-shadow)',
+      }}
     >
       <div className={statNumVariants({ phase })}>{value}</div>
       <div
-        className="text-[0.78rem] text-gray-500 leading-[1.5]"
+        className="text-[0.78rem] leading-[1.5]"
+        style={{ color: 'var(--mkt-text-2)' }}
         dangerouslySetInnerHTML={{ __html: label }}
       />
       {note && (
         <div
-          className="mt-2.5 text-[0.64rem] text-gray-400 italic leading-[1.5]"
+          className="mt-2.5 text-[0.64rem] italic leading-[1.5]"
+          style={{ color: 'var(--mkt-text-3)' }}
           dangerouslySetInnerHTML={{ __html: note }}
         />
       )}

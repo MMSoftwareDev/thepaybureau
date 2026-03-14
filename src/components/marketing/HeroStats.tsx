@@ -14,23 +14,35 @@ export function HeroStats({ stats, className }: HeroStatsProps) {
   return (
     <div
       className={cn(
-        'flex w-fit bg-white border border-gray-200 rounded-xl shadow-[0_1px_8px_rgba(0,0,0,0.05)] overflow-hidden',
+        'flex w-fit rounded-xl border overflow-hidden',
         'max-sm:flex-col max-sm:w-full',
         className
       )}
+      style={{
+        background: 'var(--mkt-surface)',
+        borderColor: 'var(--mkt-border)',
+        boxShadow: 'var(--mkt-card-shadow)',
+      }}
     >
       {stats.map((stat, i) => (
         <div
           key={stat.label}
           className={cn(
             'px-7 py-4 text-center',
-            i < stats.length - 1 && 'border-r border-gray-100 max-sm:border-r-0 max-sm:border-b max-sm:border-gray-100'
+            i < stats.length - 1 && 'border-r max-sm:border-r-0 max-sm:border-b'
           )}
+          style={{ borderColor: 'var(--mkt-border)' }}
         >
-          <strong className="block text-[2rem] font-extrabold text-[#401D6C] leading-none tracking-[-0.04em] mb-0.5">
+          <strong
+            className="block text-[2rem] font-extrabold leading-none tracking-[-0.04em] mb-0.5"
+            style={{ color: 'var(--mkt-purple)' }}
+          >
             {stat.value}
           </strong>
-          <span className="text-[0.62rem] font-semibold uppercase tracking-[0.09em] text-gray-400">
+          <span
+            className="text-[0.62rem] font-semibold uppercase tracking-[0.09em]"
+            style={{ color: 'var(--mkt-text-3)' }}
+          >
             {stat.label}
           </span>
         </div>
