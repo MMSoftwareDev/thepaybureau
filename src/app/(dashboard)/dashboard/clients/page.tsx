@@ -150,6 +150,16 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   invoice: 'Invoice', direct_debit: 'Direct Debit',
 }
 
+// Parse numeric fee from string (strips £, commas, suffixes like /month)
+function parseFee(fee: string | null | undefined): number | null {
+  if (!fee) return null
+  const cleaned = fee.replace(/[£,]/g, '').replace(/\/(month|mo|yr|year|run|quarter).*$/i, '').trim()
+  const num = parseFloat(cleaned)
+  return isNaN(num) ? null : num
+}
+
+const currencyFormat = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 0, maximumFractionDigits: 0 })
+
 const UK_INDUSTRIES = [
   'Agriculture',
   'Charity & Non-Profit',
@@ -699,14 +709,12 @@ export default function ClientsPage() {
 
   const activeFilterCount = useMemo(() => {
     let count = 0
-    if (industryFilter !== 'all') count++
     if (dateFrom) count++
     if (dateTo) count++
     return count
-  }, [industryFilter, dateFrom, dateTo])
+  }, [dateFrom, dateTo])
 
   const clearFilters = useCallback(() => {
-    setIndustryFilter('all')
     setDateFrom('')
     setDateTo('')
   }, [])
@@ -793,10 +801,14 @@ export default function ClientsPage() {
 
   const counts = useMemo(() => {
     const all = (clients || []) as Client[]
+    const fees = all.map((c) => parseFee(c.fee)).filter((f): f is number => f !== null)
+    const totalRevenue = fees.reduce((sum, f) => sum + f, 0)
     return {
       total: all.length,
       active: all.filter((c) => c.status === 'active').length,
       inactive: all.filter((c) => c.status === 'inactive').length,
+      avgFee: fees.length > 0 ? Math.round(totalRevenue / fees.length) : 0,
+      totalMonthlyRevenue: totalRevenue,
     }
   }, [clients])
 
@@ -884,84 +896,95 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* KPI Pills + Search Row */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          {[
-            { label: 'Total', count: counts.total, icon: Users, color: colors.primary, filterKey: 'all' as StatusFilter },
-            { label: 'Active', count: counts.active, icon: UserCheck, color: colors.success, filterKey: 'active' as StatusFilter },
-            { label: 'Inactive', count: counts.inactive, icon: UserX, color: colors.text.muted, filterKey: 'inactive' as StatusFilter },
-          ].map((kpi) => {
-            const isActive = statusFilter === kpi.filterKey
-            return (
-              <button
-                key={kpi.label}
-                onClick={() => setStatusFilter(kpi.filterKey === statusFilter ? 'all' : kpi.filterKey)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium font-[family-name:var(--font-inter)] transition-colors"
-                style={{
-                  backgroundColor: isActive ? `${kpi.color}15` : 'transparent',
-                  color: isActive ? kpi.color : colors.text.secondary,
-                  border: `1px solid ${isActive ? kpi.color : colors.border}`,
-                }}
-              >
-                <kpi.icon className="w-3.5 h-3.5" />
-                {kpi.label}: <span className="font-bold">{kpi.count}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="flex items-center gap-2 sm:ml-auto">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: colors.text.muted }} />
-            <Input
-              placeholder="Search clients..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 text-sm h-8 w-[200px] lg:w-[260px]"
-              style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-            />
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs gap-1 h-8"
-            style={{ borderColor: colors.border, color: colors.text.secondary }}
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <Filter className="w-3 h-3" />
-            Filters
-            {activeFilterCount > 0 && (
-              <span
-                className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium text-white"
-                style={{ backgroundColor: colors.primary }}
-              >
-                {activeFilterCount}
-              </span>
-            )}
-          </Button>
-        </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+        {[
+          { label: 'Total Clients', value: counts.total.toString(), color: colors.primary, filterKey: 'all' as StatusFilter | null },
+          { label: 'Active', value: counts.active.toString(), color: colors.success, filterKey: 'active' as StatusFilter | null },
+          { label: 'Inactive', value: counts.inactive.toString(), color: colors.text.muted, filterKey: 'inactive' as StatusFilter | null },
+          { label: 'Avg Fee', value: counts.avgFee > 0 ? currencyFormat.format(counts.avgFee) : '-', color: colors.secondary, filterKey: null },
+          { label: 'Monthly Revenue', value: counts.totalMonthlyRevenue > 0 ? currencyFormat.format(counts.totalMonthlyRevenue) : '-', color: colors.accent, filterKey: null },
+        ].map((kpi) => {
+          const isActive = kpi.filterKey !== null && statusFilter === kpi.filterKey
+          const isClickable = kpi.filterKey !== null
+          return (
+            <button
+              key={kpi.label}
+              onClick={isClickable ? () => setStatusFilter(kpi.filterKey === statusFilter ? 'all' : kpi.filterKey!) : undefined}
+              className={`rounded-xl p-3 text-left transition-all duration-150 ${isClickable ? 'cursor-pointer' : 'cursor-default'}`}
+              style={{
+                backgroundColor: colors.surface,
+                border: `1px solid ${isActive ? kpi.color : colors.border}`,
+                boxShadow: isActive ? `0 0 0 1px ${kpi.color}` : undefined,
+              }}
+            >
+              <p className="text-[0.7rem] font-medium font-[family-name:var(--font-inter)] truncate" style={{ color: isActive ? kpi.color : colors.text.muted }}>
+                {kpi.label}
+              </p>
+              <p className="text-xl font-bold font-[family-name:var(--font-inter)]" style={{ color: isActive ? kpi.color : colors.text.primary }}>
+                {kpi.value}
+              </p>
+            </button>
+          )
+        })}
       </div>
 
-      {/* Filter Bar */}
+      {/* Search + Industry Filter Row */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
+          <Input
+            placeholder="Search clients..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 text-sm"
+            style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+          />
+        </div>
+        <div className="min-w-[160px]">
+          <Select value={industryFilter} onValueChange={setIndustryFilter}>
+            <SelectTrigger className="text-sm h-9" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+              <SelectValue placeholder="All Industries" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Industries</SelectItem>
+              {industries.map((ind) => (
+                <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-xs gap-1 h-9"
+          style={{ borderColor: colors.border, color: colors.text.secondary }}
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          <Filter className="w-3 h-3" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span
+              className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium text-white"
+              style={{ backgroundColor: colors.primary }}
+            >
+              {activeFilterCount}
+            </span>
+          )}
+        </Button>
+        {industryFilter !== 'all' && (
+          <Button variant="ghost" size="sm" className="text-xs gap-1 h-9" style={{ color: colors.error }} onClick={() => setIndustryFilter('all')}>
+            <X className="w-3 h-3" />
+            Clear Industry
+          </Button>
+        )}
+      </div>
+
+      {/* Filter Bar (Date Filters) */}
       {showFilters && (
         <Card className="rounded-lg shadow-sm" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
           <CardContent className="p-3">
             <div className="flex flex-wrap items-end gap-3">
-              <div className="min-w-[150px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Industry</Label>
-                <Select value={industryFilter} onValueChange={setIndustryFilter}>
-                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
-                    <SelectValue placeholder="All Industries" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Industries</SelectItem>
-                    {industries.map((ind) => (
-                      <SelectItem key={ind} value={ind}>{ind}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="min-w-[130px]">
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Added From</Label>
                 <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
@@ -970,10 +993,10 @@ export default function ClientsPage() {
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Added To</Label>
                 <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
-              {activeFilterCount > 0 && (
+              {(dateFrom || dateTo) && (
                 <Button variant="ghost" size="sm" className="text-xs gap-1 h-8" style={{ color: colors.error }} onClick={clearFilters}>
                   <X className="w-3 h-3" />
-                  Clear
+                  Clear Dates
                 </Button>
               )}
             </div>
