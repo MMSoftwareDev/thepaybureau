@@ -67,7 +67,7 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: 'DEVELOPMENT',
+    label: 'TRAINING',
     items: [
       { name: 'Training & CPD', href: '/dashboard/training', icon: GraduationCap, pro: true },
     ],
@@ -300,7 +300,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                 gridTemplateRows: isExpanded ? '1fr' : '0fr',
               }}
             >
-              <div className="min-h-0">
+              <div className="min-h-0 pt-1 pl-2">
             {section.items.map((item) => {
               const isActive = isActiveRoute(item.href)
               const Icon = item.icon
@@ -309,10 +309,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                 <button
                   key={item.name}
                   onClick={() => navigate(item.href)}
-                  className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md mb-px transition-all duration-150 relative"
+                  className="w-full flex items-center gap-2.5 px-2.5 h-9 rounded-lg mb-0.5 transition-all duration-150 relative"
                   style={{
                     background: isActive && !isGated
-                      ? isDark ? 'rgba(255,255,255,0.08)' : `${colors.primary}08`
+                      ? isDark ? 'rgba(255,255,255,0.08)' : `${colors.primary}10`
                       : 'transparent',
                     color: isGated ? colors.text.muted : isActive ? colors.text.primary : colors.text.secondary,
                     opacity: isGated ? 0.6 : 1,
@@ -336,7 +336,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                     />
                   )}
                   <Icon
-                    className="w-4 h-4 flex-shrink-0"
+                    className="w-[18px] h-[18px] flex-shrink-0"
                     style={{ color: isGated ? colors.text.muted : isActive ? colors.primary : colors.text.muted }}
                   />
                   <span className={`text-[0.8rem] ${isActive && !isGated ? 'font-semibold' : 'font-medium'} flex-1 text-left`}>
