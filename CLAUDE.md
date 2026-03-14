@@ -139,8 +139,10 @@ npx playwright test  # E2E tests
 - API reference documentation (`docs/api-reference.md`) covering all 42 routes
 - SELECT * audit: 6 routes fixed to use explicit column selection
 - Marketing pages domain routing: `www.thepaybureau.com` serves `/`, `/roadmap`, `/terms`, `/privacy` via middleware hostname detection; non-marketing routes 301 redirect to `app.thepaybureau.com`
+- Marketing copy overhaul: company name updated to "Intelligent Payroll Limited T/A The Pay Bureau", free tier updated to 50 clients, CSV import/export and basic audit trail included in free, removed fake social proof and dead newsletter form
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
+- Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
 - Reorder pension tasks after payroll run in checklists
 - Global auth context for reactive user tracking
 - ~~Reduce SWR `dedupingInterval` or add explicit revalidation on login~~ (done: `revalidateAllSWR()` on SIGNED_IN, interval already at 2s)
@@ -714,3 +716,16 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Vercel setup required**: Add `www.thepaybureau.com` + `thepaybureau.com` domains to existing project, add `NEXT_PUBLIC_MARKETING_URL` env var
 - **Files changed (6)**: `domains.ts` (new), `middleware.ts`, `page.tsx`, `roadmap/page.tsx`, `sitemap.ts`, `robots.ts`
 - Branch: `claude/marketing-pages-main-domain-6GGqZ`
+
+### Session 26 — Marketing Copy Updates (2026-03-14)
+- **Company name**: Changed "ThePayBureau Ltd" → "Intelligent Payroll Limited T/A The Pay Bureau" in Footer, Terms of Service (3 refs), Privacy Policy (1 ref)
+- **Free tier — 50 clients**: Updated from "up to 5 clients" → "up to 50 clients" in PricingSection, FAQSection, and Roadmap V1 description
+- **Free tier features expanded**: CSV import & export now included in free (was Unlimited-only); "Audit trail export" renamed to "Audit trail" with "Basic" label in free tier
+- **Unlimited subtitle**: "For growing bureaux" → "For Payroll Pros" in PricingSection
+- **Removed "500+ Specialists"**: TrustBar stat replaced with "UK / Built & hosted"; Hero avatar stack + social proof line removed entirely
+- **Newsletter form removed**: Footer email form was non-functional (`e.preventDefault()` only, no API endpoint) — removed entirely; `'use client'` directive also removed from Footer since no longer needed
+- **Roadmap V1 features**: Updated to match pricing page — "Client Management (up to 50)", "CSV Import & Export", "Basic Audit Trail" replacing previous list
+- **Stripe & free users confirmed**: Free users can sign up without Stripe — checkout route rejects `price === 0`, no Stripe customer created at registration. No code changes needed
+- **Deferred**: Real software screenshots for marketing pages (follow-up task — user will provide images with dummy data)
+- **Files changed (8)**: `TrustBar.tsx`, `Hero.tsx`, `PricingSection.tsx`, `FAQSection.tsx`, `Footer.tsx`, `terms/page.tsx`, `privacy/page.tsx`, `roadmap/page.tsx`
+- Branch: `claude/update-marketing-copy-VlmzO`
