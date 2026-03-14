@@ -1,6 +1,4 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
-import Image from 'next/image'
 import {
   SectionHeader,
   HeroBadge,
@@ -12,9 +10,10 @@ import {
   TimelineLayout,
   TimelineRow,
   LegendStrip,
-  MarketingFooter,
+  Navbar,
+  Footer,
 } from '@/components/marketing'
-import { APP_DOMAIN, MARKETING_DOMAIN } from '@/lib/domains'
+import { MARKETING_DOMAIN } from '@/lib/domains'
 
 export const metadata: Metadata = {
   title: 'Product Roadmap — ThePayBureau',
@@ -47,42 +46,10 @@ const LEGEND_ITEMS = [
   { color: '#2B0F4E', label: 'Future Vision' },
 ]
 
-/* ─── Navbar (shared with landing) ─── */
-function RoadmapNav() {
-  return (
-    <nav className="sticky top-0 z-50 backdrop-blur-xl bg-white/90 border-b" style={{ borderColor: brand.border }}>
-      <div className="max-w-[1160px] mx-auto px-10 max-[880px]:px-5 h-[72px] flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5">
-          <Image src="/logo.png" alt="ThePayBureau" width={36} height={36} className="h-9 w-9" />
-          <span className="text-lg font-bold tracking-tight hidden sm:inline" style={{ color: brand.textPrimary }}>
-            ThePayBureau
-          </span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <a
-            href={`${APP_DOMAIN}/login`}
-            className="hidden sm:inline-flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg transition-colors duration-100"
-            style={{ color: brand.textPrimary }}
-          >
-            Log in
-          </a>
-          <a
-            href={`${APP_DOMAIN}/signup`}
-            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-bold text-white rounded-xl hover:opacity-90 transition-opacity duration-100"
-            style={{ background: brand.purple }}
-          >
-            Get Started Free
-          </a>
-        </div>
-      </div>
-    </nav>
-  )
-}
-
 export default function RoadmapPage() {
   return (
-    <div className="overflow-x-clip w-screen bg-white" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      <RoadmapNav />
+    <div className="overflow-x-clip w-screen" style={{ background: 'var(--mkt-bg)', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <Navbar showNav={false} />
 
       {/* ═══ HERO ═══ */}
       <section className="relative overflow-hidden flex items-center pt-[100px] pb-20 max-[880px]:pt-16 max-[880px]:pb-14" style={{ background: `linear-gradient(135deg, #fdfeff 0%, ${brand.cream} 30%, #ffffff 70%, #fafbfe 100%)` }}>
@@ -292,7 +259,7 @@ export default function RoadmapPage() {
       </section>
 
       {/* ═══ FOOTER ═══ */}
-      <MarketingFooter />
+      <Footer />
     </div>
   )
 }
