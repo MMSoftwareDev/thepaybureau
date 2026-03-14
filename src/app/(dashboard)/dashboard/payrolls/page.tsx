@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { usePayrolls, useClients } from '@/lib/swr'
 import { useDebounce } from '@/hooks/useDebounce'
 import { Card, CardContent } from '@/components/ui/card'
@@ -24,7 +24,10 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns'
+import { getPayrollStatus, type PayrollStatus } from '@/lib/hmrc-deadlines'
+import { createClientSupabaseClient } from '@/lib/supabase'
+import { emitBadgeEarned } from '@/components/gamification/BadgeToast'
 import {
   ClipboardCheck,
   Search,
@@ -33,6 +36,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Loader2,
   CalendarDays,
   FileText,
@@ -41,8 +45,9 @@ import {
   ListChecks,
   Eye,
   X,
+  CheckCircle2,
+  ArrowLeft,
 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
 
@@ -86,6 +91,35 @@ interface ClientOption {
   name: string
 }
 
+interface RunChecklistItem {
+  id: string
+  payroll_run_id: string
+  template_id: string | null
+  name: string
+  is_completed: boolean
+  completed_at: string | null
+  completed_by: string | null
+  sort_order: number
+}
+
+interface PayrollRun {
+  id: string
+  client_id: string
+  payroll_id: string | null
+  tenant_id: string
+  period_start: string
+  period_end: string
+  pay_date: string
+  status: string
+  rti_due_date: string | null
+  eps_due_date: string | null
+  notes: string | null
+  created_at: string | null
+  updated_at: string | null
+  clients: { name: string; pay_frequency: string | null }
+  checklist_items: RunChecklistItem[]
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const formatFrequency = (freq: string | null | undefined): string => {
@@ -100,10 +134,19 @@ const formatFrequency = (freq: string | null | undefined): string => {
   return map[freq] || freq
 }
 
-function formatDate(dateStr: string | null | undefined): string {
+function formatDateFull(dateStr: string | null | undefined): string {
   if (!dateStr) return '-'
   try {
     return format(parseISO(dateStr), 'd MMM yyyy')
+  } catch {
+    return '-'
+  }
+}
+
+function formatDateShort(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  try {
+    return format(parseISO(dateStr), 'd MMM')
   } catch {
     return '-'
   }
@@ -121,6 +164,66 @@ const formatPayDay = (payDay: string | null | undefined): string => {
     return `${num}${suffix}`
   }
   return payDay.charAt(0).toUpperCase() + payDay.slice(1)
+}
+
+function computeRunStatus(run: PayrollRun): PayrollStatus {
+  const items = run.checklist_items ?? []
+  const completedCount = items.filter((i) => i.is_completed).length
+  return getPayrollStatus(parseISO(run.pay_date), items.length, completedCount)
+}
+
+interface StatusConfig {
+  label: string
+  bg: string
+  text: string
+  border: string
+  dot: string
+}
+
+function getStatusConfig(status: PayrollStatus, isDark: boolean): StatusConfig {
+  switch (status) {
+    case 'complete':
+      return {
+        label: 'Complete',
+        bg: isDark ? 'rgba(34, 197, 94, 0.15)' : '#F0FDF4',
+        text: isDark ? '#4ADE80' : '#16A34A',
+        border: isDark ? 'rgba(34, 197, 94, 0.3)' : '#BBF7D0',
+        dot: '#22C55E',
+      }
+    case 'in_progress':
+      return {
+        label: 'In Progress',
+        bg: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
+        text: isDark ? '#FBBF24' : '#D97706',
+        border: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+        dot: '#F59E0B',
+      }
+    case 'due_soon':
+      return {
+        label: 'Due Soon',
+        bg: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
+        text: isDark ? '#FBBF24' : '#D97706',
+        border: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+        dot: '#F59E0B',
+      }
+    case 'overdue':
+      return {
+        label: 'Overdue',
+        bg: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+        text: isDark ? '#F87171' : '#DC2626',
+        border: isDark ? 'rgba(239, 68, 68, 0.3)' : '#FECACA',
+        dot: '#EF4444',
+      }
+    case 'not_started':
+    default:
+      return {
+        label: 'Not Started',
+        bg: isDark ? 'rgba(156, 163, 175, 0.15)' : '#F9FAFB',
+        text: isDark ? '#9CA3AF' : '#6B7280',
+        border: isDark ? 'rgba(156, 163, 175, 0.3)' : '#E5E7EB',
+        dot: '#9CA3AF',
+      }
+  }
 }
 
 const PENSION_PROVIDERS = [
@@ -141,6 +244,105 @@ const DEFAULT_CHECKLIST = [
 ]
 
 const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+
+// ── Progress Dots ────────────────────────────────────────────────────────────
+
+function ProgressDots({ items, isDark }: { items: RunChecklistItem[]; isDark: boolean }) {
+  const sorted = [...items].sort((a, b) => a.sort_order - b.sort_order)
+  if (sorted.length === 0) {
+    return <span style={{ color: isDark ? '#6B7280' : '#9CA3AF', fontSize: '0.72rem' }}>No steps</span>
+  }
+  const maxDots = 8
+  const displayItems = sorted.length > maxDots
+    ? [...sorted.slice(0, maxDots - 1), sorted[sorted.length - 1]]
+    : sorted
+  const hasOverflow = sorted.length > maxDots
+
+  return (
+    <div className="flex items-center gap-1">
+      {displayItems.map((item, idx) => {
+        if (hasOverflow && idx === maxDots - 1) {
+          return (
+            <div key="overflow" className="flex items-center gap-1">
+              <span style={{ color: isDark ? '#6B7280' : '#9CA3AF', fontSize: '0.6rem', lineHeight: 1 }}>...</span>
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0 transition-all"
+                style={{ backgroundColor: item.is_completed ? '#22C55E' : isDark ? '#4B5563' : '#D1D5DB' }}
+              />
+            </div>
+          )
+        }
+        return (
+          <div
+            key={item.id}
+            className="w-3 h-3 rounded-full flex-shrink-0 transition-all"
+            title={`${item.name}${item.is_completed ? ' ✓' : ''}`}
+            style={{ backgroundColor: item.is_completed ? '#22C55E' : isDark ? '#4B5563' : '#D1D5DB' }}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Celebration Overlay ──────────────────────────────────────────────────────
+
+function CelebrationOverlay({ clientName, onDone }: { clientName: string; onDone: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onDone, 4000)
+    return () => clearTimeout(timer)
+  }, [onDone])
+
+  const particles = useMemo(() => {
+    const pColors = ['#22C55E', '#3B82F6', '#F59E0B', '#EC4899', '#8B5CF6', '#EF4444', '#14B8A6', '#F97316']
+    return Array.from({ length: 60 }, (_, i) => ({
+      id: i,
+      color: pColors[i % pColors.length],
+      left: Math.random() * 100,
+      delay: Math.random() * 0.8,
+      duration: 1.5 + Math.random() * 2,
+      size: 6 + Math.random() * 8,
+      rotation: Math.random() * 360,
+      shape: i % 3,
+    }))
+  }, [])
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center"
+      onClick={onDone}
+      style={{ pointerEvents: 'auto' }}
+    >
+      <div className="absolute inset-0 bg-black/20 animate-fadeIn" />
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          className="absolute top-0"
+          style={{
+            left: `${p.left}%`,
+            width: p.shape === 2 ? p.size * 1.5 : p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            borderRadius: p.shape === 0 ? '50%' : '2px',
+            transform: `rotate(${p.rotation}deg)`,
+            animation: `confetti-fall ${p.duration}s ease-in ${p.delay}s forwards`,
+          }}
+        />
+      ))}
+      <div className="relative z-10 bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-2xl text-center animate-fadeIn">
+        <div className="text-4xl mb-3">🎉</div>
+        <h3 className="text-lg font-bold mb-1">Payroll Complete!</h3>
+        <p className="text-sm text-gray-500">{clientName} — all steps done</p>
+      </div>
+      <style>{`
+        @keyframes confetti-fall {
+          0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+      `}</style>
+    </div>
+  )
+}
 
 // ── Collapsible Section ────────────────────────────────────────────────────────
 
@@ -183,7 +385,6 @@ export default function PayrollsPage() {
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
   const { toast } = useToast()
-  const router = useRouter()
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
@@ -200,7 +401,7 @@ export default function PayrollsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedSearch = useDebounce(searchQuery, 300)
 
-  // Sidebar state
+  // Config Sheet state
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingPayroll, setEditingPayroll] = useState<Payroll | null>(null)
   const [saving, setSaving] = useState(false)
@@ -223,6 +424,22 @@ export default function PayrollsPage() {
 
   // Delete state
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // ── Runs Sheet state ────────────────────────────────────────────────────────
+  const [runsSheetOpen, setRunsSheetOpen] = useState(false)
+  const [runsPayroll, setRunsPayroll] = useState<Payroll | null>(null)
+  const [runs, setRuns] = useState<PayrollRun[]>([])
+  const [runsLoading, setRunsLoading] = useState(false)
+  const [selectedRun, setSelectedRun] = useState<PayrollRun | null>(null)
+  const [togglingItem, setTogglingItem] = useState<string | null>(null)
+  const [savingNotes, setSavingNotes] = useState<string | null>(null)
+  const [addingStep, setAddingStep] = useState(false)
+  const [runNewStepName, setRunNewStepName] = useState('')
+  const [celebration, setCelebration] = useState<string | null>(null)
+  const [currentPeriod, setCurrentPeriod] = useState(startOfMonth(new Date()))
+  const supabaseRef = useRef(createClientSupabaseClient())
+
+  // ── Config Sheet handlers ───────────────────────────────────────────────────
 
   const resetForm = useCallback(() => {
     setFormName('')
@@ -264,7 +481,6 @@ export default function PayrollsPage() {
     setSheetOpen(true)
   }, [])
 
-  // Pay day options based on frequency
   const payDayOptions = useMemo(() => {
     if (formPayFrequency === 'monthly') {
       const days = Array.from({ length: 31 }, (_, i) => ({
@@ -278,9 +494,8 @@ export default function PayrollsPage() {
       ]
     }
     if (formPayFrequency === 'annually') {
-      return [] // Uses date picker
+      return []
     }
-    // weekly, two_weekly, four_weekly
     return WEEKDAYS.map((d) => ({
       value: d,
       label: d.charAt(0).toUpperCase() + d.slice(1),
@@ -321,13 +536,11 @@ export default function PayrollsPage() {
           pension_reenrolment_date: formPensionReenrolmentDate || undefined,
           declaration_of_compliance_deadline: formDocDeadline || undefined,
         }
-
         const res = await fetch(`/api/payrolls/${editingPayroll.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         })
-
         if (!res.ok) {
           const err = await res.json()
           throw new Error(err.error || 'Failed to update payroll')
@@ -348,13 +561,11 @@ export default function PayrollsPage() {
           declaration_of_compliance_deadline: formDocDeadline || undefined,
           checklist_items: formChecklist,
         }
-
         const res = await fetch('/api/payrolls', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         })
-
         if (!res.ok) {
           const err = await res.json()
           throw new Error(err.error || 'Failed to create payroll')
@@ -397,11 +608,223 @@ export default function PayrollsPage() {
     setFormChecklist(formChecklist.filter((_, i) => i !== index).map((item, i) => ({ ...item, sort_order: i })))
   }
 
-  // Filtered data
+  // ── Runs Sheet handlers ─────────────────────────────────────────────────────
+
+  const fetchRuns = useCallback(async (payrollId: string, period: Date) => {
+    setRunsLoading(true)
+    try {
+      const periodStart = format(period, 'yyyy-MM-dd')
+      const periodEnd = format(endOfMonth(period), 'yyyy-MM-dd')
+      const supabase = supabaseRef.current
+
+      const { data, error } = await supabase
+        .from('payroll_runs')
+        .select('*, clients(name, pay_frequency), checklist_items(*)')
+        .eq('payroll_id', payrollId)
+        .gte('pay_date', periodStart)
+        .lte('pay_date', periodEnd)
+        .order('pay_date', { ascending: true })
+
+      if (error) throw error
+      setRuns((data as unknown as PayrollRun[]) ?? [])
+    } catch (err) {
+      console.error('Error fetching payroll runs:', err)
+      setRuns([])
+    } finally {
+      setRunsLoading(false)
+    }
+  }, [])
+
+  const openRunsSheet = useCallback((payroll: Payroll) => {
+    setRunsPayroll(payroll)
+    setSelectedRun(null)
+    setRunNewStepName('')
+    setCurrentPeriod(startOfMonth(new Date()))
+    setRunsSheetOpen(true)
+    fetchRuns(payroll.id, startOfMonth(new Date()))
+  }, [fetchRuns])
+
+  // Refetch when period changes
+  useEffect(() => {
+    if (runsSheetOpen && runsPayroll) {
+      fetchRuns(runsPayroll.id, currentPeriod)
+    }
+  }, [currentPeriod, runsSheetOpen, runsPayroll, fetchRuns])
+
+  // Keep selectedRun in sync with runs data
+  useEffect(() => {
+    if (selectedRun) {
+      const updated = runs.find((r) => r.id === selectedRun.id)
+      if (updated) setSelectedRun(updated)
+    }
+  }, [runs, selectedRun])
+
+  const toggleChecklistItem = async (item: RunChecklistItem) => {
+    setTogglingItem(item.id)
+    try {
+      const res = await fetch('/api/payroll-runs/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle_item', item_id: item.id, is_completed: !item.is_completed }),
+      })
+      if (!res.ok) throw new Error('Failed to toggle item')
+
+      const resData = await res.json().catch(() => ({}))
+      if (resData.newBadges?.length > 0) {
+        emitBadgeEarned(resData.newBadges)
+      }
+
+      // Optimistic update
+      const updatedChecklist = (runItems: RunChecklistItem[]) =>
+        runItems.map((ci) =>
+          ci.id === item.id
+            ? { ...ci, is_completed: !item.is_completed, completed_at: !item.is_completed ? new Date().toISOString() : null }
+            : ci
+        )
+
+      setRuns((prev) =>
+        prev.map((r) =>
+          r.id === item.payroll_run_id
+            ? { ...r, checklist_items: updatedChecklist(r.checklist_items) }
+            : r
+        )
+      )
+      setSelectedRun((prev) =>
+        prev && prev.id === item.payroll_run_id
+          ? { ...prev, checklist_items: updatedChecklist(prev.checklist_items) }
+          : prev
+      )
+
+      // Check if this was the last item — auto-generate next period
+      if (!item.is_completed) {
+        const parentRun = runs.find((r) => r.id === item.payroll_run_id)
+        if (parentRun) {
+          const allItems = parentRun.checklist_items
+          const otherIncomplete = allItems.filter((ci) => ci.id !== item.id && !ci.is_completed)
+          if (otherIncomplete.length === 0) {
+            setCelebration(parentRun.clients?.name ?? 'Payroll')
+            setSelectedRun(null)
+            try {
+              const genRes = await fetch('/api/payroll-runs/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ payroll_id: parentRun.payroll_id }),
+              })
+              if (genRes.ok) {
+                const newRun = await genRes.json()
+                if (newRun.pay_date) {
+                  const newPayDate = parseISO(newRun.pay_date)
+                  const newMonth = startOfMonth(newPayDate)
+                  if (newMonth.getTime() !== currentPeriod.getTime()) {
+                    setCurrentPeriod(newMonth)
+                    return
+                  }
+                }
+              }
+            } catch (err) {
+              console.error('Auto-generate network error:', err)
+            }
+            if (runsPayroll) fetchRuns(runsPayroll.id, currentPeriod)
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling checklist item:', err)
+      if (runsPayroll) fetchRuns(runsPayroll.id, currentPeriod)
+    } finally {
+      setTogglingItem(null)
+    }
+  }
+
+  const markAllComplete = async (run: PayrollRun) => {
+    const incompleteIds = run.checklist_items.filter((i) => !i.is_completed).map((i) => i.id)
+    if (incompleteIds.length === 0) return
+    try {
+      const res = await fetch('/api/payroll-runs/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_all_complete', payroll_run_id: run.id }),
+      })
+      if (!res.ok) throw new Error('Failed to mark all complete')
+
+      const resData = await res.json().catch(() => ({}))
+      if (resData.newBadges?.length > 0) {
+        emitBadgeEarned(resData.newBadges)
+      }
+
+      setCelebration(run.clients?.name ?? 'Payroll')
+      setSelectedRun(null)
+
+      // Auto-generate next period
+      try {
+        const genRes = await fetch('/api/payroll-runs/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payroll_id: run.payroll_id }),
+        })
+        if (genRes.ok) {
+          const newRun = await genRes.json()
+          if (newRun.pay_date) {
+            const newPayDate = parseISO(newRun.pay_date)
+            const newMonth = startOfMonth(newPayDate)
+            if (newMonth.getTime() !== currentPeriod.getTime()) {
+              setCurrentPeriod(newMonth)
+              return
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Auto-generate network error:', err)
+      }
+
+      if (runsPayroll) fetchRuns(runsPayroll.id, currentPeriod)
+    } catch (err) {
+      console.error('Error marking all complete:', err)
+    }
+  }
+
+  const saveRunNotes = async (runId: string, newNotes: string) => {
+    setSavingNotes(runId)
+    try {
+      const res = await fetch('/api/payroll-runs/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_notes', payroll_run_id: runId, notes: newNotes }),
+      })
+      if (!res.ok) throw new Error('Failed to save notes')
+    } catch (err) {
+      console.error('Error saving notes:', err)
+    } finally {
+      setSavingNotes(null)
+    }
+  }
+
+  const addRunStep = async (runId: string) => {
+    if (!runNewStepName.trim()) return
+    setAddingStep(true)
+    try {
+      const run = runs.find((r) => r.id === runId)
+      const maxOrder = run ? Math.max(0, ...run.checklist_items.map((i) => i.sort_order)) : 0
+      const res = await fetch('/api/payroll-runs/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_step', payroll_run_id: runId, name: runNewStepName.trim(), sort_order: maxOrder + 1 }),
+      })
+      if (!res.ok) throw new Error('Failed to add step')
+      setRunNewStepName('')
+      if (runsPayroll) fetchRuns(runsPayroll.id, currentPeriod)
+    } catch (err) {
+      console.error('Error adding step:', err)
+    } finally {
+      setAddingStep(false)
+    }
+  }
+
+  // ── Filtered data ───────────────────────────────────────────────────────────
+
   const payrollList: Payroll[] = useMemo(() => {
     if (!payrolls) return []
     let filtered = payrolls as Payroll[]
-
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase()
       filtered = filtered.filter((p) =>
@@ -409,11 +832,9 @@ export default function PayrollsPage() {
         p.clients?.name?.toLowerCase().includes(q)
       )
     }
-
     return filtered
   }, [payrolls, debouncedSearch])
 
-  // KPI counts
   const counts = useMemo(() => {
     const all = (payrolls || []) as Payroll[]
     return {
@@ -423,6 +844,23 @@ export default function PayrollsPage() {
       other: all.filter((p) => p.pay_frequency && !['weekly', 'monthly'].includes(p.pay_frequency)).length,
     }
   }, [payrolls])
+
+  // Sort runs by urgency
+  const sortedRuns = useMemo(() => {
+    const statusWeight: Record<PayrollStatus, number> = {
+      overdue: 0,
+      due_soon: 1,
+      in_progress: 2,
+      not_started: 3,
+      complete: 4,
+    }
+    return [...runs].sort((a, b) => {
+      const sa = computeRunStatus(a)
+      const sb = computeRunStatus(b)
+      if (statusWeight[sa] !== statusWeight[sb]) return statusWeight[sa] - statusWeight[sb]
+      return new Date(a.pay_date).getTime() - new Date(b.pay_date).getTime()
+    })
+  }, [runs])
 
   // ── Skeleton ───────────────────────────────────────────────────────────────
 
@@ -580,7 +1018,7 @@ export default function PayrollsPage() {
                     {payroll.paye_reference || '-'}
                   </TableCell>
                   <TableCell className="text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {payroll.latestRun ? formatDate(payroll.latestRun.pay_date) : '-'}
+                    {payroll.latestRun ? formatDateFull(payroll.latestRun.pay_date) : '-'}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -589,7 +1027,7 @@ export default function PayrollsPage() {
                         size="icon"
                         className="h-8 w-8"
                         title="View Runs"
-                        onClick={() => router.push(`/dashboard/payrolls/runs?payroll=${payroll.id}`)}
+                        onClick={() => openRunsSheet(payroll)}
                       >
                         <Eye className="w-3.5 h-3.5" style={{ color: colors.primary }} />
                       </Button>
@@ -623,7 +1061,7 @@ export default function PayrollsPage() {
         </Card>
       )}
 
-      {/* Add/Edit Sidebar */}
+      {/* Add/Edit Config Sidebar */}
       <Sheet open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open) resetForm() }}>
         <SheetContent side="right" className="w-full sm:max-w-[480px] overflow-y-auto p-0" style={{ backgroundColor: colors.surface }}>
           <SheetHeader className="px-5 pt-5 pb-3" style={{ borderBottom: `1px solid ${colors.border}` }}>
@@ -863,6 +1301,351 @@ export default function PayrollsPage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* ── Runs Sheet ─────────────────────────────────────────────────────────── */}
+      <Sheet open={runsSheetOpen} onOpenChange={(open) => { setRunsSheetOpen(open); if (!open) { setSelectedRun(null); setRunsPayroll(null) } }}>
+        <SheetContent side="right" className="w-full sm:max-w-[560px] overflow-y-auto p-0" style={{ backgroundColor: colors.surface }}>
+          {runsPayroll && (
+            <div className="flex flex-col h-full">
+              {/* Runs Sheet Header */}
+              <div className="px-5 pt-5 pb-3" style={{ borderBottom: `1px solid ${colors.border}` }}>
+                <SheetHeader className="p-0">
+                  <SheetTitle className="text-lg font-bold font-[family-name:var(--font-inter)] flex items-center gap-2" style={{ color: colors.text.primary }}>
+                    <ClipboardCheck className="w-5 h-5" style={{ color: colors.primary }} />
+                    {runsPayroll.name}
+                  </SheetTitle>
+                  <SheetDescription className="text-xs font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+                    {runsPayroll.clients?.name} · {formatFrequency(runsPayroll.pay_frequency)}
+                  </SheetDescription>
+                </SheetHeader>
+
+                {/* Period Navigation */}
+                <div className="flex items-center justify-center gap-1 mt-3 rounded-lg px-1 py-0.5" style={{ border: `1px solid ${colors.border}` }}>
+                  <button
+                    onClick={() => setCurrentPeriod(subMonths(currentPeriod, 1))}
+                    className="p-1.5 rounded-md hover:opacity-70 transition-opacity"
+                    style={{ color: colors.text.secondary }}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-[0.82rem] font-semibold px-2 min-w-[120px] text-center font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                    {format(currentPeriod, 'MMMM yyyy')}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPeriod(addMonths(currentPeriod, 1))}
+                    className="p-1.5 rounded-md hover:opacity-70 transition-opacity"
+                    style={{ color: colors.text.secondary }}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Runs Content */}
+              <div className="flex-1 overflow-y-auto">
+                {runsLoading ? (
+                  <div className="p-6 space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-16 rounded-lg animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
+                    ))}
+                  </div>
+                ) : selectedRun ? (
+                  /* ── Checklist View for Selected Run ── */
+                  <RunChecklistView
+                    run={selectedRun}
+                    colors={colors}
+                    isDark={isDark}
+                    togglingItem={togglingItem}
+                    savingNotes={savingNotes}
+                    addingStep={addingStep}
+                    newStepName={runNewStepName}
+                    onBack={() => setSelectedRun(null)}
+                    onToggleItem={toggleChecklistItem}
+                    onMarkAllComplete={() => markAllComplete(selectedRun)}
+                    onSaveNotes={saveRunNotes}
+                    onNewStepNameChange={setRunNewStepName}
+                    onAddStep={() => addRunStep(selectedRun.id)}
+                  />
+                ) : sortedRuns.length === 0 ? (
+                  /* ── Empty State ── */
+                  <div className="p-12 text-center">
+                    <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: `${colors.primary}12` }}>
+                      <CalendarDays className="w-6 h-6" style={{ color: colors.primary }} />
+                    </div>
+                    <h3 className="text-sm font-semibold mb-1 font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                      No runs for {format(currentPeriod, 'MMMM yyyy')}
+                    </h3>
+                    <p className="text-xs font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+                      Try navigating to a different month.
+                    </p>
+                  </div>
+                ) : (
+                  /* ── Run List ── */
+                  <div className="p-4 space-y-2">
+                    {sortedRuns.map((run) => {
+                      const status = computeRunStatus(run)
+                      const config = getStatusConfig(status, isDark)
+                      const items = run.checklist_items ?? []
+                      const completedCount = items.filter((i) => i.is_completed).length
+                      const totalCount = items.length
+                      const isComplete = status === 'complete'
+                      const isOverdue = status === 'overdue'
+
+                      return (
+                        <button
+                          key={run.id}
+                          onClick={() => setSelectedRun(run)}
+                          className="w-full text-left rounded-xl p-4 transition-all duration-150"
+                          style={{
+                            backgroundColor: colors.surface,
+                            border: `1px solid ${isOverdue ? '#EF444440' : colors.border}`,
+                            opacity: isComplete ? 0.7 : 1,
+                            borderLeft: isOverdue ? '4px solid #EF4444' : undefined,
+                          }}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[0.82rem] font-semibold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                              {formatDateShort(run.period_start)} – {formatDateShort(run.period_end)}
+                            </span>
+                            <span
+                              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[0.68rem] font-bold"
+                              style={{ backgroundColor: config.bg, color: config.text, border: `1px solid ${config.border}` }}
+                            >
+                              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: config.dot }} />
+                              {config.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <ProgressDots items={items} isDark={isDark} />
+                            <span className="text-[0.72rem] font-medium ml-2" style={{ color: colors.text.muted }}>
+                              {completedCount}/{totalCount} · Pay {formatDateShort(run.pay_date)}
+                            </span>
+                          </div>
+                        </button>
+                      )
+                    })}
+                    <p className="text-[0.72rem] font-medium text-center pt-2" style={{ color: colors.text.muted }}>
+                      {sortedRuns.length} run{sortedRuns.length !== 1 ? 's' : ''} this month
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Celebration overlay */}
+      {celebration && (
+        <CelebrationOverlay
+          clientName={celebration}
+          onDone={() => setCelebration(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Run Checklist View (inside Runs Sheet) ─────────────────────────────────────
+
+function RunChecklistView({
+  run,
+  colors,
+  isDark,
+  togglingItem,
+  savingNotes,
+  addingStep,
+  newStepName,
+  onBack,
+  onToggleItem,
+  onMarkAllComplete,
+  onSaveNotes,
+  onNewStepNameChange,
+  onAddStep,
+}: {
+  run: PayrollRun
+  colors: ReturnType<typeof getThemeColors>
+  isDark: boolean
+  togglingItem: string | null
+  savingNotes: string | null
+  addingStep: boolean
+  newStepName: string
+  onBack: () => void
+  onToggleItem: (item: RunChecklistItem) => void
+  onMarkAllComplete: () => void
+  onSaveNotes: (runId: string, notes: string) => void
+  onNewStepNameChange: (name: string) => void
+  onAddStep: () => void
+}) {
+  const [localNotes, setLocalNotes] = useState(run.notes ?? '')
+  const items = [...(run.checklist_items ?? [])].sort((a, b) => a.sort_order - b.sort_order)
+  const completedCount = items.filter((i) => i.is_completed).length
+  const totalCount = items.length
+  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+  const allComplete = totalCount > 0 && completedCount === totalCount
+  const status = computeRunStatus(run)
+  const config = getStatusConfig(status, isDark)
+
+  useEffect(() => {
+    setLocalNotes(run.notes ?? '')
+  }, [run.notes])
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Back + Header */}
+      <div className="p-4 pb-3" style={{ borderBottom: `1px solid ${colors.border}` }}>
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1 text-[0.78rem] font-medium mb-2 transition-colors"
+          style={{ color: colors.primary }}
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back to runs
+        </button>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[0.85rem] font-semibold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+              {formatDateShort(run.period_start)} – {formatDateShort(run.period_end)}
+            </p>
+            <p className="text-[0.72rem] font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+              Pay date: {formatDateFull(run.pay_date)}
+            </p>
+          </div>
+          <span
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.72rem] font-bold"
+            style={{ backgroundColor: config.bg, color: config.text, border: `1px solid ${config.border}` }}
+          >
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: config.dot }} />
+            {config.label}
+          </span>
+        </div>
+        <div className="mt-2">
+          <ProgressDots items={items} isDark={isDark} />
+          <p className="text-[0.72rem] font-bold text-right mt-1" style={{ color: config.text }}>
+            {progressPercent}% · {completedCount} of {totalCount}
+          </p>
+        </div>
+      </div>
+
+      {/* Checklist Items */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-1">
+        {items.length === 0 ? (
+          <p className="text-[0.82rem] italic" style={{ color: colors.text.muted }}>No checklist items yet.</p>
+        ) : (
+          items.map((item) => (
+            <label
+              key={item.id}
+              className="flex items-center gap-3 py-2.5 px-3 rounded-lg cursor-pointer transition-colors duration-100"
+              style={{
+                backgroundColor: item.is_completed
+                  ? isDark ? 'rgba(34, 197, 94, 0.08)' : 'rgba(34, 197, 94, 0.04)'
+                  : 'transparent',
+              }}
+            >
+              <div className="relative flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={item.is_completed}
+                  onChange={() => onToggleItem(item)}
+                  disabled={togglingItem === item.id}
+                  className="cursor-pointer accent-emerald-600"
+                  style={{ width: '18px', height: '18px' }}
+                />
+                {togglingItem === item.id && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin" style={{ color: colors.primary }} />
+                  </div>
+                )}
+              </div>
+              <span
+                className={`text-[0.85rem] font-medium flex-1 font-[family-name:var(--font-body)] ${item.is_completed ? 'line-through' : ''}`}
+                style={{ color: item.is_completed ? '#22C55E' : colors.text.primary }}
+              >
+                {item.name}
+              </span>
+              {item.is_completed && item.completed_at && (
+                <span className="text-[0.68rem] flex-shrink-0" style={{ color: colors.text.muted }}>
+                  {formatDateShort(item.completed_at)}
+                </span>
+              )}
+            </label>
+          ))
+        )}
+
+        {/* Add step */}
+        <div className="flex items-center gap-2 mt-3 pt-3" style={{ borderTop: `1px solid ${colors.border}` }}>
+          <input
+            type="text"
+            value={newStepName}
+            onChange={(e) => onNewStepNameChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onAddStep() }}
+            placeholder="Add a step..."
+            className="flex-1 text-[0.82rem] font-medium px-3 py-2 rounded-lg focus:outline-none transition-all"
+            style={{
+              backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#F9FAFB',
+              color: colors.text.primary,
+              border: `1px solid ${colors.border}`,
+            }}
+          />
+          <Button
+            onClick={onAddStep}
+            disabled={addingStep || !newStepName.trim()}
+            className="text-white font-semibold text-xs rounded-md border-0 h-8 px-3"
+            style={{ backgroundColor: colors.primary }}
+          >
+            {addingStep ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Footer: Notes + Deadlines + Actions */}
+      <div className="p-4 pt-3 space-y-2" style={{ borderTop: `1px solid ${colors.border}` }}>
+        {/* Notes */}
+        <div>
+          <p className="text-[0.72rem] font-bold uppercase tracking-wider mb-1.5 font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
+            Notes {savingNotes === run.id && <span className="font-normal normal-case">· Saving...</span>}
+          </p>
+          <textarea
+            value={localNotes}
+            onChange={(e) => setLocalNotes(e.target.value)}
+            onBlur={() => { if (localNotes !== (run.notes ?? '')) onSaveNotes(run.id, localNotes) }}
+            placeholder="Add notes..."
+            rows={2}
+            className="w-full rounded-lg p-2.5 text-[0.82rem] font-medium resize-none focus:outline-none transition-all"
+            style={{
+              backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#F9FAFB',
+              color: colors.text.primary,
+              border: `1px solid ${colors.border}`,
+            }}
+          />
+        </div>
+
+        {/* HMRC Deadlines */}
+        <div className="rounded-lg p-3 space-y-1.5" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F9FAFB', border: `1px solid ${colors.border}` }}>
+          {[
+            { label: 'FPS Due', value: formatDateFull(run.rti_due_date) },
+            { label: 'EPS Due', value: formatDateFull(run.eps_due_date) },
+            { label: 'Pay Date', value: formatDateFull(run.pay_date) },
+          ].map((d) => (
+            <div key={d.label} className="flex items-center justify-between">
+              <span className="text-[0.75rem] font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>{d.label}</span>
+              <span className="text-[0.75rem] font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>{d.value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Mark All Complete */}
+        {!allComplete && totalCount > 0 && (
+          <Button
+            onClick={onMarkAllComplete}
+            className="w-full text-white font-semibold text-[0.82rem] rounded-md border-0"
+            style={{ backgroundColor: colors.success }}
+          >
+            <CheckCircle2 className="w-4 h-4 mr-1.5" />
+            Mark All Complete
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

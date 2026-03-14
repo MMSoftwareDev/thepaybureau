@@ -106,7 +106,7 @@ describe('AuthContext', () => {
   })
 
   describe('SIGNED_IN event', () => {
-    it('clears SWR cache AND triggers revalidation', async () => {
+    it('clears SWR cache AND triggers revalidation for new user', async () => {
       await act(async () => {
         render(
           <AuthProvider>
@@ -115,6 +115,7 @@ describe('AuthContext', () => {
         )
       })
 
+      // No prior user (getUser returned null), so SIGNED_IN with any user is "new"
       await act(async () => {
         capturedAuthCallback!('SIGNED_IN', {
           user: { id: 'user-123', email: 'test@bureau.co.uk' },
@@ -146,6 +147,76 @@ describe('AuthContext', () => {
       })
 
       expect(getByTestId('user').textContent).toBe('admin@bureau.co.uk')
+    })
+
+    it('does NOT clear SWR cache when SIGNED_IN fires for the same user already loaded', async () => {
+      // Simulate getUser returning an existing user on mount
+      mockGetUser.mockResolvedValue({
+        data: { user: { id: 'user-123', email: 'test@bureau.co.uk' } },
+      })
+
+      await act(async () => {
+        render(
+          <AuthProvider>
+            <TestConsumer />
+          </AuthProvider>
+        )
+      })
+
+      // Wait for getUser to resolve and set the ref
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10))
+      })
+
+      mockClearSWRCache.mockClear()
+      mockRevalidateAllSWR.mockClear()
+
+      // SIGNED_IN fires for the same user (session restore)
+      await act(async () => {
+        capturedAuthCallback!('SIGNED_IN', {
+          user: { id: 'user-123', email: 'test@bureau.co.uk' },
+        })
+      })
+
+      expect(mockClearSWRCache).not.toHaveBeenCalled()
+      expect(mockRevalidateAllSWR).not.toHaveBeenCalled()
+    })
+
+    it('clears SWR cache when SIGNED_IN fires with a different user after sign-out', async () => {
+      await act(async () => {
+        render(
+          <AuthProvider>
+            <TestConsumer />
+          </AuthProvider>
+        )
+      })
+
+      // First sign-in
+      await act(async () => {
+        capturedAuthCallback!('SIGNED_IN', {
+          user: { id: 'user-123', email: 'test@bureau.co.uk' },
+        })
+      })
+
+      mockClearSWRCache.mockClear()
+      mockRevalidateAllSWR.mockClear()
+
+      // Sign out (clears the ref)
+      await act(async () => {
+        capturedAuthCallback!('SIGNED_OUT', null)
+      })
+
+      mockClearSWRCache.mockClear()
+
+      // Sign in as different user
+      await act(async () => {
+        capturedAuthCallback!('SIGNED_IN', {
+          user: { id: 'user-456', email: 'other@bureau.co.uk' },
+        })
+      })
+
+      expect(mockClearSWRCache).toHaveBeenCalled()
+      expect(mockRevalidateAllSWR).toHaveBeenCalled()
     })
   })
 
