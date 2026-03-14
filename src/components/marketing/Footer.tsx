@@ -6,7 +6,7 @@ import { APP_DOMAIN } from '@/lib/domains'
 
 export function Footer() {
   return (
-    <footer className="border-t" style={{ background: 'var(--mkt-text)', borderColor: 'transparent' }}>
+    <footer className="border-t" style={{ background: '#1A1225', borderColor: 'transparent' }}>
       <div className="max-w-[1200px] mx-auto px-5 py-12 md:py-16">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 md:gap-12">
           {/* Brand — spans 2 cols on desktop */}
