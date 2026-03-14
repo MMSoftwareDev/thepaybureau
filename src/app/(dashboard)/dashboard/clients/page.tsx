@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useClients } from '@/lib/swr'
 import { useDebounce } from '@/hooks/useDebounce'
 import { Card, CardContent } from '@/components/ui/card'
@@ -309,6 +310,7 @@ export default function ClientsPage() {
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
   const { toast } = useToast()
+  const searchParams = useSearchParams()
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
@@ -316,8 +318,17 @@ export default function ClientsPage() {
   // Data
   const { data: clients, isLoading } = useClients()
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState('')
+  // Filters — initialize from URL search param (sidebar search navigates here)
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '')
+
+  // Sync URL search param changes (e.g. browser back/forward)
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || ''
+    if (urlSearch && urlSearch !== searchQuery) {
+      setSearchQuery(urlSearch)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
   const debouncedSearch = useDebounce(searchQuery, 300)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [industryFilter, setIndustryFilter] = useState<string>('all')
