@@ -5,9 +5,9 @@ import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { Menu, ChevronRight, LogOut, ChevronDown } from 'lucide-react'
+import { Menu, ChevronRight, LogOut, ChevronDown, Trophy, Settings as SettingsIcon, CreditCard } from 'lucide-react'
 import BadgeDropdown from '@/components/gamification/BadgeDropdown'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 interface NavbarProps {
@@ -79,8 +79,10 @@ function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
 export default function Navbar({ onMenuToggle }: NavbarProps) {
   const [mounted, setMounted] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [badgeSheetOpen, setBadgeSheetOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
+  const router = useRouter()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
   const { user, avatarUrl, signOut } = useAuth()
@@ -241,8 +243,56 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
               </div>
             </div>
 
-            {/* Badges */}
-            <BadgeDropdown colors={colors} isDark={isDark} />
+            {/* View Badges */}
+            <button
+              onClick={() => { setDropdownOpen(false); setBadgeSheetOpen(true) }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150"
+              style={{ color: colors.text.secondary }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              <Trophy className="w-3.5 h-3.5" />
+              <span className="text-[0.78rem] font-medium">View Badges</span>
+            </button>
+
+            {/* Settings */}
+            <button
+              onClick={() => { setDropdownOpen(false); router.push('/dashboard/settings') }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150"
+              style={{ color: colors.text.secondary }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              <SettingsIcon className="w-3.5 h-3.5" />
+              <span className="text-[0.78rem] font-medium">Settings</span>
+            </button>
+
+            {/* Subscription */}
+            <button
+              onClick={() => { setDropdownOpen(false); router.push('/dashboard/subscription') }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150"
+              style={{ color: colors.text.secondary }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span className="text-[0.78rem] font-medium">Subscription</span>
+            </button>
+
+            {/* Divider before sign out */}
+            <div className="border-t my-1" style={{ borderColor: colors.border }} />
 
             {/* Logout */}
             <button
@@ -264,6 +314,9 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
           </div>
         )}
       </div>
+
+      {/* Badge Sheet (rendered outside dropdown) */}
+      <BadgeDropdown colors={colors} isDark={isDark} open={badgeSheetOpen} onOpenChange={setBadgeSheetOpen} />
     </nav>
   )
 }
