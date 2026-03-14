@@ -29,6 +29,14 @@ import { getPayrollStatus, type PayrollStatus } from '@/lib/hmrc-deadlines'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { emitBadgeEarned } from '@/components/gamification/BadgeToast'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   ClipboardCheck,
   Search,
   Plus,
@@ -47,6 +55,11 @@ import {
   X,
   CheckCircle2,
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
+  Download,
+  Settings2,
+  Filter,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
@@ -132,6 +145,115 @@ const formatFrequency = (freq: string | null | undefined): string => {
     annually: 'Annually',
   }
   return map[freq] || freq
+}
+
+function getFrequencyColor(freq: string | null | undefined, isDark: boolean): { bg: string; text: string; border: string } {
+  switch (freq) {
+    case 'weekly':
+      return {
+        bg: isDark ? 'rgba(34, 197, 94, 0.15)' : '#F0FDF4',
+        text: isDark ? '#4ADE80' : '#16A34A',
+        border: isDark ? 'rgba(34, 197, 94, 0.3)' : '#BBF7D0',
+      }
+    case 'two_weekly':
+      return {
+        bg: isDark ? 'rgba(59, 130, 246, 0.15)' : '#EFF6FF',
+        text: isDark ? '#60A5FA' : '#2563EB',
+        border: isDark ? 'rgba(59, 130, 246, 0.3)' : '#BFDBFE',
+      }
+    case 'four_weekly':
+      return {
+        bg: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
+        text: isDark ? '#FBBF24' : '#D97706',
+        border: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+      }
+    case 'monthly':
+      return {
+        bg: isDark ? 'rgba(124, 92, 191, 0.15)' : '#F5F3FF',
+        text: isDark ? '#A78BFA' : '#7C3AED',
+        border: isDark ? 'rgba(124, 92, 191, 0.3)' : '#DDD6FE',
+      }
+    case 'annually':
+      return {
+        bg: isDark ? 'rgba(236, 56, 93, 0.15)' : '#FFF1F2',
+        text: isDark ? '#F06082' : '#E11D48',
+        border: isDark ? 'rgba(236, 56, 93, 0.3)' : '#FECDD3',
+      }
+    default:
+      return {
+        bg: isDark ? 'rgba(156, 163, 175, 0.15)' : '#F9FAFB',
+        text: isDark ? '#9CA3AF' : '#6B7280',
+        border: isDark ? 'rgba(156, 163, 175, 0.3)' : '#E5E7EB',
+      }
+  }
+}
+
+// ── Column definitions ───────────────────────────────────────────────────────
+
+type SortField = 'name' | 'client' | 'frequency' | 'pay_day' | 'paye_ref' | 'next_pay_date' | 'status' | 'pension_provider' | 'payroll_software'
+type SortDirection = 'asc' | 'desc'
+type FrequencyFilter = 'all' | 'weekly' | 'two_weekly' | 'four_weekly' | 'monthly' | 'annually'
+
+interface ColumnDef {
+  id: string
+  label: string
+  sortField?: SortField
+  defaultVisible: boolean
+  getValue: (p: Payroll) => string
+}
+
+const ALL_COLUMNS: ColumnDef[] = [
+  { id: 'client', label: 'Client', sortField: 'client', defaultVisible: true, getValue: (p) => p.clients?.name || '-' },
+  { id: 'frequency', label: 'Frequency', sortField: 'frequency', defaultVisible: true, getValue: (p) => formatFrequency(p.pay_frequency) },
+  { id: 'pay_day', label: 'Pay Day', sortField: 'pay_day', defaultVisible: true, getValue: (p) => formatPayDay(p.pay_day) },
+  { id: 'paye_ref', label: 'PAYE Ref', sortField: 'paye_ref', defaultVisible: true, getValue: (p) => p.paye_reference || '-' },
+  { id: 'next_pay_date', label: 'Next Pay Date', sortField: 'next_pay_date', defaultVisible: true, getValue: (p) => p.latestRun ? formatDateFull(p.latestRun.pay_date) : '-' },
+  { id: 'status', label: 'Status', sortField: 'status', defaultVisible: true, getValue: (p) => p.status },
+  { id: 'pension_provider', label: 'Pension', sortField: 'pension_provider', defaultVisible: false, getValue: (p) => p.pension_provider || '-' },
+  { id: 'payroll_software', label: 'Software', sortField: 'payroll_software', defaultVisible: false, getValue: (p) => p.payroll_software || '-' },
+]
+
+const DEFAULT_VISIBLE = ALL_COLUMNS.filter(c => c.defaultVisible).map(c => c.id)
+const DEFAULT_ORDER = ALL_COLUMNS.map(c => c.id)
+const LOCALSTORAGE_KEY = 'tpb_payroll_columns'
+const PAGE_SIZE = 25
+
+// ── SortableHeader ───────────────────────────────────────────────────────────
+
+function SortableHeader({
+  label,
+  field,
+  currentField,
+  currentDirection,
+  onSort,
+  colors,
+  className = '',
+}: {
+  label: string
+  field: SortField
+  currentField: SortField
+  currentDirection: SortDirection
+  onSort: (field: SortField) => void
+  colors: ReturnType<typeof getThemeColors>
+  className?: string
+}) {
+  const isActive = currentField === field
+  return (
+    <TableHead
+      className={`px-4 py-3 text-xs font-medium uppercase tracking-wider cursor-pointer select-none font-[family-name:var(--font-inter)] ${className}`}
+      style={{ color: isActive ? colors.primary : colors.text.muted }}
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {isActive && (
+          currentDirection === 'asc'
+            ? <ArrowUp className="w-3 h-3" />
+            : <ArrowDown className="w-3 h-3" />
+        )}
+      </div>
+    </TableHead>
+  )
 }
 
 function formatDateFull(dateStr: string | null | undefined): string {
@@ -400,11 +522,32 @@ export default function PayrollsPage() {
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedSearch = useDebounce(searchQuery, 300)
+  const [frequencyFilter, setFrequencyFilter] = useState<FrequencyFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [clientFilter, setClientFilter] = useState<string>('all')
+  const [showFilters, setShowFilters] = useState(false)
+
+  // Sort
+  const [sortField, setSortField] = useState<SortField>('next_pay_date')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Column prefs
+  const [columnPrefs, setColumnPrefs] = useState<{ visible: string[]; order: string[] }>({ visible: DEFAULT_VISIBLE, order: DEFAULT_ORDER })
+  const [columnsDialogOpen, setColumnsDialogOpen] = useState(false)
 
   // Config Sheet state
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingPayroll, setEditingPayroll] = useState<Payroll | null>(null)
+  const [viewingPayroll, setViewingPayroll] = useState<Payroll | null>(null)
+  const [viewMode, setViewMode] = useState<'view' | 'edit'>('edit')
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  // Delete dialog
+  const [payrollToDelete, setPayrollToDelete] = useState<Payroll | null>(null)
 
   // Form fields
   const [formName, setFormName] = useState('')
@@ -422,8 +565,66 @@ export default function PayrollsPage() {
   const [formChecklist, setFormChecklist] = useState(DEFAULT_CHECKLIST)
   const [newStepName, setNewStepName] = useState('')
 
-  // Delete state
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // Load column prefs from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(LOCALSTORAGE_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored) as { visible: string[]; order: string[] }
+        const allIds = ALL_COLUMNS.map(c => c.id)
+        const validVisible = parsed.visible.filter((id: string) => allIds.includes(id))
+        const validOrder = parsed.order.filter((id: string) => allIds.includes(id))
+        const newIds = allIds.filter(id => !validOrder.includes(id))
+        setColumnPrefs({
+          visible: validVisible.length > 0 ? validVisible : DEFAULT_VISIBLE,
+          order: [...validOrder, ...newIds],
+        })
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  const saveColumnPrefs = useCallback((prefs: { visible: string[]; order: string[] }) => {
+    setColumnPrefs(prefs)
+    try { localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(prefs)) } catch { /* ignore */ }
+  }, [])
+
+  const toggleColumn = useCallback((id: string) => {
+    const next = { ...columnPrefs }
+    if (next.visible.includes(id)) {
+      next.visible = next.visible.filter(v => v !== id)
+    } else {
+      next.visible = [...next.visible, id]
+    }
+    saveColumnPrefs(next)
+  }, [columnPrefs, saveColumnPrefs])
+
+  const moveColumn = useCallback((id: string, dir: 'up' | 'down') => {
+    const idx = columnPrefs.order.indexOf(id)
+    if (idx < 0) return
+    const next = [...columnPrefs.order]
+    const swapIdx = dir === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= next.length) return
+    ;[next[idx], next[swapIdx]] = [next[swapIdx], next[idx]]
+    saveColumnPrefs({ ...columnPrefs, order: next })
+  }, [columnPrefs, saveColumnPrefs])
+
+  const resetColumns = useCallback(() => {
+    saveColumnPrefs({ visible: DEFAULT_VISIBLE, order: DEFAULT_ORDER })
+  }, [saveColumnPrefs])
+
+  const activeColumns = useMemo(() => {
+    return columnPrefs.order
+      .filter(id => columnPrefs.visible.includes(id))
+      .map(id => ALL_COLUMNS.find(c => c.id === id)!)
+      .filter(Boolean)
+  }, [columnPrefs])
+
+  const handleSort = useCallback((field: SortField) => {
+    setSortDirection(prev => sortField === field ? (prev === 'asc' ? 'desc' : 'asc') : 'asc')
+    setSortField(field)
+  }, [sortField])
 
   // ── Runs Sheet state ────────────────────────────────────────────────────────
   const [runsSheetOpen, setRunsSheetOpen] = useState(false)
@@ -461,11 +662,22 @@ export default function PayrollsPage() {
 
   const openAdd = useCallback(() => {
     resetForm()
+    setViewMode('edit')
+    setViewingPayroll(null)
     setSheetOpen(true)
   }, [resetForm])
 
+  const openView = useCallback((payroll: Payroll) => {
+    setViewingPayroll(payroll)
+    setEditingPayroll(null)
+    setViewMode('view')
+    setSheetOpen(true)
+  }, [])
+
   const openEdit = useCallback((payroll: Payroll) => {
     setEditingPayroll(payroll)
+    setViewingPayroll(null)
+    setViewMode('edit')
     setFormName(payroll.name || '')
     setFormClientId(payroll.client_id || '')
     setFormPayFrequency(payroll.pay_frequency || '')
@@ -584,17 +796,42 @@ export default function PayrollsPage() {
   }
 
   const handleDelete = async (payroll: Payroll) => {
-    if (!confirm(`Delete "${payroll.name}"? This will also delete all payroll runs.`)) return
     setDeletingId(payroll.id)
     try {
       const res = await fetch(`/api/payrolls/${payroll.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Failed to delete')
       toast('Payroll deleted')
       mutate('/api/payrolls')
+      setPayrollToDelete(null)
     } catch {
       toast('Failed to delete payroll', 'error')
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const params = new URLSearchParams()
+      if (debouncedSearch) params.set('search', debouncedSearch)
+      if (frequencyFilter !== 'all') params.set('frequency', frequencyFilter)
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      const res = await fetch(`/api/payrolls/export?${params}`)
+      if (!res.ok) throw new Error('Failed to export')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `payrolls-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      toast('Failed to export payrolls', 'error')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -820,28 +1057,73 @@ export default function PayrollsPage() {
     }
   }
 
-  // ── Filtered data ───────────────────────────────────────────────────────────
+  // ── Filtered + sorted data ──────────────────────────────────────────────────
 
-  const payrollList: Payroll[] = useMemo(() => {
+  const filteredSorted: Payroll[] = useMemo(() => {
     if (!payrolls) return []
     let filtered = payrolls as Payroll[]
+
+    if (frequencyFilter !== 'all') filtered = filtered.filter((p) => p.pay_frequency === frequencyFilter)
+    if (statusFilter !== 'all') filtered = filtered.filter((p) => p.status === statusFilter)
+    if (clientFilter !== 'all') filtered = filtered.filter((p) => p.client_id === clientFilter)
+
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase()
       filtered = filtered.filter((p) =>
         p.name.toLowerCase().includes(q) ||
-        p.clients?.name?.toLowerCase().includes(q)
+        p.clients?.name?.toLowerCase().includes(q) ||
+        p.paye_reference?.toLowerCase().includes(q)
       )
     }
+
+    // Sort
+    filtered = [...filtered].sort((a, b) => {
+      const dir = sortDirection === 'asc' ? 1 : -1
+      switch (sortField) {
+        case 'name': return dir * a.name.localeCompare(b.name)
+        case 'client': return dir * (a.clients?.name || '').localeCompare(b.clients?.name || '')
+        case 'frequency': return dir * (a.pay_frequency || '').localeCompare(b.pay_frequency || '')
+        case 'pay_day': return dir * (a.pay_day || '').localeCompare(b.pay_day || '')
+        case 'paye_ref': return dir * (a.paye_reference || '').localeCompare(b.paye_reference || '')
+        case 'status': return dir * a.status.localeCompare(b.status)
+        case 'pension_provider': return dir * (a.pension_provider || '').localeCompare(b.pension_provider || '')
+        case 'payroll_software': return dir * (a.payroll_software || '').localeCompare(b.payroll_software || '')
+        case 'next_pay_date': {
+          const aDate = a.latestRun?.pay_date || ''
+          const bDate = b.latestRun?.pay_date || ''
+          if (!aDate && !bDate) return 0
+          if (!aDate) return 1
+          if (!bDate) return -1
+          return dir * aDate.localeCompare(bDate)
+        }
+        default: return 0
+      }
+    })
+
     return filtered
-  }, [payrolls, debouncedSearch])
+  }, [payrolls, frequencyFilter, statusFilter, clientFilter, debouncedSearch, sortField, sortDirection])
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [frequencyFilter, statusFilter, clientFilter, debouncedSearch, sortField, sortDirection])
+
+  const totalPages = Math.max(1, Math.ceil(filteredSorted.length / PAGE_SIZE))
+  const paginatedPayrolls = filteredSorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+  const showingFrom = filteredSorted.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
+  const showingTo = Math.min(currentPage * PAGE_SIZE, filteredSorted.length)
+
+  const activeFilterCount = (frequencyFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0) + (clientFilter !== 'all' ? 1 : 0)
 
   const counts = useMemo(() => {
     const all = (payrolls || []) as Payroll[]
     return {
       total: all.length,
       weekly: all.filter((p) => p.pay_frequency === 'weekly').length,
+      fortnightly: all.filter((p) => p.pay_frequency === 'two_weekly').length,
+      fourWeekly: all.filter((p) => p.pay_frequency === 'four_weekly').length,
       monthly: all.filter((p) => p.pay_frequency === 'monthly').length,
-      other: all.filter((p) => p.pay_frequency && !['weekly', 'monthly'].includes(p.pay_frequency)).length,
+      annually: all.filter((p) => p.pay_frequency === 'annually').length,
     }
   }, [payrolls])
 
@@ -903,52 +1185,138 @@ export default function PayrollsPage() {
         </Button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* KPI Cards — clickable frequency filters */}
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
         {[
-          { label: 'Total Payrolls', count: counts.total, icon: ClipboardCheck, color: colors.primary },
-          { label: 'Weekly', count: counts.weekly, icon: CalendarDays, color: colors.success },
-          { label: 'Monthly', count: counts.monthly, icon: CalendarDays, color: colors.accent },
-          { label: 'Other', count: counts.other, icon: CalendarDays, color: colors.text.muted },
-        ].map((kpi) => (
-          <Card
-            key={kpi.label}
-            className="rounded-xl shadow-sm"
-            style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
-                    {kpi.label}
-                  </p>
-                  <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
-                    {kpi.count}
-                  </p>
-                </div>
-                <div className="p-2 rounded-lg" style={{ backgroundColor: `${kpi.color}12` }}>
-                  <kpi.icon className="w-5 h-5" style={{ color: kpi.color }} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+          { label: 'Total', count: counts.total, freq: 'all' as FrequencyFilter, color: colors.primary },
+          { label: 'Weekly', count: counts.weekly, freq: 'weekly' as FrequencyFilter, color: getFrequencyColor('weekly', isDark).text },
+          { label: 'Fortnightly', count: counts.fortnightly, freq: 'two_weekly' as FrequencyFilter, color: getFrequencyColor('two_weekly', isDark).text },
+          { label: '4-Weekly', count: counts.fourWeekly, freq: 'four_weekly' as FrequencyFilter, color: getFrequencyColor('four_weekly', isDark).text },
+          { label: 'Monthly', count: counts.monthly, freq: 'monthly' as FrequencyFilter, color: getFrequencyColor('monthly', isDark).text },
+          { label: 'Annually', count: counts.annually, freq: 'annually' as FrequencyFilter, color: getFrequencyColor('annually', isDark).text },
+        ].map((kpi) => {
+          const isActive = frequencyFilter === kpi.freq
+          return (
+            <button
+              key={kpi.label}
+              onClick={() => setFrequencyFilter(kpi.freq === frequencyFilter ? 'all' : kpi.freq)}
+              className="rounded-xl p-3 text-left transition-all duration-150"
+              style={{
+                backgroundColor: colors.surface,
+                border: `1px solid ${isActive ? kpi.color : colors.border}`,
+                boxShadow: isActive ? `0 0 0 1px ${kpi.color}` : undefined,
+              }}
+            >
+              <p className="text-[0.7rem] font-medium font-[family-name:var(--font-inter)] truncate" style={{ color: isActive ? kpi.color : colors.text.muted }}>
+                {kpi.label}
+              </p>
+              <p className="text-xl font-bold font-[family-name:var(--font-inter)]" style={{ color: isActive ? kpi.color : colors.text.primary }}>
+                {kpi.count}
+              </p>
+            </button>
+          )
+        })}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
-        <Input
-          placeholder="Search payrolls or clients..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9 text-sm"
-          style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-        />
+      {/* Toolbar: Search + Filters + Columns + Export */}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
+            <Input
+              placeholder="Search payrolls or clients..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 text-sm"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className="text-xs gap-1.5"
+            style={{ borderColor: colors.border, color: activeFilterCount > 0 ? colors.primary : colors.text.secondary }}
+          >
+            <Filter className="w-3.5 h-3.5" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span
+                className="ml-0.5 px-1.5 py-0.5 rounded-full text-[0.6rem] font-bold text-white"
+                style={{ backgroundColor: colors.primary }}
+              >
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setColumnsDialogOpen(true)}
+            className="text-xs gap-1.5"
+            style={{ borderColor: colors.border, color: colors.text.secondary }}
+          >
+            <Settings2 className="w-3.5 h-3.5" />
+            Columns
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={exporting}
+            className="text-xs gap-1.5"
+            style={{ borderColor: colors.border, color: colors.text.secondary }}
+          >
+            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            Export
+          </Button>
+        </div>
+
+        {/* Expanded Filters */}
+        {showFilters && (
+          <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#FAFAFA', border: `1px solid ${colors.border}` }}>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Status:</span>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-7 text-xs w-[100px]" style={{ borderColor: colors.border, color: colors.text.primary }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Client:</span>
+              <Select value={clientFilter} onValueChange={setClientFilter}>
+                <SelectTrigger className="h-7 text-xs w-[140px]" style={{ borderColor: colors.border, color: colors.text.primary }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Clients</SelectItem>
+                  {clientOptions.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={() => { setStatusFilter('all'); setClientFilter('all'); setFrequencyFilter('all') }}
+                className="text-xs font-medium transition-colors"
+                style={{ color: colors.primary }}
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Table */}
-      {payrollList.length === 0 ? (
+      {filteredSorted.length === 0 ? (
         <Card className="rounded-xl shadow-sm" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
           <CardContent className="p-12 text-center">
             <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: `${colors.primary}12` }}>
@@ -958,9 +1326,9 @@ export default function PayrollsPage() {
               No payrolls found
             </h3>
             <p className="text-xs mb-4 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
-              {debouncedSearch ? 'Try a different search term.' : 'Add a payroll to start managing pay runs.'}
+              {debouncedSearch || activeFilterCount > 0 ? 'Try adjusting your search or filters.' : 'Add a payroll to start managing pay runs.'}
             </p>
-            {!debouncedSearch && (
+            {!debouncedSearch && activeFilterCount === 0 && (
               <Button
                 onClick={openAdd}
                 size="sm"
@@ -974,53 +1342,83 @@ export default function PayrollsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="rounded-xl shadow-sm overflow-hidden" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
+        <>
           <Table>
             <TableHeader>
               <TableRow style={{ borderColor: colors.border }}>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Payroll Name</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Client</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden md:table-cell" style={{ color: colors.text.muted }}>Frequency</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden md:table-cell" style={{ color: colors.text.muted }}>Pay Day</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>PAYE Ref</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] hidden lg:table-cell" style={{ color: colors.text.muted }}>Next Pay Date</TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Actions</TableHead>
+                <SortableHeader label="Payroll Name" field="name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} />
+                {activeColumns.map((col) => (
+                  col.sortField ? (
+                    <SortableHeader
+                      key={col.id}
+                      label={col.label}
+                      field={col.sortField}
+                      currentField={sortField}
+                      currentDirection={sortDirection}
+                      onSort={handleSort}
+                      colors={colors}
+                    />
+                  ) : (
+                    <TableHead
+                      key={col.id}
+                      className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]"
+                      style={{ color: colors.text.muted }}
+                    >
+                      {col.label}
+                    </TableHead>
+                  )
+                ))}
+                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {payrollList.map((payroll) => (
+              {paginatedPayrolls.map((payroll) => (
                 <TableRow
                   key={payroll.id}
-                  className="cursor-pointer transition-colors"
+                  className="cursor-pointer transition-colors group"
                   style={{ borderColor: colors.border }}
-                  onClick={() => openEdit(payroll)}
+                  onClick={() => openView(payroll)}
                 >
-                  <TableCell className="font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                  <TableCell className="px-4 py-2.5 font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${colors.primary}12` }}>
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${colors.primary}12` }}>
                         <ClipboardCheck className="w-4 h-4" style={{ color: colors.primary }} />
                       </div>
-                      {payroll.name}
+                      <span className="truncate">{payroll.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {payroll.clients?.name || '-'}
-                  </TableCell>
-                  <TableCell className="text-sm hidden md:table-cell">
-                    <Badge className="text-xs" style={{ backgroundColor: `${colors.primary}15`, color: colors.primary, border: `1px solid ${colors.primary}30` }}>
-                      {formatFrequency(payroll.pay_frequency)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm hidden md:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {formatPayDay(payroll.pay_day)}
-                  </TableCell>
-                  <TableCell className="text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {payroll.paye_reference || '-'}
-                  </TableCell>
-                  <TableCell className="text-sm hidden lg:table-cell font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
-                    {payroll.latestRun ? formatDateFull(payroll.latestRun.pay_date) : '-'}
-                  </TableCell>
-                  <TableCell>
+                  {activeColumns.map((col) => (
+                    <TableCell key={col.id} className="px-4 py-2.5 text-sm font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+                      {col.id === 'frequency' ? (
+                        (() => {
+                          const fc = getFrequencyColor(payroll.pay_frequency, isDark)
+                          return (
+                            <Badge className="text-xs" style={{ backgroundColor: fc.bg, color: fc.text, border: `1px solid ${fc.border}` }}>
+                              {formatFrequency(payroll.pay_frequency)}
+                            </Badge>
+                          )
+                        })()
+                      ) : col.id === 'status' ? (
+                        <Badge className="text-xs" style={{
+                          backgroundColor: payroll.status === 'active'
+                            ? isDark ? 'rgba(34, 197, 94, 0.15)' : '#F0FDF4'
+                            : isDark ? 'rgba(156, 163, 175, 0.15)' : '#F9FAFB',
+                          color: payroll.status === 'active'
+                            ? isDark ? '#4ADE80' : '#16A34A'
+                            : isDark ? '#9CA3AF' : '#6B7280',
+                          border: `1px solid ${payroll.status === 'active'
+                            ? isDark ? 'rgba(34, 197, 94, 0.3)' : '#BBF7D0'
+                            : isDark ? 'rgba(156, 163, 175, 0.3)' : '#E5E7EB'
+                          }`,
+                        }}>
+                          {payroll.status === 'active' ? 'Active' : 'Inactive'}
+                        </Badge>
+                      ) : (
+                        <span className="truncate block max-w-[150px]">{col.getValue(payroll)}</span>
+                      )}
+                    </TableCell>
+                  ))}
+                  <TableCell className="px-4 py-2.5">
                     <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="ghost"
@@ -1035,6 +1433,7 @@ export default function PayrollsPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
+                        title="Edit"
                         onClick={() => openEdit(payroll)}
                       >
                         <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
@@ -1043,14 +1442,10 @@ export default function PayrollsPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        disabled={deletingId === payroll.id}
-                        onClick={() => handleDelete(payroll)}
+                        title="Delete"
+                        onClick={() => setPayrollToDelete(payroll)}
                       >
-                        {deletingId === payroll.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.text.muted }} />
-                        ) : (
-                          <Trash2 className="w-3.5 h-3.5" style={{ color: colors.error }} />
-                        )}
+                        <Trash2 className="w-3.5 h-3.5" style={{ color: colors.error }} />
                       </Button>
                     </div>
                   </TableCell>
@@ -1058,12 +1453,207 @@ export default function PayrollsPage() {
               ))}
             </TableBody>
           </Table>
-        </Card>
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
+              Showing {showingFrom}–{showingTo} of {filteredSorted.length}
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="h-7 text-xs"
+                  style={{ borderColor: colors.border }}
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </Button>
+                <span className="text-xs font-medium px-2 font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
+                  {currentPage} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="h-7 text-xs"
+                  style={{ borderColor: colors.border }}
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
-      {/* Add/Edit Config Sidebar */}
-      <Sheet open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open) resetForm() }}>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={payrollToDelete !== null} onOpenChange={(open) => { if (!open) setPayrollToDelete(null) }}>
+        <DialogContent style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+          <DialogHeader>
+            <DialogTitle className="font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>Delete Payroll</DialogTitle>
+            <DialogDescription className="font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+              Delete &ldquo;{payrollToDelete?.name}&rdquo;? This will also delete all payroll runs. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayrollToDelete(null)} style={{ borderColor: colors.border }}>
+              Cancel
+            </Button>
+            <Button
+              className="text-white"
+              style={{ backgroundColor: colors.error }}
+              onClick={() => payrollToDelete && handleDelete(payrollToDelete)}
+              disabled={deletingId === payrollToDelete?.id}
+            >
+              {deletingId === payrollToDelete?.id ? (
+                <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-1.5" />
+              )}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Column Customizer Dialog */}
+      <Dialog open={columnsDialogOpen} onOpenChange={setColumnsDialogOpen}>
+        <DialogContent style={{ backgroundColor: colors.surface, borderColor: colors.border }} className="max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>Customize Columns</DialogTitle>
+            <DialogDescription className="font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+              Toggle column visibility and reorder.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[400px] overflow-y-auto space-y-1">
+            {/* Pinned column */}
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#F9FAFB' }}>
+              <input type="checkbox" checked disabled className="rounded" />
+              <span className="text-sm font-medium flex-1 font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>Payroll Name</span>
+              <span className="text-[0.6rem] uppercase tracking-wider font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Pinned</span>
+            </div>
+            {columnPrefs.order.map((id, idx) => {
+              const col = ALL_COLUMNS.find(c => c.id === id)
+              if (!col) return null
+              const isVisible = columnPrefs.visible.includes(id)
+              return (
+                <div key={id} className="flex items-center gap-2 px-2 py-1.5">
+                  <input
+                    type="checkbox"
+                    checked={isVisible}
+                    onChange={() => toggleColumn(id)}
+                    className="rounded"
+                  />
+                  <span className="text-sm font-medium flex-1 font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>{col.label}</span>
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={() => moveColumn(id, 'up')}
+                      disabled={idx === 0}
+                      className="p-1 rounded transition-colors disabled:opacity-30"
+                      style={{ color: colors.text.muted }}
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => moveColumn(id, 'down')}
+                      disabled={idx === columnPrefs.order.length - 1}
+                      className="p-1 rounded transition-colors disabled:opacity-30"
+                      style={{ color: colors.text.muted }}
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={resetColumns} size="sm" style={{ borderColor: colors.border }}>
+              Reset to Default
+            </Button>
+            <Button onClick={() => setColumnsDialogOpen(false)} size="sm" className="text-white" style={{ backgroundColor: colors.primary }}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View/Edit Config Sidebar */}
+      <Sheet open={sheetOpen} onOpenChange={(open) => { setSheetOpen(open); if (!open) { resetForm(); setViewingPayroll(null); setViewMode('edit') } }}>
         <SheetContent side="right" className="w-full sm:max-w-[480px] overflow-y-auto p-0" style={{ backgroundColor: colors.surface }}>
+          {/* View Mode */}
+          {viewMode === 'view' && viewingPayroll ? (
+            <>
+              <SheetHeader className="px-5 pt-5 pb-3" style={{ borderBottom: `1px solid ${colors.border}` }}>
+                <SheetTitle className="text-lg font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                  {viewingPayroll.name}
+                </SheetTitle>
+                <SheetDescription className="text-xs font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+                  {viewingPayroll.clients?.name}
+                </SheetDescription>
+              </SheetHeader>
+              <div className="divide-y" style={{ borderColor: colors.border }}>
+                {/* Details */}
+                <div className="px-5 py-4 space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Details</p>
+                  <ViewRow label="Client" value={viewingPayroll.clients?.name || '-'} colors={colors} />
+                  <ViewRow label="Status" value={viewingPayroll.status === 'active' ? 'Active' : 'Inactive'} colors={colors} />
+                </div>
+                {/* Pay Schedule */}
+                <div className="px-5 py-4 space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Pay Schedule</p>
+                  <ViewRow label="Frequency" value={formatFrequency(viewingPayroll.pay_frequency)} colors={colors} />
+                  <ViewRow label="Pay Day" value={formatPayDay(viewingPayroll.pay_day)} colors={colors} />
+                  <ViewRow label="Next Pay Date" value={viewingPayroll.latestRun ? formatDateFull(viewingPayroll.latestRun.pay_date) : '-'} colors={colors} />
+                </div>
+                {/* HMRC */}
+                {(viewingPayroll.paye_reference || viewingPayroll.accounts_office_ref || viewingPayroll.payroll_software) && (
+                  <div className="px-5 py-4 space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>HMRC</p>
+                    {viewingPayroll.paye_reference && <ViewRow label="PAYE Reference" value={viewingPayroll.paye_reference} colors={colors} />}
+                    {viewingPayroll.accounts_office_ref && <ViewRow label="Accounts Office Ref" value={viewingPayroll.accounts_office_ref} colors={colors} />}
+                    {viewingPayroll.payroll_software && <ViewRow label="Payroll Software" value={viewingPayroll.payroll_software} colors={colors} />}
+                    <ViewRow label="Employment Allowance" value={viewingPayroll.employment_allowance ? 'Yes' : 'No'} colors={colors} />
+                  </div>
+                )}
+                {/* Pension */}
+                {(viewingPayroll.pension_provider || viewingPayroll.pension_staging_date) && (
+                  <div className="px-5 py-4 space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Pension</p>
+                    {viewingPayroll.pension_provider && <ViewRow label="Provider" value={viewingPayroll.pension_provider} colors={colors} />}
+                    {viewingPayroll.pension_staging_date && <ViewRow label="Staging Date" value={formatDateFull(viewingPayroll.pension_staging_date)} colors={colors} />}
+                    {viewingPayroll.pension_reenrolment_date && <ViewRow label="Re-enrolment Date" value={formatDateFull(viewingPayroll.pension_reenrolment_date)} colors={colors} />}
+                    {viewingPayroll.declaration_of_compliance_deadline && <ViewRow label="DoC Deadline" value={formatDateFull(viewingPayroll.declaration_of_compliance_deadline)} colors={colors} />}
+                  </div>
+                )}
+              </div>
+              <div className="px-5 py-4 flex gap-2" style={{ borderTop: `1px solid ${colors.border}` }}>
+                <Button
+                  onClick={() => { openEdit(viewingPayroll) }}
+                  className="flex-1 text-white text-sm"
+                  style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+                >
+                  <Edit className="w-4 h-4 mr-1.5" />
+                  Edit Payroll
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => { openRunsSheet(viewingPayroll); setSheetOpen(false) }}
+                  className="text-sm"
+                  style={{ borderColor: colors.border, color: colors.primary }}
+                >
+                  <Eye className="w-4 h-4 mr-1.5" />
+                  Runs
+                </Button>
+              </div>
+            </>
+          ) : (
+            /* Edit Mode */
+            <>
           <SheetHeader className="px-5 pt-5 pb-3" style={{ borderBottom: `1px solid ${colors.border}` }}>
             <SheetTitle className="text-lg font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
               {editingPayroll ? 'Edit Payroll' : 'Add Payroll'}
@@ -1299,6 +1889,8 @@ export default function PayrollsPage() {
               ) : editingPayroll ? 'Update Payroll' : 'Add Payroll'}
             </Button>
           </div>
+            </>
+          )}
         </SheetContent>
       </Sheet>
 
@@ -1646,6 +2238,17 @@ function RunChecklistView({
           </Button>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── View Row (for read-only sidebar) ────────────────────────────────────────
+
+function ViewRow({ label, value, colors }: { label: string; value: string; colors: ReturnType<typeof getThemeColors> }) {
+  return (
+    <div className="flex items-center justify-between py-1">
+      <span className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>{label}</span>
+      <span className="text-sm font-medium font-[family-name:var(--font-body)]" style={{ color: colors.text.primary }}>{value}</span>
     </div>
   )
 }
