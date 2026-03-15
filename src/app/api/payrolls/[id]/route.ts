@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { updatePayrollSchema } from '@/lib/validations'
 import { z } from 'zod'
 import { writeAuditLog, diffChanges } from '@/lib/audit'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 // GET /api/payrolls/[id] — Fetch single payroll with templates and runs
 export async function GET(
@@ -67,6 +68,12 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Rate limit: 30 updates per 60 seconds
+    const limiter = await rateLimit(`payroll-update:${getClientIp(request)}`, { limit: 30, windowSeconds: 60 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const { id } = await params
     const authUser = await getAuthUser()
     if (!authUser) {
@@ -182,6 +189,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Rate limit: 10 deletions per 15 minutes
+    const limiter = await rateLimit(`payroll-delete:${getClientIp(request)}`, { limit: 10, windowSeconds: 900 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const { id } = await params
     const authUser = await getAuthUser()
     if (!authUser) {

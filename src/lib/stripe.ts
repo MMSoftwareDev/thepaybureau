@@ -60,3 +60,15 @@ export const PAID_ONLY_ROUTES = [
 export function isRoutePaidOnly(pathname: string): boolean {
   return PAID_ONLY_ROUTES.some(route => pathname.startsWith(route))
 }
+
+/** Features that require a paid (unlimited) plan */
+export const PAID_FEATURES = ['ai_assistant', 'training'] as const
+export type PaidFeature = (typeof PAID_FEATURES)[number]
+
+/**
+ * Check if a tenant has access to a paid feature.
+ * Returns true if the tenant is on a paid plan, false otherwise.
+ */
+export function hasPaidFeature(plan: string | null | undefined): boolean {
+  return plan === 'unlimited'
+}

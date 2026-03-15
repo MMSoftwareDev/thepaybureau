@@ -6,6 +6,7 @@ import { z } from 'zod'
 import type { User } from '@supabase/supabase-js'
 import { writeAuditLog } from '@/lib/audit'
 import { PLANS } from '@/lib/stripe'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 async function getOrCreateUser(supabase: ReturnType<typeof createServerSupabaseClient>, authUser: User) {
   let { data: user } = await supabase
@@ -86,6 +87,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 20 client creations per 15 minutes
+    const limiter = await rateLimit(`client-create:${getClientIp(request)}`, { limit: 20, windowSeconds: 900 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -1,6 +1,7 @@
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import JSZip from 'jszip'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 function toCsv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return ''
@@ -20,8 +21,14 @@ function toCsv(rows: Record<string, unknown>[]): string {
   return lines.join('\n')
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Rate limit: 3 exports per 15 minutes
+    const limiter = await rateLimit(`account-export:${getClientIp(request)}`, { limit: 3, windowSeconds: 900 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -1,3 +1,5 @@
+// Unmock @/lib/audit so we test the real implementation
+jest.unmock('@/lib/audit')
 import { diffChanges } from '@/lib/audit'
 
 describe('diffChanges', () => {

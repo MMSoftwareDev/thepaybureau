@@ -1,5 +1,6 @@
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
+import { hasPaidFeature } from '@/lib/stripe'
 
 export async function GET() {
   try {
@@ -18,6 +19,20 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Check subscription — AI assistant requires paid plan
+    const { data: tenant } = await supabase
+      .from('tenants')
+      .select('plan')
+      .eq('id', user.tenant_id)
+      .single()
+
+    if (!hasPaidFeature(tenant?.plan)) {
+      return NextResponse.json(
+        { error: 'AI Assistant requires an Unlimited plan.' },
+        { status: 403 }
+      )
     }
 
     const { data: conversations, error } = await supabase
@@ -47,6 +62,29 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = createServerSupabaseClient()
+
+    // Check subscription — AI assistant requires paid plan
+    const { data: delUser } = await supabase
+      .from('users')
+      .select('tenant_id')
+      .eq('id', authUser.id)
+      .single()
+
+    if (delUser) {
+      const { data: delTenant } = await supabase
+        .from('tenants')
+        .select('plan')
+        .eq('id', delUser.tenant_id)
+        .single()
+
+      if (!hasPaidFeature(delTenant?.plan)) {
+        return NextResponse.json(
+          { error: 'AI Assistant requires an Unlimited plan.' },
+          { status: 403 }
+        )
+      }
+    }
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 

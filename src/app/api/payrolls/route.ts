@@ -11,6 +11,7 @@ import {
 } from '@/lib/hmrc-deadlines'
 import { z } from 'zod'
 import { writeAuditLog } from '@/lib/audit'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function GET() {
   try {
@@ -76,6 +77,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 20 payroll creations per 15 minutes
+    const limiter = await rateLimit(`payroll-create:${getClientIp(request)}`, { limit: 20, windowSeconds: 900 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
