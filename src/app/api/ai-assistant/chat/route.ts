@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { aiChatSchema } from '@/lib/validations'
 import { streamRagResponse } from '@/lib/ai/rag'
+import { hasPaidFeature } from '@/lib/stripe'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +15,12 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
+    // Rate limit: 20 requests per 60 seconds
+    const limiter = await rateLimit(`ai-chat:${getClientIp(request)}`, { limit: 20, windowSeconds: 60 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const { data: user } = await supabase
       .from('users')
       .select('tenant_id')
@@ -21,6 +29,20 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Check subscription — AI assistant requires paid plan
+    const { data: tenant } = await supabase
+      .from('tenants')
+      .select('plan')
+      .eq('id', user.tenant_id)
+      .single()
+
+    if (!hasPaidFeature(tenant?.plan)) {
+      return NextResponse.json(
+        { error: 'AI Assistant requires an Unlimited plan. Please upgrade to access this feature.' },
+        { status: 403 }
+      )
     }
 
     const body = await request.json()

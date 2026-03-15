@@ -3,6 +3,7 @@ import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { writeAuditLog } from '@/lib/audit'
+import { hasPaidFeature } from '@/lib/stripe'
 
 const createSchema = z.object({
   title: z.string().min(1).max(500),
@@ -17,6 +18,13 @@ const createSchema = z.object({
 const updateSchema = createSchema.partial().extend({
   id: z.string().uuid(),
 })
+
+const PLAN_ERROR = { error: 'Training & CPD tracking requires an Unlimited plan. Please upgrade to access this feature.' }
+
+async function checkTrainingAccess(supabase: ReturnType<typeof createServerSupabaseClient>, tenantId: string): Promise<boolean> {
+  const { data: tenant } = await supabase.from('tenants').select('plan').eq('id', tenantId).single()
+  return hasPaidFeature(tenant?.plan)
+}
 
 export async function GET() {
   try {
@@ -35,6 +43,10 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    if (!(await checkTrainingAccess(supabase, user.tenant_id))) {
+      return NextResponse.json(PLAN_ERROR, { status: 403 })
     }
 
     const { data: records, error } = await supabase
@@ -72,6 +84,10 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    if (!(await checkTrainingAccess(supabase, user.tenant_id))) {
+      return NextResponse.json(PLAN_ERROR, { status: 403 })
     }
 
     const body = await request.json()
@@ -131,6 +147,10 @@ export async function PUT(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    if (!(await checkTrainingAccess(supabase, user.tenant_id))) {
+      return NextResponse.json(PLAN_ERROR, { status: 403 })
     }
 
     const body = await request.json()
@@ -202,6 +222,10 @@ export async function DELETE(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    if (!(await checkTrainingAccess(supabase, user.tenant_id))) {
+      return NextResponse.json(PLAN_ERROR, { status: 403 })
     }
 
     const { searchParams } = new URL(request.url)

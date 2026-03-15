@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { writeAuditLog } from '@/lib/audit'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { getStripe } from '@/lib/stripe'
 
 const deleteAccountSchema = z.object({
   confirmation: z.literal('DELETE MY ACCOUNT'),
@@ -55,6 +56,22 @@ export async function POST(request: NextRequest) {
       changes: { account: { from: 'active', to: 'deleted' } },
       request,
     })
+
+    // Clean up Stripe customer if exists
+    const { data: tenant } = await supabase
+      .from('tenants')
+      .select('settings')
+      .eq('id', user.tenant_id)
+      .single()
+
+    const stripeCustomerId = (tenant?.settings as Record<string, unknown>)?.stripe_customer_id as string | undefined
+    if (stripeCustomerId) {
+      try {
+        await getStripe().customers.del(stripeCustomerId)
+      } catch (stripeErr) {
+        console.error('Failed to delete Stripe customer (non-fatal):', stripeErr)
+      }
+    }
 
     // Remove avatar files from storage
     const { data: avatarFiles } = await supabase.storage

@@ -12,8 +12,8 @@ describe('Stripe PLANS configuration', () => {
     expect(PLANS.unlimited.clients).toBe(Infinity)
   })
 
-  it('free plan limited to 100 clients', () => {
-    expect(PLANS.free.clients).toBe(100)
+  it('free plan limited to 50 clients', () => {
+    expect(PLANS.free.clients).toBe(50)
   })
 
   it('all plans have feature lists', () => {

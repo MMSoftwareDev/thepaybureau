@@ -4,6 +4,7 @@ import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { writeAuditLog, diffChanges } from '@/lib/audit'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 // Validation schema for client updates (all fields optional)
 const checklistTemplateSchema = z.object({
@@ -149,6 +150,12 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Rate limit: 30 updates per 60 seconds
+    const limiter = await rateLimit(`client-update:${getClientIp(request)}`, { limit: 30, windowSeconds: 60 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const { id } = await params
     const authUser = await getAuthUser()
     if (!authUser) {
@@ -279,6 +286,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Rate limit: 10 deletions per 15 minutes
+    const limiter = await rateLimit(`client-delete:${getClientIp(request)}`, { limit: 10, windowSeconds: 900 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const { id } = await params
     const authUser = await getAuthUser()
     if (!authUser) {

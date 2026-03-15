@@ -2,6 +2,7 @@ import { getStripe, PLANS } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { writeAuditLog } from '@/lib/audit'
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
@@ -42,10 +43,28 @@ export async function POST(req: NextRequest) {
         const plan = session.metadata?.plan
 
         if (tenantId && plan) {
+          const { data: beforeTenant } = await supabase
+            .from('tenants')
+            .select('plan')
+            .eq('id', tenantId)
+            .single()
+
           await supabase
             .from('tenants')
             .update({ plan })
             .eq('id', tenantId)
+
+          writeAuditLog({
+            tenantId,
+            userId: 'system',
+            userEmail: 'stripe-webhook',
+            action: 'UPDATE',
+            resourceType: 'subscription',
+            resourceId: session.id,
+            resourceName: `Plan changed to ${plan}`,
+            changes: { plan: { from: beforeTenant?.plan || 'free', to: plan } },
+            request: req,
+          })
         }
         break
       }
@@ -73,7 +92,25 @@ export async function POST(req: NextRequest) {
           }
 
           if (subscription.status === 'active') {
+            const { data: beforeTenant } = await supabase
+              .from('tenants')
+              .select('plan')
+              .eq('id', tenant.id)
+              .single()
+
             await supabase.from('tenants').update({ plan: newPlan }).eq('id', tenant.id)
+
+            writeAuditLog({
+              tenantId: tenant.id,
+              userId: 'system',
+              userEmail: 'stripe-webhook',
+              action: 'UPDATE',
+              resourceType: 'subscription',
+              resourceId: subscription.id,
+              resourceName: `Subscription updated to ${newPlan}`,
+              changes: { plan: { from: beforeTenant?.plan || 'unknown', to: newPlan } },
+              request: req,
+            })
           }
         }
         break
@@ -90,7 +127,25 @@ export async function POST(req: NextRequest) {
           .single()
 
         if (tenant) {
+          const { data: beforeTenant } = await supabase
+            .from('tenants')
+            .select('plan')
+            .eq('id', tenant.id)
+            .single()
+
           await supabase.from('tenants').update({ plan: 'free' }).eq('id', tenant.id)
+
+          writeAuditLog({
+            tenantId: tenant.id,
+            userId: 'system',
+            userEmail: 'stripe-webhook',
+            action: 'UPDATE',
+            resourceType: 'subscription',
+            resourceId: subscription.id,
+            resourceName: 'Subscription cancelled — downgraded to free',
+            changes: { plan: { from: beforeTenant?.plan || 'unknown', to: 'free' } },
+            request: req,
+          })
         }
         break
       }
@@ -117,6 +172,18 @@ export async function POST(req: NextRequest) {
               },
             })
             .eq('id', tenant.id)
+
+          writeAuditLog({
+            tenantId: tenant.id,
+            userId: 'system',
+            userEmail: 'stripe-webhook',
+            action: 'UPDATE',
+            resourceType: 'subscription',
+            resourceId: invoice.id,
+            resourceName: 'Payment failed',
+            changes: { payment_status: { from: 'active', to: 'payment_failed' } },
+            request: req,
+          })
         }
         break
       }

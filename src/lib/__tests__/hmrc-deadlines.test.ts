@@ -181,10 +181,10 @@ describe('HMRC Deadline Engine', () => {
       expect(result.getDay()).toBe(5) // Friday
       expect(result.getDate()).toBe(6)
     })
-    test('four_weekly with friday after Monday Feb 2 -> Friday Feb 6', () => {
+    test('four_weekly with friday after Monday Feb 2 -> Friday Feb 27 (28 day interval)', () => {
       const result = calculateNextPayDate('four_weekly', 'friday', new Date(2026, 1, 2))
       expect(result.getDay()).toBe(5) // Friday
-      expect(result.getDate()).toBe(6)
+      expect(result.getDate()).toBe(27) // Feb 6 + 21 extra days for four_weekly
     })
   })
 
@@ -217,9 +217,9 @@ describe('HMRC Deadline Engine', () => {
       expect(periodEnd.getDate()).toBe(13)
       expect(periodStart.getDate()).toBe(7) // 13 - 6
     })
-    test('fortnightly period is 14 days', () => {
+    test('two_weekly period is 14 days', () => {
       const { periodStart, periodEnd } = calculatePeriodDates(
-        'fortnightly',
+        'two_weekly',
         new Date(2026, 1, 27)
       )
       expect(periodEnd.getDate()).toBe(27)
