@@ -193,11 +193,17 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - Sidebar search fix: clients page reads URL `?search=` param via `useSearchParams`
 - Sidebar section rename: "DEVELOPMENT" → "TRAINING"
 - Clients page aligned to payrolls page design (consistent header, toolbar, filters, pagination, empty state, default columns)
+- Server-side subscription enforcement on AI assistant and training routes (`hasPaidFeature()` in `stripe.ts`)
+- Audit logging on all Stripe webhook events (plan changes, cancellations, payment failures)
+- Rate limiting on client/payroll CRUD, AI chat, admin analytics, account export
+- Stripe customer cleanup on account deletion
+- `auto_enrolment_status` enum mismatch fix (`postponed` → `currently_not_required` in `clients/[id]` route)
+- Deprecated field cleanup: removed `payroll_contact_*`, `tpas_authorised`, `director_name`, `registered_address` from client update schema
+- Pre-existing test fixes (stripe plan limit 100→50, audit mock override, HMRC edge cases)
+- 157 tests passing (up from 133, with 7 previously broken)
 
 ### In Progress / Planned
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
-- Reorder pension tasks after payroll run in checklists
-- Global auth context for reactive user tracking
 
 ## Workflow Rules
 
@@ -233,6 +239,9 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - **Cross-domain links:** On marketing pages, use `<a href={APP_DOMAIN + '/login'}>` (not `<Link>`) for links to `app.thepaybureau.com` — Next.js `<Link>` is for same-origin client-side navigation only. Import `APP_DOMAIN` from `@/lib/domains`.
 - **Sidebar sections:** Collapsible with `ChevronDown` toggle. Auto-expand section containing active route. Nav items indented (`pl-2`), 36px rows (`h-9`), 18px icons, `rounded-lg`. Section labels are uppercase buttons.
 - **Dashboard list page layout:** All list pages must follow the canonical pattern — see payrolls page as reference. Structure: (1) Header with title + Add button; (2) KPI cards; (3) Toolbar: Search → Filters → Columns (`Settings2`) → Export; (4) Expandable filters; (5) Table; (6) Pagination (`pt-2`, icon-only `h-7` buttons, `X / Y` format).
+- **Subscription enforcement:** Paid-only API routes (AI assistant, training) must check `hasPaidFeature(tenant.plan)` from `@/lib/stripe` server-side. Return 403 with upgrade message for free users. Client-side gating alone is insufficient.
+- **Rate limiting on mutations:** All POST/PUT/DELETE API routes should have IP-based rate limiting via `rateLimit()` from `@/lib/rate-limit`. Pattern: creation routes 20 req/15min, updates 30 req/60s, deletions 10 req/15min, exports 3-5 req/15min.
+- **Audit logging on Stripe webhooks:** All webhook events that change tenant state (plan changes, cancellations, payment failures) must call `writeAuditLog()` with `userId: 'system'` and `userEmail: 'stripe-webhook'`.
 
 ## Design Consistency & Brand Standards
 
@@ -763,3 +772,23 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Convention established**: Canonical dashboard list page layout pattern documented in Conventions section — all list pages must follow the same structure
 - **Files changed (1)**: `clients/page.tsx`
 - Branch: `claude/align-dashboard-pages-LkdkS`
+
+### Session 29 — V1 Launch Security Audit & Hardening (2026-03-15)
+- **Goal**: Review roadmap, identify remaining V1 work, run pre-launch security audit, fix all gaps
+- **Full security audit**: Auth, RLS, CSRF, headers, Stripe webhook, input validation — all confirmed secure. No critical vulnerabilities found
+- **Server-side subscription enforcement**: AI assistant (`chat`, `conversations`, `documents`) and training routes now return 403 for free plan users. Added `hasPaidFeature()` helper to `src/lib/stripe.ts`
+- **Audit logging expansion**: All 4 Stripe webhook events (checkout completed, subscription updated, subscription deleted, payment failed) now write audit logs with before/after plan diff
+- **Rate limiting expansion**: Added to 7 previously unprotected routes — `clients` POST (20/15min), `clients/[id]` PUT (30/60s) and DELETE (10/15min), `payrolls` POST (20/15min), `payrolls/[id]` PUT (30/60s) and DELETE (10/15min), `ai-assistant/chat` POST (20/60s), `admin/analytics` GET (5/15min), `account/export` GET (3/15min)
+- **Stripe customer cleanup**: Account deletion now calls `stripe.customers.del()` before removing Supabase user (non-fatal, wrapped in try/catch)
+- **Enum mismatch fix**: `clients/[id]/route.ts` had `auto_enrolment_status: ['enrolled', 'exempt', 'postponed']` — corrected to `['enrolled', 'exempt', 'currently_not_required']` to match `validations.ts`
+- **Deprecated field cleanup**: Removed `payroll_contact_*` (3 fields), `tpas_authorised`, `director_name`, `registered_address` from `clients/[id]` update schema (removed from UI in Session 20, left in API schema)
+- **Test fixes**: Fixed 7 pre-existing failures — stripe plan limit 100→50, `diffChanges` mock override via `jest.unmock()`, HMRC `fortnightly`→`two_weekly` and four_weekly expected date
+- **New tests (24)**: `stripe-paid-features.test.ts` (12), `account/delete` route tests (6), `training` route subscription enforcement tests (6)
+- **Backlog items resolved**:
+  - Global auth context — already fully implemented in `AuthContext.tsx` (user, plan, admin, avatar, SWR cache clear)
+  - Pension task ordering — already correct (sort_order 6, last in default checklist)
+  - File upload size validation — already existed (2MB limit in settings page)
+  - Hero screenshots — still blocked on user providing images
+- **Audit findings deferred to future sessions**: Zero E2E tests (Playwright configured but no test files), no route-level `error.tsx`/`loading.tsx` files, admin role check is email-based only (no DB column backup)
+- **Files changed (18)**: `stripe.ts`, `clients/route.ts`, `clients/[id]/route.ts`, `payrolls/route.ts`, `payrolls/[id]/route.ts`, `ai-assistant/chat/route.ts`, `ai-assistant/conversations/route.ts`, `training/route.ts`, `stripe/webhook/route.ts`, `admin/analytics/route.ts`, `account/delete/route.ts`, `account/export/route.ts`, 3 new test files, 3 fixed test files
+- Branch: `claude/review-roadmap-features-2RD4t`
