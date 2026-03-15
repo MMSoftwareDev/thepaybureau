@@ -59,7 +59,7 @@ import {
   Shield,
   CreditCard,
   Settings,
-  SlidersHorizontal,
+  Settings2,
   Landmark,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
@@ -230,11 +230,11 @@ const ALL_COLUMNS: ColumnDef[] = [
   { id: 'contact_name', label: 'Contact', sortField: 'contact_name', defaultVisible: true, getValue: (c) => c.contact_name || '-' },
   { id: 'contact_email', label: 'Email', sortField: 'contact_email', defaultVisible: true, getValue: (c) => c.contact_email || '-' },
   { id: 'contact_phone', label: 'Phone', sortField: undefined, defaultVisible: false, getValue: (c) => c.contact_phone || '-' },
-  { id: 'industry', label: 'Industry', sortField: 'industry', defaultVisible: false, getValue: (c) => c.industry || '-' },
+  { id: 'industry', label: 'Industry', sortField: 'industry', defaultVisible: true, getValue: (c) => c.industry || '-' },
   { id: 'domain', label: 'Domain', sortField: undefined, defaultVisible: false, getValue: (c) => c.domain || '-' },
   { id: 'employee_count', label: 'Employees', sortField: 'employee_count', defaultVisible: false, getValue: (c) => c.employee_count?.toString() || '-' },
-  { id: 'company_type', label: 'Type', sortField: 'company_type', defaultVisible: false, getValue: (c) => c.company_type ? COMPANY_TYPE_LABELS[c.company_type] || c.company_type : '-' },
-  { id: 'start_date', label: 'Start Date', sortField: 'start_date', defaultVisible: false, getValue: (c) => c.start_date ? format(new Date(c.start_date), 'dd MMM yyyy') : '-' },
+  { id: 'company_type', label: 'Type', sortField: 'company_type', defaultVisible: true, getValue: (c) => c.company_type ? COMPANY_TYPE_LABELS[c.company_type] || c.company_type : '-' },
+  { id: 'start_date', label: 'Start Date', sortField: 'start_date', defaultVisible: true, getValue: (c) => c.start_date ? format(new Date(c.start_date), 'dd MMM yyyy') : '-' },
   { id: 'contract_type', label: 'Contract', sortField: 'contract_type', defaultVisible: false, getValue: (c) => c.contract_type === 'fixed_term' ? 'Fixed Term' : c.contract_type === 'rolling' ? 'Rolling' : '-' },
   { id: 'assigned_to', label: 'Assigned To', sortField: 'assigned_to', defaultVisible: false, getValue: (c, users) => c.assigned_to ? users.find(u => u.id === c.assigned_to)?.name || '-' : '-' },
   { id: 'created_at', label: 'Date Added', sortField: 'created_at', defaultVisible: false, getValue: (c) => c.created_at ? format(new Date(c.created_at), 'dd MMM yyyy') : '-' },
@@ -767,6 +767,8 @@ export default function ClientsPage() {
 
   const activeFilterCount = useMemo(() => {
     let count = 0
+    if (statusFilter !== 'all') count++
+    if (industryFilter !== 'all') count++
     if (companyTypeFilter !== 'all') count++
     if (sicCodeFilter !== 'all') count++
     if (hmrcAuthFilter !== 'all') count++
@@ -777,9 +779,11 @@ export default function ClientsPage() {
     if (dateFrom) count++
     if (dateTo) count++
     return count
-  }, [companyTypeFilter, sicCodeFilter, hmrcAuthFilter, aeStatusFilter, paymentMethodFilter, contractTypeFilter, portalAccessFilter, dateFrom, dateTo])
+  }, [statusFilter, industryFilter, companyTypeFilter, sicCodeFilter, hmrcAuthFilter, aeStatusFilter, paymentMethodFilter, contractTypeFilter, portalAccessFilter, dateFrom, dateTo])
 
   const clearFilters = useCallback(() => {
+    setStatusFilter('all')
+    setIndustryFilter('all')
     setCompanyTypeFilter('all')
     setSicCodeFilter('all')
     setHmrcAuthFilter('all')
@@ -957,41 +961,14 @@ export default function ClientsPage() {
         >
           Clients
         </h1>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-sm gap-1.5"
-            style={{ borderColor: colors.border, color: colors.text.secondary }}
-            onClick={handleExport}
-            disabled={exporting}
-          >
-            {exporting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Download className="w-4 h-4" />
-            )}
-            Export
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-sm gap-1.5"
-            style={{ borderColor: colors.border, color: colors.text.secondary }}
-            onClick={() => setColumnsDialogOpen(true)}
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            Columns
-          </Button>
-          <Button
-            onClick={openAdd}
-            className="text-white text-sm"
-            style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Client
-          </Button>
-        </div>
+        <Button
+          onClick={openAdd}
+          className="text-white text-sm"
+          style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+        >
+          <Plus className="w-4 h-4 mr-1.5" />
+          Add Client
+        </Button>
       </div>
 
       {/* KPI Cards */}
@@ -1027,197 +1004,229 @@ export default function ClientsPage() {
         })}
       </div>
 
-      {/* Search + Industry Filter Row */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
-          <Input
-            placeholder="Search clients..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 text-sm"
-            style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-          />
-        </div>
-        <div className="min-w-[160px]">
-          <Select value={industryFilter} onValueChange={setIndustryFilter}>
-            <SelectTrigger className="text-sm h-9" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
-              <SelectValue placeholder="All Industries" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Industries</SelectItem>
-              {industries.map((ind) => (
-                <SelectItem key={ind} value={ind}>{ind}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-xs gap-1 h-9"
-          style={{ borderColor: colors.border, color: colors.text.secondary }}
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          <Filter className="w-3 h-3" />
-          Filters
-          {activeFilterCount > 0 && (
-            <span
-              className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium text-white"
-              style={{ backgroundColor: colors.primary }}
-            >
-              {activeFilterCount}
-            </span>
-          )}
-        </Button>
-        {industryFilter !== 'all' && (
-          <Button variant="ghost" size="sm" className="text-xs gap-1 h-9" style={{ color: colors.error }} onClick={() => setIndustryFilter('all')}>
-            <X className="w-3 h-3" />
-            Clear Industry
+      {/* Toolbar: Search + Filters + Columns + Export */}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
+            <Input
+              placeholder="Search clients..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 text-sm"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className="text-xs gap-1.5"
+            style={{ borderColor: colors.border, color: activeFilterCount > 0 ? colors.primary : colors.text.secondary }}
+          >
+            <Filter className="w-3.5 h-3.5" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span
+                className="ml-0.5 px-1.5 py-0.5 rounded-full text-[0.6rem] font-bold text-white"
+                style={{ backgroundColor: colors.primary }}
+              >
+                {activeFilterCount}
+              </span>
+            )}
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setColumnsDialogOpen(true)}
+            className="text-xs gap-1.5"
+            style={{ borderColor: colors.border, color: colors.text.secondary }}
+          >
+            <Settings2 className="w-3.5 h-3.5" />
+            Columns
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={exporting}
+            className="text-xs gap-1.5"
+            style={{ borderColor: colors.border, color: colors.text.secondary }}
+          >
+            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            Export
+          </Button>
+        </div>
+
+        {/* Expanded Filters */}
+        {showFilters && (
+          <div className="flex flex-wrap items-end gap-3 p-3 rounded-lg" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#FAFAFA', border: `1px solid ${colors.border}` }}>
+            <div className="min-w-[130px]">
+              <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Status</Label>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[160px]">
+              <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Industry</Label>
+              <Select value={industryFilter} onValueChange={setIndustryFilter}>
+                <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Industries</SelectItem>
+                  {industries.map((ind) => (
+                    <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[130px]">
+              <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Company Type</Label>
+              <Select value={companyTypeFilter} onValueChange={setCompanyTypeFilter}>
+                <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {Object.entries(COMPANY_TYPE_LABELS).map(([val, label]) => (
+                    <SelectItem key={val} value={val}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {sicCodes.length > 0 && (
+              <div className="min-w-[120px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>SIC Code</Label>
+                <Select value={sicCodeFilter} onValueChange={setSicCodeFilter}>
+                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    {sicCodes.map((code) => (
+                      <SelectItem key={code} value={code}>{code}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="min-w-[130px]">
+              <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>HMRC PAYE Auth</Label>
+              <Select value={hmrcAuthFilter} onValueChange={setHmrcAuthFilter}>
+                <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="yes">Yes</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[150px]">
+              <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Auto Enrolment</Label>
+              <Select value={aeStatusFilter} onValueChange={setAeStatusFilter}>
+                <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {AUTO_ENROLMENT_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[130px]">
+              <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Payment Method</Label>
+              <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+                <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {Object.entries(PAYMENT_METHOD_LABELS).map(([val, label]) => (
+                    <SelectItem key={val} value={val}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[120px]">
+              <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Contract Type</Label>
+              <Select value={contractTypeFilter} onValueChange={setContractTypeFilter}>
+                <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="rolling">Rolling</SelectItem>
+                  <SelectItem value="fixed_term">Fixed Term</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[130px]">
+              <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Portal Access</Label>
+              <Select value={portalAccessFilter} onValueChange={setPortalAccessFilter}>
+                <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="yes">Enabled</SelectItem>
+                  <SelectItem value="no">Disabled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[130px]">
+              <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Added From</Label>
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+            </div>
+            <div className="min-w-[130px]">
+              <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Added To</Label>
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+            </div>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearFilters}
+                className="text-xs font-medium transition-colors"
+                style={{ color: colors.primary }}
+              >
+                Clear all
+              </button>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Filter Bar */}
-      {showFilters && (
-        <Card className="rounded-lg shadow-sm" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
-          <CardContent className="p-3">
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="min-w-[130px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Company Type</Label>
-                <Select value={companyTypeFilter} onValueChange={setCompanyTypeFilter}>
-                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    {Object.entries(COMPANY_TYPE_LABELS).map(([val, label]) => (
-                      <SelectItem key={val} value={val}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {sicCodes.length > 0 && (
-                <div className="min-w-[120px]">
-                  <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>SIC Code</Label>
-                  <Select value={sicCodeFilter} onValueChange={setSicCodeFilter}>
-                    <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
-                      <SelectValue placeholder="All" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      {sicCodes.map((code) => (
-                        <SelectItem key={code} value={code}>{code}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              <div className="min-w-[130px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>HMRC PAYE Auth</Label>
-                <Select value={hmrcAuthFilter} onValueChange={setHmrcAuthFilter}>
-                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="yes">Yes</SelectItem>
-                    <SelectItem value="no">No</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="min-w-[150px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Auto Enrolment</Label>
-                <Select value={aeStatusFilter} onValueChange={setAeStatusFilter}>
-                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    {AUTO_ENROLMENT_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="min-w-[130px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Payment Method</Label>
-                <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
-                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    {Object.entries(PAYMENT_METHOD_LABELS).map(([val, label]) => (
-                      <SelectItem key={val} value={val}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="min-w-[120px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Contract Type</Label>
-                <Select value={contractTypeFilter} onValueChange={setContractTypeFilter}>
-                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="rolling">Rolling</SelectItem>
-                    <SelectItem value="fixed_term">Fixed Term</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="min-w-[130px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Portal Access</Label>
-                <Select value={portalAccessFilter} onValueChange={setPortalAccessFilter}>
-                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="yes">Enabled</SelectItem>
-                    <SelectItem value="no">Disabled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="min-w-[130px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Added From</Label>
-                <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
-              </div>
-              <div className="min-w-[130px]">
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Added To</Label>
-                <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
-              </div>
-              {activeFilterCount > 0 && (
-                <Button variant="ghost" size="sm" className="text-xs gap-1 h-8" style={{ color: colors.error }} onClick={clearFilters}>
-                  <X className="w-3 h-3" />
-                  Clear All
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Table */}
       {filteredSorted.length === 0 ? (
-        <div className="py-20 text-center">
-          <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: `${colors.primary}12` }}>
-            <Users className="w-6 h-6" style={{ color: colors.primary }} />
-          </div>
-          <h3 className="text-sm font-semibold mb-1 font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
-            No clients found
-          </h3>
-          <p className="text-xs mb-4 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
-            {debouncedSearch || activeFilterCount > 0 ? 'Try adjusting your search or filters.' : 'Add your first client to get started.'}
-          </p>
-          {!debouncedSearch && activeFilterCount === 0 && (
-            <Button onClick={openAdd} size="sm" className="text-white text-xs" style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}>
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Add Client
-            </Button>
-          )}
-        </div>
+        <Card className="rounded-xl shadow-sm" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
+          <CardContent className="p-12 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: `${colors.primary}12` }}>
+              <Users className="w-6 h-6" style={{ color: colors.primary }} />
+            </div>
+            <h3 className="text-sm font-semibold mb-1 font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+              No clients found
+            </h3>
+            <p className="text-xs mb-4 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+              {debouncedSearch || activeFilterCount > 0 ? 'Try adjusting your search or filters.' : 'Add your first client to get started.'}
+            </p>
+            {!debouncedSearch && activeFilterCount === 0 && (
+              <Button onClick={openAdd} size="sm" className="text-white text-xs" style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}>
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Add Client
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       ) : (
         <>
           <div className="overflow-x-auto">
@@ -1303,40 +1312,38 @@ export default function ClientsPage() {
           </div>
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-1 py-2">
-              <p className="text-xs font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
-                Showing {showingFrom}–{showingTo} of {filteredSorted.length} clients
-              </p>
-              <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
+              Showing {showingFrom}–{showingTo} of {filteredSorted.length}
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-xs h-8 gap-1"
-                  style={{ borderColor: colors.border, color: colors.text.secondary }}
                   disabled={currentPage <= 1}
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="h-7 text-xs"
+                  style={{ borderColor: colors.border }}
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
-                  Previous
                 </Button>
-                <span className="text-xs font-medium font-[family-name:var(--font-inter)] px-2" style={{ color: colors.text.secondary }}>
-                  {currentPage} of {totalPages}
+                <span className="text-xs font-medium px-2 font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
+                  {currentPage} / {totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-xs h-8 gap-1"
-                  style={{ borderColor: colors.border, color: colors.text.secondary }}
                   disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="h-7 text-xs"
+                  style={{ borderColor: colors.border }}
                 >
-                  Next
                   <ChevronRight className="w-3.5 h-3.5" />
                 </Button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </>
       )}
 
