@@ -144,6 +144,7 @@ npx playwright test  # E2E tests
 - Sidebar visual polish: indented child items, 36px row height, 18px icons, rounded-lg items
 - Sidebar search fix: clients page reads URL `?search=` param via `useSearchParams`
 - Sidebar section rename: "DEVELOPMENT" → "TRAINING"
+- Clients page aligned to payrolls page design (consistent header, toolbar, filters, pagination, empty state, default columns)
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
@@ -225,6 +226,7 @@ npx playwright test  # E2E tests
 - **API route SELECT:** Use explicit column selection on list/read endpoints. Only use `select('*')` when the full record is needed (e.g., account export, audit diffs, edit forms that need all fields).
 - **Cross-domain links:** On marketing pages, use `<a href={APP_DOMAIN + '/login'}>` (not `<Link>`) for links to `app.thepaybureau.com` — Next.js `<Link>` is for same-origin client-side navigation only. Import `APP_DOMAIN` from `@/lib/domains`.
 - **Sidebar sections**: Collapsible with `ChevronDown` toggle. Auto-expand section containing active route. Nav items indented (`pl-2`), 36px rows (`h-9`), 18px icons, `rounded-lg`. Section labels are uppercase buttons.
+- **Dashboard list page layout (canonical pattern):** All list pages (clients, payrolls, etc.) must follow the same layout structure: (1) Header: title left + primary Add button right (gradient); (2) KPI filter cards row; (3) Toolbar row: Search → Filters → Columns → Export (all `variant="outline" size="sm" text-xs gap-1.5`); (4) Expandable filters panel (plain `div`, `rounded-lg p-3`, bg `isDark ? 'rgba(255,255,255,0.03)' : '#FAFAFA'`); (5) Table; (6) Pagination (`pt-2`, icon-only `h-7` buttons, `X / Y` format, always-visible "Showing" count). Empty state wrapped in `Card`/`CardContent className="p-12"`. Columns icon: `Settings2`. Reference: payrolls page.
 
 ## Design Consistency & Brand Standards
 
@@ -743,3 +745,15 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Rename**: "DEVELOPMENT" section → "TRAINING"
 - **Files changed (2)**: `Sidebar.tsx`, `clients/page.tsx`
 - Branch: `claude/move-settings-to-navbar-fVc8G`
+
+### Session 28 — Align Clients Page to Payrolls Page Design (2026-03-15)
+- **Goal**: Make clients and payrolls pages visually consistent; payrolls page chosen as the canonical design
+- **Header restructured**: Moved Export and Columns buttons out of header into toolbar; header now shows only title + Add Client button (matching payrolls)
+- **Toolbar aligned**: Restructured to Search → Filters → Columns → Export order with consistent `text-xs gap-1.5` button sizing; Columns icon changed from `SlidersHorizontal` to `Settings2`; Filters button color turns primary when filters active
+- **Filters panel restyled**: Replaced `Card`/`CardContent` wrapper with plain `div` matching payrolls (`rounded-lg p-3`, subtle background); moved Industry and Status filters from toolbar/KPI-only into expandable filters section; "Clear All" changed from red ghost button to purple text link
+- **Default columns expanded**: 3 → 6 defaults (added `industry`, `company_type`, `start_date` alongside existing `status`, `contact_name`, `contact_email`)
+- **Empty state**: Wrapped in `Card`/`CardContent className="p-12"` matching payrolls
+- **Pagination aligned**: Compact icon-only `h-7` buttons (no "Previous"/"Next" text), `X / Y` format, `pt-2` spacing, `gap-1`, always-visible "Showing X–Y of Z" count
+- **Convention established**: Canonical dashboard list page layout pattern documented in Conventions section — all list pages must follow the same structure
+- **Files changed (1)**: `clients/page.tsx`
+- Branch: `claude/align-dashboard-pages-LkdkS`
