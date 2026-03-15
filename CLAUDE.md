@@ -83,6 +83,54 @@ npx playwright test  # E2E tests
 - **Client data model:** 45+ fields across identity, company details, address, 2 contact types (primary, secondary), accountant, tax/compliance (VAT, UTR, CIS, HMRC PAYE Online Auth, AE status), billing/contract (fee, billing frequency, payment method, contract type, notice period), and metadata (tags, assigned_to, referral_source, industry, etc.). Payroll Contact removed (primary contact covers this). Registered Address and TPAS deferred.
 - **Domain routing:** Middleware-based hostname routing — `www.thepaybureau.com` serves marketing pages only (`/`, `/roadmap`, `/terms`, `/privacy`), all other routes 301 redirect to `app.thepaybureau.com`. Marketing routes skip auth/CSRF entirely. Domain constants centralised in `src/lib/domains.ts`.
 
+## Database Tables
+
+All tables are scoped by `tenant_id` with RLS policies (except `tenants` itself and system tables).
+
+| Table | Purpose | Key Relationships |
+|-------|---------|-------------------|
+| `tenants` | Multi-tenant root entity | — |
+| `users` | User accounts | `tenant_id` → tenants |
+| `clients` | CRM records (45+ fields) | `tenant_id`, `assigned_to` → users |
+| `payrolls` | Payroll configurations | `client_id` → clients |
+| `payroll_runs` | Individual payroll run instances | `payroll_id` → payrolls |
+| `checklist_templates` | Reusable checklist definitions | `payroll_id` → payrolls |
+| `checklist_items` | Run-specific checklist entries | `payroll_run_id` → payroll_runs |
+| `training_records` | CPD / training tracking | `tenant_id` |
+| `audit_logs` | Immutable audit trail | `tenant_id`, action/entity_type/changes (JSON) |
+| `feature_requests` | User feature requests | `tenant_id`, admin-only UPDATE/DELETE |
+| `user_stats` | Gamification stats | `user_id` → users |
+| `user_badges` | Earned badges | `user_id` → users |
+| `ai_conversations` | AI chat sessions | `user_id` → users |
+| `ai_messages` | Individual chat messages | `conversation_id` → ai_conversations |
+| `ai_documents` | RAG knowledge base docs | `tenant_id` |
+| `ai_document_chunks` | Vector-embedded doc chunks | `document_id` → ai_documents |
+| `ai_api_keys` | User API keys for AI | `user_id` → users |
+
+## Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key (client-side) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side only) |
+| `NEXT_PUBLIC_APP_URL` | App domain (`https://app.thepaybureau.com`) |
+| `NEXT_PUBLIC_MARKETING_URL` | Marketing domain (`https://www.thepaybureau.com`) |
+| `STRIPE_SECRET_KEY` | Stripe API secret key |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
+| `STRIPE_PRICE_UNLIMITED_MONTHLY` | Stripe price ID for monthly plan |
+| `STRIPE_PRICE_UNLIMITED_ANNUAL` | Stripe price ID for annual plan |
+| `RESEND_API_KEY` | Resend email API key |
+| `ANTHROPIC_API_KEY` | Claude AI assistant |
+| `VOYAGE_API_KEY` | VoyageAI embeddings |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis URL for rate limiting |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis token |
+| `CRON_SECRET` | Bearer token for cron route authentication |
+| `PLATFORM_ADMIN_EMAILS` | Comma-separated admin emails for admin routes |
+| `NEXT_PUBLIC_SENTRY_DSN` | Sentry error monitoring DSN |
+| `SENTRY_ORG` / `SENTRY_PROJECT` | Sentry org and project for source maps |
+| `UPTIMEROBOT_API_KEY` | UptimeRobot status page API key |
+
 ## Security Notes (from audit 2026-03-07)
 
 - Health/status endpoints are intentionally unauthenticated.
@@ -93,23 +141,23 @@ npx playwright test  # E2E tests
 
 - **Remaining domain references**: Email templates, CI config, and Supabase config still reference `app.thepaybureau.com` (see Sessions 11, 25). Marketing pages and middleware now use `www.thepaybureau.com` correctly.
 - **Serverless fire-and-forget caveat**: Never use unawaited promises for critical side effects (emails, webhooks) in Vercel serverless routes — the runtime may terminate before they complete. Always `await` or use `waitUntil()`. Fixed for feedback/feature-request emails in Session 16; audit other routes if adding new email sends.
+- **CSS variable naming**: All CSS variables use legacy `--login-*` prefix (e.g., `--login-purple`, `--login-surface`) even though they're used app-wide. Historical artifact from when they only existed on the login page. Rename to `--brand-*` or `--app-*` when convenient.
+
+## Common Pitfalls
+
+Hard-won lessons from previous sessions — check here before making changes in these areas:
+
+- **Supabase migrations must be run manually**: Files in `supabase/migrations/` are NOT auto-applied. User must run them in Supabase SQL Editor. If a new feature requires schema changes and the user reports "Failed to create X", check whether migrations have been applied. (Session 20)
+- **Never use `next/font`**: Google Fonts are loaded via `<link>` tags in `layout.tsx` with CSS variables. `next/font/google` has intermittent fetch failures during build on Vercel. (Session 6)
+- **Never fire-and-forget emails on Vercel**: Always `await sendEmail()` in serverless routes. The runtime terminates after the response is sent — unawaited promises may never complete. Use `waitUntil()` if you need non-blocking sends. (Session 16)
+- **SWR cache must be cleared on auth change**: Both `SIGNED_IN` and `SIGNED_OUT` events must call `clearSWRCache()` then `revalidateAllSWR()` — in that order. Without revalidation, mounted hooks show empty state. (Sessions 5, 13, 23)
+- **`logo-full.png` breaks dark mode**: Has dark text baked into the image — invisible on dark backgrounds. Use `logo.png` (icon mark) + theme-aware text instead. (Session 21)
+- **Two-pass init for Supabase test mocks**: The `chainMock()` pattern requires two passes — first create all `jest.fn()` stubs, then set `mockReturnValue` with spread. Single-pass causes eager evaluation bugs. (Session 22)
+- **Recharts cannot be dynamically imported**: Shares internal React context that breaks across chunk boundaries. Load it synchronously. (Session 8)
 
 ## Current Status & Roadmap
 
 ### Completed
-- Full client management with 5-step onboarding
-- Payroll runs with checklists
-- Pension management
-- Training records
-- Stripe subscription billing
-- AI assistant (Claude-powered)
-- Audit logging
-- HMRC deadline tracking
-- Feature request system
-- Badge/gamification system
-- Security audit (OWASP top 10, RLS, Stripe)
-
-### Also Completed (from sessions)
 - CSV/bulk import for clients (batched, chunks of 50)
 - Duplicate/copy client workflow
 - GDPR compliance: account deletion + data export
@@ -146,61 +194,19 @@ npx playwright test  # E2E tests
 - Sidebar section rename: "DEVELOPMENT" → "TRAINING"
 - Clients page aligned to payrolls page design (consistent header, toolbar, filters, pagination, empty state, default columns)
 
-### In Progress / Planned (from tester feedback 2026-03-04)
+### In Progress / Planned
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
 - Reorder pension tasks after payroll run in checklists
 - Global auth context for reactive user tracking
-- ~~Reduce SWR `dedupingInterval` or add explicit revalidation on login~~ (done: `revalidateAllSWR()` on SIGNED_IN, interval already at 2s)
-- ~~Complete `app.thepaybureau.com` → `thepaybureau.com` domain migration~~ (done for marketing pages in Session 25; email templates, CI config, and Supabase config still reference `app.` — intentional for now)
-- ~~Renumber duplicate `001_` migration files~~ (fixed: renamed to `014_`)
-- ~~Create missing vector search fix migration~~ (done: `019_fix_vector_search.sql`)
 
-## Workflow Orchestration
+## Workflow Rules
 
-### 1. Plan Node Default
-- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
-- If something goes sideways, STOP and re-plan immediately - don't keep pushing
-- Use plan mode for verification steps, not just building
-- Write detailed specs upfront to reduce ambiguity
-
-### 2. Subagent Strategy
-- Use subagents liberally to keep main context window clean
-- Offload research, exploration, and parallel analysis to subagents
-- For complex problems, throw more compute at it via subagents
-- One task per subagent for focused execution
-
-### 3. Self-Improvement Loop
-- After ANY correction from the user: update `tasks/lessons.md` with the pattern
-- Write rules for yourself that prevent the same mistake
-- Ruthlessly iterate on these lessons until mistake rate drops
-- Review lessons at session start for relevant project
-
-### 4. Verification Before Done
-- Never mark a task complete without proving it works
-- Diff behavior between main and your changes when relevant
-- Ask yourself: "Would a staff engineer approve this?"
-- Run tests, check logs, demonstrate correctness
-
-### 5. Demand Elegance (Balanced)
-- For non-trivial changes: pause and ask "is there a more elegant way?"
-- If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
-- Skip this for simple, obvious fixes - don't over-engineer
-- Challenge your own work before presenting it
-
-### 6. Autonomous Bug Fixing
-- When given a bug report: just fix it. Don't ask for hand-holding
-- Point at logs, errors, failing tests - then resolve them
-- Zero context switching required from the user
-- Go fix failing CI tests without being told how
-
-## Task Management
-
-1. **Plan First**: Write plan to `tasks/todo.md` with checkable items
-2. **Verify Plan**: Check in before starting implementation
-3. **Track Progress**: Mark items complete as you go
-4. **Explain Changes**: High-level summary at each step
-5. **Document Results**: Add review section to `tasks/todo.md`
-6. **Capture Lessons**: Update `tasks/lessons.md` after corrections
+- **Plan first**: Enter plan mode for any non-trivial task (3+ steps or architectural decisions). If something goes sideways, stop and re-plan.
+- **Verify before done**: Never mark a task complete without proving it works. Run tests, check logs, demonstrate correctness.
+- **Self-improvement**: After ANY correction from the user, update `tasks/lessons.md` with the pattern. Review lessons at session start.
+- **Autonomous bug fixing**: When given a bug report, just fix it. Find root causes, check logs, resolve — zero hand-holding needed.
+- **Elegance check**: For non-trivial changes, pause and ask "is there a more elegant way?" Skip for simple fixes.
+- **Track progress**: Use `tasks/todo.md` for multi-step tasks. Mark items complete as you go.
 
 ## Core Principles
 
@@ -216,17 +222,17 @@ npx playwright test  # E2E tests
 - Dates: use `date-fns` for formatting/manipulation.
 - Keep all Supabase migrations numbered sequentially in `supabase/migrations/`.
 - Client statuses: `active | inactive` only — no `prospect`. Enforced in Zod schemas, UI dropdowns, and KPI filters.
-- **Table design (ChangePen style):** Flat tables — no border wrapper, light gray header row, thin `border-b` dividers only, no alternating row backgrounds, CSS-only hover (`purple/3%`). Row height ~48px with `px-4 py-3` cell padding.
+- **Table design:** See "Spacing & Layout → Tables" in Design Standards. ChangePen flat style.
 - **Add/Edit forms:** Use shadcn `Sheet` sidebar pattern with grouped collapsible sections — not full-page forms or modals.
-- Use shadcn `AlertDialog` for destructive confirmations — never `window.confirm()` or browser `confirm()`.
-- Toast z-index must be `z-[100]` — higher than Sheet/Dialog overlays (z-50) so toasts are always visible.
-- Table columns should be customizable where practical — toggle visibility + reorder, persist to localStorage.
-- Sidebar logo: use `logo.png` icon mark (36px) + themed text — never `logo-full.png` (dark text baked in, breaks dark mode).
+- **Destructive confirmations:** Use shadcn `AlertDialog` — never `window.confirm()` or browser `confirm()`.
+- **Toast z-index:** Must be `z-[100]` — higher than Sheet/Dialog overlays (z-50).
+- **Table columns:** Customizable where practical — toggle visibility + reorder, persist to localStorage.
+- **Sidebar logo:** Use `logo.png` icon mark (36px) + themed text — never `logo-full.png` (dark text baked in, breaks dark mode).
 - **Testing:** Test files live alongside routes in `__tests__/` directories. Use `chainMock()` pattern for Supabase client mocking (two-pass init for chainable methods). Mock `@/lib/supabase-server` in every API route test. Suppress `console.error` in test setup.
 - **API route SELECT:** Use explicit column selection on list/read endpoints. Only use `select('*')` when the full record is needed (e.g., account export, audit diffs, edit forms that need all fields).
 - **Cross-domain links:** On marketing pages, use `<a href={APP_DOMAIN + '/login'}>` (not `<Link>`) for links to `app.thepaybureau.com` — Next.js `<Link>` is for same-origin client-side navigation only. Import `APP_DOMAIN` from `@/lib/domains`.
-- **Sidebar sections**: Collapsible with `ChevronDown` toggle. Auto-expand section containing active route. Nav items indented (`pl-2`), 36px rows (`h-9`), 18px icons, `rounded-lg`. Section labels are uppercase buttons.
-- **Dashboard list page layout (canonical pattern):** All list pages (clients, payrolls, etc.) must follow the same layout structure: (1) Header: title left + primary Add button right (gradient); (2) KPI filter cards row; (3) Toolbar row: Search → Filters → Columns → Export (all `variant="outline" size="sm" text-xs gap-1.5`); (4) Expandable filters panel (plain `div`, `rounded-lg p-3`, bg `isDark ? 'rgba(255,255,255,0.03)' : '#FAFAFA'`); (5) Table; (6) Pagination (`pt-2`, icon-only `h-7` buttons, `X / Y` format, always-visible "Showing" count). Empty state wrapped in `Card`/`CardContent className="p-12"`. Columns icon: `Settings2`. Reference: payrolls page.
+- **Sidebar sections:** Collapsible with `ChevronDown` toggle. Auto-expand section containing active route. Nav items indented (`pl-2`), 36px rows (`h-9`), 18px icons, `rounded-lg`. Section labels are uppercase buttons.
+- **Dashboard list page layout:** All list pages must follow the canonical pattern — see payrolls page as reference. Structure: (1) Header with title + Add button; (2) KPI cards; (3) Toolbar: Search → Filters → Columns (`Settings2`) → Export; (4) Expandable filters; (5) Table; (6) Pagination (`pt-2`, icon-only `h-7` buttons, `X / Y` format).
 
 ## Design Consistency & Brand Standards
 
