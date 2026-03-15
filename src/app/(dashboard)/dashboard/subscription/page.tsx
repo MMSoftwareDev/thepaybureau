@@ -40,28 +40,30 @@ const PLAN_TIERS = [
     clients: 'Up to 50 clients',
     icon: Users,
     features: [
-      'Payroll runs',
+      'Payroll tracking & status management',
+      'Deadline management with alerts',
+      'CSV import & export',
       'Pension declarations',
-      'Audit log',
-      'Feature requests',
+      'Audit log (basic)',
       'Email support',
     ],
   },
   {
     key: 'unlimited',
     name: 'Unlimited',
-    tagline: 'For serious payrollers',
-    price: 9,
-    annualPrice: 7,
-    annualTotal: 84,
+    tagline: 'For Payroll Pros',
+    price: 19,
+    annualPrice: 12,
+    annualTotal: 144,
     clients: 'Unlimited clients',
     icon: Crown,
     popular: true,
     features: [
       'Everything in Free',
-      'Unlimited clients',
-      'AI Assistant',
+      'Unlimited clients & payroll runs',
+      'AI Payroll Assistant',
       'Training & CPD tracking',
+      'Email reminders',
       'Priority support',
     ],
   },
@@ -76,10 +78,52 @@ const PLAN_TIERS = [
     icon: Sparkles,
     comingSoon: true,
     features: [
-      'Dedicated support',
-      'Bureau dashboard',
-      'White labelling',
-      'Reporting',
+      'Bureau / Team Dashboard',
+      'Organisation Chart',
+      'Insights & Analytics',
+      'HMRC Auth Dashboard',
+      'Client Surveys',
+      'Client Health Scores',
+      'Priority Support',
+    ],
+  },
+  {
+    key: 'bureau',
+    name: 'Bureau',
+    tagline: 'Coming soon',
+    price: null,
+    annualPrice: null,
+    annualTotal: null,
+    clients: 'Unlimited clients',
+    icon: Sparkles,
+    comingSoon: true,
+    features: [
+      'Time Tracking',
+      'Client Onboarding',
+      'Forms',
+      'Custom Fields',
+      'Invoicing',
+      'Contracts & Engagement Letters',
+      'E-signatures',
+    ],
+  },
+  {
+    key: 'enterprise',
+    name: 'Enterprise',
+    tagline: 'Coming soon',
+    price: null,
+    annualPrice: null,
+    annualTotal: null,
+    clients: 'Unlimited clients',
+    icon: Sparkles,
+    comingSoon: true,
+    features: [
+      'AML / KYC Checks',
+      'Deep Analytics',
+      'Capacity Forecasting',
+      'Churn Risk Scoring',
+      'Revenue Forecasting',
+      'White Labelling',
     ],
   },
 ]
@@ -180,8 +224,8 @@ function SubscriptionPage() {
     return (
       <div className="space-y-6 animate-pulse max-w-5xl mx-auto">
         <div className="h-10 w-64 rounded-xl" style={{ background: colors.border }} />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {[1, 2, 3].map((i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+          {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="h-96 rounded-lg" style={{ background: colors.border }} />
           ))}
         </div>
@@ -289,14 +333,14 @@ function SubscriptionPage() {
                 color: colors.success,
               }}
             >
-              Save 22%
+              Save 37%
             </span>
           </button>
         </div>
       </div>
 
       {/* Plan Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
         {PLAN_TIERS.map((tier) => {
           const isCurrent = currentPlan === tier.key
           const isUpgrade = !tier.comingSoon && PLAN_TIERS.filter(t => !t.comingSoon).findIndex(t => t.key === currentPlan) < PLAN_TIERS.filter(t => !t.comingSoon).findIndex(t => t.key === tier.key)

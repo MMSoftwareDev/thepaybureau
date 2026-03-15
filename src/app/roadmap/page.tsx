@@ -135,7 +135,7 @@ export default function RoadmapPage() {
                     tag="V1 · Available Now"
                     title="Individual<br>Consultant"
                     description="Everything a payroll consultant needs in one place. Replace spreadsheets and missed deadlines with a professional dashboard — free, forever, for up to 50 clients."
-                    priceChip="Free Forever  ·  Unlimited from £9.99/mo"
+                    priceChip="Free Forever  ·  Unlimited from £19/mo"
                     tiers={[
                       {
                         label: 'Free tier — all consultants',
@@ -156,7 +156,7 @@ export default function RoadmapPage() {
                       phase="v1"
                       value={7}
                       label="features free<br>from day one"
-                      note="+2 on Unlimited<br>from £9.99/mo"
+                      note="+2 on Unlimited<br>from £19/mo"
                     />
                   </div>
                 }
@@ -189,8 +189,8 @@ export default function RoadmapPage() {
                         features: ['Bureau / Team Dashboard', 'Organisation Chart', 'Insights & Analytics', 'HMRC Auth Dashboard', 'Client Surveys', 'Client Health Scores', 'Priority Support'],
                       },
                       {
-                        label: 'Business tier (additional)',
-                        tier: 'business',
+                        label: 'Bureau tier (additional)',
+                        tier: 'bureau',
                         features: ['Time Tracking', 'Client Onboarding', 'Forms', 'Custom Fields', 'Invoicing', 'Contracts & Engagement Letters', 'E-signatures'],
                       },
                     ]}
@@ -276,7 +276,7 @@ export default function RoadmapPage() {
             />
 
             <div className="grid grid-cols-4 gap-5 mb-12 max-[880px]:grid-cols-2 max-[540px]:grid-cols-1">
-              <SummaryCard phase="v1" version="V1" name="Free for every consultant" description="No credit card. No catch. Unlimited from £9.99/mo." />
+              <SummaryCard phase="v1" version="V1" name="Free for every consultant" description="No credit card. No catch. Unlimited from £19/mo." />
               <SummaryCard phase="v2" version="V2" name="Built for bureaus" description="Team management & commercial tools." />
               <SummaryCard phase="v3" version="V3" name="Enterprise-grade compliance" description="For larger bureaus & accountancy firms." />
               <SummaryCard phase="fv" version="Vision" name="The platform for UK payroll" description="Client portals · Automation · Open API." />

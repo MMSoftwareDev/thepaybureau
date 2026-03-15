@@ -9,11 +9,12 @@ interface PlanFeature {
 
 const FEATURES: PlanFeature[] = [
   { label: 'Client management', free: 'Up to 50 clients', unlimited: 'Unlimited' },
-  { label: 'Payroll checklists', free: 'Basic templates', unlimited: 'All templates' },
-  { label: 'HMRC deadline tracking', free: true, unlimited: true },
-  { label: 'AI Assistant', free: false, unlimited: true },
-  { label: 'CPD / Training log', free: false, unlimited: true },
+  { label: 'Payroll tracking & status', free: true, unlimited: true },
+  { label: 'Deadline management with alerts', free: true, unlimited: true },
   { label: 'CSV import & export', free: true, unlimited: true },
+  { label: 'AI Payroll Assistant', free: false, unlimited: true },
+  { label: 'Training & CPD tracking', free: false, unlimited: true },
+  { label: 'Email reminders', free: false, unlimited: true },
   { label: 'Audit trail', free: 'Basic', unlimited: true },
   { label: 'Priority support', free: false, unlimited: true },
 ]
@@ -132,7 +133,7 @@ export function PricingSection() {
               </p>
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl font-bold" style={{ color: 'var(--mkt-text)', fontFamily: 'var(--font-inter)' }}>
-                  &pound;9.99
+                  &pound;19
                 </span>
                 <span className="text-sm" style={{ color: 'var(--mkt-text-3)' }}>/month</span>
               </div>
@@ -183,7 +184,7 @@ export function PricingSection() {
           className="text-center text-xs mt-6"
           style={{ color: 'var(--mkt-text-3)', fontFamily: 'var(--font-inter)' }}
         >
-          All plans include HMRC deadline tracking, pension monitoring, and payroll checklists.
+          All plans include pension declarations and payroll checklists. Team, Bureau &amp; Enterprise tiers coming soon.
         </p>
       </div>
     </section>
