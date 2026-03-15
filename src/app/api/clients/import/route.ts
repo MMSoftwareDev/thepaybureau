@@ -59,6 +59,9 @@ const csvClientSchema = z.object({
   accountant_name: z.string().optional().default(''),
   accountant_email: z.string().email().optional().or(z.literal('')).default(''),
   accountant_phone: z.string().optional().default(''),
+  pension_staging_date: z.string().optional().default(''),
+  pension_reenrolment_date: z.string().optional().default(''),
+  declaration_of_compliance_deadline: z.string().optional().default(''),
 })
 
 const importSchema = z.object({
@@ -207,6 +210,9 @@ export async function POST(request: NextRequest) {
         accountant_name: c.accountant_name || null,
         accountant_email: c.accountant_email || null,
         accountant_phone: c.accountant_phone || null,
+        pension_staging_date: c.pension_staging_date || null,
+        pension_reenrolment_date: c.pension_reenrolment_date || null,
+        declaration_of_compliance_deadline: c.declaration_of_compliance_deadline || null,
         tenant_id: user.tenant_id,
         created_by: authUser.id,
         status: 'active' as const,

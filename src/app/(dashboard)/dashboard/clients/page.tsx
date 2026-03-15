@@ -60,6 +60,7 @@ import {
   CreditCard,
   Settings,
   SlidersHorizontal,
+  Landmark,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
@@ -114,6 +115,11 @@ interface Client {
   tags?: string[] | null
   document_storage_url?: string | null
   portal_access_enabled?: boolean | null
+  // Pension
+  pension_provider?: string | null
+  pension_staging_date?: string | null
+  pension_reenrolment_date?: string | null
+  declaration_of_compliance_deadline?: string | null
   created_at: string
 }
 
@@ -158,7 +164,31 @@ function parseFee(fee: string | null | undefined): number | null {
   return isNaN(num) ? null : num
 }
 
+// Normalize a fee to monthly based on billing frequency
+function normalizeToMonthly(fee: number, billingFreq: string | null | undefined): number {
+  switch (billingFreq) {
+    case 'annually': return fee / 12
+    case 'quarterly': return fee / 3
+    case 'per_run':
+    case 'monthly':
+    default: return fee
+  }
+}
+
 const currencyFormat = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 0, maximumFractionDigits: 0 })
+
+const PENSION_PROVIDERS = [
+  'NEST', 'NOW Pensions', 'Smart Pension', 'The People\'s Pension',
+  'Aviva', 'Royal London', 'Scottish Widows', 'Legal & General',
+  'Aegon', 'Standard Life', 'Hargreaves Lansdown', 'AJ Bell',
+  'Fidelity', 'Other', 'Exempt',
+]
+
+const AUTO_ENROLMENT_OPTIONS = [
+  { value: 'exempt', label: 'Exempt' },
+  { value: 'currently_not_required', label: 'Currently Not Required' },
+  { value: 'enrolled', label: 'Enrolled' },
+]
 
 const UK_INDUSTRIES = [
   'Agriculture',
@@ -342,6 +372,13 @@ export default function ClientsPage() {
   const debouncedSearch = useDebounce(searchQuery, 300)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [industryFilter, setIndustryFilter] = useState<string>('all')
+  const [companyTypeFilter, setCompanyTypeFilter] = useState<string>('all')
+  const [sicCodeFilter, setSicCodeFilter] = useState<string>('all')
+  const [hmrcAuthFilter, setHmrcAuthFilter] = useState<string>('all')
+  const [aeStatusFilter, setAeStatusFilter] = useState<string>('all')
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all')
+  const [contractTypeFilter, setContractTypeFilter] = useState<string>('all')
+  const [portalAccessFilter, setPortalAccessFilter] = useState<string>('all')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -404,6 +441,11 @@ export default function ClientsPage() {
   const [formTags, setFormTags] = useState('')
   const [formDocumentStorageUrl, setFormDocumentStorageUrl] = useState('')
   const [formPortalAccessEnabled, setFormPortalAccessEnabled] = useState('no')
+  // Pension
+  const [formPensionProvider, setFormPensionProvider] = useState('')
+  const [formPensionStagingDate, setFormPensionStagingDate] = useState('')
+  const [formPensionReenrolmentDate, setFormPensionReenrolmentDate] = useState('')
+  const [formDocDeadline, setFormDocDeadline] = useState('')
 
   // Delete state
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -510,6 +552,10 @@ export default function ClientsPage() {
     setFormTags('')
     setFormDocumentStorageUrl('')
     setFormPortalAccessEnabled('no')
+    setFormPensionProvider('')
+    setFormPensionStagingDate('')
+    setFormPensionReenrolmentDate('')
+    setFormDocDeadline('')
     setEditingClient(null)
   }, [])
 
@@ -562,6 +608,10 @@ export default function ClientsPage() {
     setFormTags(client.tags?.join(', ') || '')
     setFormDocumentStorageUrl(client.document_storage_url || '')
     setFormPortalAccessEnabled(client.portal_access_enabled ? 'yes' : 'no')
+    setFormPensionProvider(client.pension_provider || '')
+    setFormPensionStagingDate(client.pension_staging_date || '')
+    setFormPensionReenrolmentDate(client.pension_reenrolment_date || '')
+    setFormDocDeadline(client.declaration_of_compliance_deadline || '')
     setSheetOpen(true)
   }, [])
 
@@ -621,6 +671,11 @@ export default function ClientsPage() {
         tags: formTags.trim() ? formTags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
         document_storage_url: formDocumentStorageUrl.trim() || undefined,
         portal_access_enabled: formPortalAccessEnabled === 'yes',
+        // Pension
+        pension_provider: formPensionProvider || undefined,
+        pension_staging_date: formPensionStagingDate || undefined,
+        pension_reenrolment_date: formPensionReenrolmentDate || undefined,
+        declaration_of_compliance_deadline: formDocDeadline || undefined,
       }
 
       const url = editingClient ? `/api/clients/${editingClient.id}` : '/api/clients'
@@ -700,21 +755,38 @@ export default function ClientsPage() {
 
   // ── Derived Data ─────────────────────────────────────────────────────────
 
-  const industries = useMemo(() => {
+  // Use static UK_INDUSTRIES list so all options always show
+  const industries = UK_INDUSTRIES
+
+  const sicCodes = useMemo(() => {
     if (!clients) return []
     const allClients = clients as Client[]
-    const unique = [...new Set(allClients.map((c) => c.industry).filter(Boolean))] as string[]
+    const unique = [...new Set(allClients.map((c) => c.sic_code).filter(Boolean))] as string[]
     return unique.sort()
   }, [clients])
 
   const activeFilterCount = useMemo(() => {
     let count = 0
+    if (companyTypeFilter !== 'all') count++
+    if (sicCodeFilter !== 'all') count++
+    if (hmrcAuthFilter !== 'all') count++
+    if (aeStatusFilter !== 'all') count++
+    if (paymentMethodFilter !== 'all') count++
+    if (contractTypeFilter !== 'all') count++
+    if (portalAccessFilter !== 'all') count++
     if (dateFrom) count++
     if (dateTo) count++
     return count
-  }, [dateFrom, dateTo])
+  }, [companyTypeFilter, sicCodeFilter, hmrcAuthFilter, aeStatusFilter, paymentMethodFilter, contractTypeFilter, portalAccessFilter, dateFrom, dateTo])
 
   const clearFilters = useCallback(() => {
+    setCompanyTypeFilter('all')
+    setSicCodeFilter('all')
+    setHmrcAuthFilter('all')
+    setAeStatusFilter('all')
+    setPaymentMethodFilter('all')
+    setContractTypeFilter('all')
+    setPortalAccessFilter('all')
     setDateFrom('')
     setDateTo('')
   }, [])
@@ -728,6 +800,27 @@ export default function ClientsPage() {
     }
     if (industryFilter !== 'all') {
       filtered = filtered.filter((c) => c.industry === industryFilter)
+    }
+    if (companyTypeFilter !== 'all') {
+      filtered = filtered.filter((c) => c.company_type === companyTypeFilter)
+    }
+    if (sicCodeFilter !== 'all') {
+      filtered = filtered.filter((c) => c.sic_code === sicCodeFilter)
+    }
+    if (hmrcAuthFilter !== 'all') {
+      filtered = filtered.filter((c) => hmrcAuthFilter === 'yes' ? c.hmrc_agent_authorised === true : c.hmrc_agent_authorised !== true)
+    }
+    if (aeStatusFilter !== 'all') {
+      filtered = filtered.filter((c) => c.auto_enrolment_status === aeStatusFilter)
+    }
+    if (paymentMethodFilter !== 'all') {
+      filtered = filtered.filter((c) => c.payment_method === paymentMethodFilter)
+    }
+    if (contractTypeFilter !== 'all') {
+      filtered = filtered.filter((c) => c.contract_type === contractTypeFilter)
+    }
+    if (portalAccessFilter !== 'all') {
+      filtered = filtered.filter((c) => portalAccessFilter === 'yes' ? c.portal_access_enabled === true : c.portal_access_enabled !== true)
     }
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase()
@@ -787,12 +880,12 @@ export default function ClientsPage() {
     })
 
     return filtered
-  }, [clients, statusFilter, industryFilter, debouncedSearch, sortField, sortDirection, dateFrom, dateTo, tenantUsers])
+  }, [clients, statusFilter, industryFilter, companyTypeFilter, sicCodeFilter, hmrcAuthFilter, aeStatusFilter, paymentMethodFilter, contractTypeFilter, portalAccessFilter, debouncedSearch, sortField, sortDirection, dateFrom, dateTo, tenantUsers])
 
   // Reset page when filters/sort change
   useEffect(() => {
     setCurrentPage(1)
-  }, [statusFilter, industryFilter, debouncedSearch, sortField, sortDirection, dateFrom, dateTo])
+  }, [statusFilter, industryFilter, companyTypeFilter, sicCodeFilter, hmrcAuthFilter, aeStatusFilter, paymentMethodFilter, contractTypeFilter, portalAccessFilter, debouncedSearch, sortField, sortDirection, dateFrom, dateTo])
 
   const totalPages = Math.max(1, Math.ceil(filteredSorted.length / PAGE_SIZE))
   const paginatedClients = filteredSorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
@@ -801,14 +894,19 @@ export default function ClientsPage() {
 
   const counts = useMemo(() => {
     const all = (clients || []) as Client[]
-    const fees = all.map((c) => parseFee(c.fee)).filter((f): f is number => f !== null)
-    const totalRevenue = fees.reduce((sum, f) => sum + f, 0)
+    const monthlyFees = all
+      .map((c) => {
+        const raw = parseFee(c.fee)
+        return raw !== null ? normalizeToMonthly(raw, c.billing_frequency) : null
+      })
+      .filter((f): f is number => f !== null)
+    const totalRevenue = monthlyFees.reduce((sum, f) => sum + f, 0)
     return {
       total: all.length,
       active: all.filter((c) => c.status === 'active').length,
       inactive: all.filter((c) => c.status === 'inactive').length,
-      avgFee: fees.length > 0 ? Math.round(totalRevenue / fees.length) : 0,
-      totalMonthlyRevenue: totalRevenue,
+      avgFee: monthlyFees.length > 0 ? Math.round(totalRevenue / monthlyFees.length) : 0,
+      totalMonthlyRevenue: Math.round(totalRevenue),
     }
   }, [clients])
 
@@ -980,11 +1078,108 @@ export default function ClientsPage() {
         )}
       </div>
 
-      {/* Filter Bar (Date Filters) */}
+      {/* Filter Bar */}
       {showFilters && (
         <Card className="rounded-lg shadow-sm" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
           <CardContent className="p-3">
             <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-[130px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Company Type</Label>
+                <Select value={companyTypeFilter} onValueChange={setCompanyTypeFilter}>
+                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    {Object.entries(COMPANY_TYPE_LABELS).map(([val, label]) => (
+                      <SelectItem key={val} value={val}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {sicCodes.length > 0 && (
+                <div className="min-w-[120px]">
+                  <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>SIC Code</Label>
+                  <Select value={sicCodeFilter} onValueChange={setSicCodeFilter}>
+                    <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      {sicCodes.map((code) => (
+                        <SelectItem key={code} value={code}>{code}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="min-w-[130px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>HMRC PAYE Auth</Label>
+                <Select value={hmrcAuthFilter} onValueChange={setHmrcAuthFilter}>
+                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="yes">Yes</SelectItem>
+                    <SelectItem value="no">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-[150px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Auto Enrolment</Label>
+                <Select value={aeStatusFilter} onValueChange={setAeStatusFilter}>
+                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    {AUTO_ENROLMENT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-[130px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Payment Method</Label>
+                <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    {Object.entries(PAYMENT_METHOD_LABELS).map(([val, label]) => (
+                      <SelectItem key={val} value={val}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-[120px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Contract Type</Label>
+                <Select value={contractTypeFilter} onValueChange={setContractTypeFilter}>
+                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="rolling">Rolling</SelectItem>
+                    <SelectItem value="fixed_term">Fixed Term</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-[130px]">
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Portal Access</Label>
+                <Select value={portalAccessFilter} onValueChange={setPortalAccessFilter}>
+                  <SelectTrigger className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="yes">Enabled</SelectItem>
+                    <SelectItem value="no">Disabled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="min-w-[130px]">
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Added From</Label>
                 <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
@@ -993,10 +1188,10 @@ export default function ClientsPage() {
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)] mb-1 block" style={{ color: colors.text.muted }}>Added To</Label>
                 <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="text-sm h-8" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
-              {(dateFrom || dateTo) && (
+              {activeFilterCount > 0 && (
                 <Button variant="ghost" size="sm" className="text-xs gap-1 h-8" style={{ color: colors.error }} onClick={clearFilters}>
                   <X className="w-3 h-3" />
-                  Clear Dates
+                  Clear All
                 </Button>
               )}
             </div>
@@ -1456,6 +1651,32 @@ export default function ClientsPage() {
                     <SelectItem value="enrolled">Enrolled</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </FormSection>
+
+            <FormSection title="Pension" icon={Landmark} defaultOpen={false} colors={colors}>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Pension Provider</Label>
+                <Select value={formPensionProvider} onValueChange={setFormPensionProvider}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <SelectContent>
+                    {PENSION_PROVIDERS.map((p) => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Staging Date</Label>
+                <Input type="date" value={formPensionStagingDate} onChange={(e) => setFormPensionStagingDate(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Re-enrolment Date</Label>
+                <Input type="date" value={formPensionReenrolmentDate} onChange={(e) => setFormPensionReenrolmentDate(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Declaration of Compliance Deadline</Label>
+                <Input type="date" value={formDocDeadline} onChange={(e) => setFormDocDeadline(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
             </FormSection>
 
