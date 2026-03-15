@@ -48,28 +48,16 @@ const clientUpdateSchema = z.object({
   accountant_name: z.string().optional(),
   accountant_email: z.string().email().optional().or(z.literal('')),
   accountant_phone: z.string().optional(),
-  // Payroll Contact
-  payroll_contact_name: z.string().optional(),
-  payroll_contact_email: z.string().email().optional().or(z.literal('')),
-  payroll_contact_phone: z.string().optional(),
   // Tax & Compliance
   vat_number: z.string().optional(),
   utr: z.string().optional(),
   cis_registered: z.boolean().optional(),
   sic_code: z.string().optional(),
   hmrc_agent_authorised: z.boolean().optional(),
-  tpas_authorised: z.boolean().optional(),
-  auto_enrolment_status: z.enum(['enrolled', 'exempt', 'postponed']).optional(),
+  auto_enrolment_status: z.enum(['enrolled', 'exempt', 'currently_not_required']).optional(),
   // Company Details
   company_type: z.enum(['ltd', 'llp', 'sole_trader', 'charity', 'public_sector', 'partnership']).optional(),
   incorporation_date: z.string().optional(),
-  registered_address: z.object({
-    street: z.string().optional(),
-    city: z.string().optional(),
-    postcode: z.string().optional(),
-    country: z.string().optional()
-  }).optional(),
-  director_name: z.string().optional(),
   // Billing
   fee: z.string().optional(),
   billing_frequency: z.enum(['monthly', 'per_run', 'quarterly', 'annually']).optional(),
