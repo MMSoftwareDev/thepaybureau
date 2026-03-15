@@ -79,8 +79,8 @@ npx playwright test  # E2E tests
 - **Data fetching:** SWR for client-side caching.
 - **Cron routes:** Protected by `CRON_SECRET` bearer token.
 - **Admin routes:** Protected by `PLATFORM_ADMIN_EMAILS` env check.
-- **Clients vs Payrolls:** Separate tables — one client can have multiple payrolls. Payroll config fields (frequency, pay day, PAYE ref, pension) live on `payrolls` table, not `clients`. Payroll runs reference `payroll_id`.
-- **Client data model:** 45+ fields across identity, company details, address, 2 contact types (primary, secondary), accountant, tax/compliance (VAT, UTR, CIS, HMRC PAYE Online Auth, AE status), billing/contract (fee, billing frequency, payment method, contract type, notice period), and metadata (tags, assigned_to, referral_source, industry, etc.). Payroll Contact removed (primary contact covers this). Registered Address and TPAS deferred.
+- **Clients vs Payrolls:** Separate tables — one client can have multiple payrolls. Payroll config fields (frequency, pay day, PAYE ref) live on `payrolls` table. Pension fields (provider, staging date, re-enrolment date, declaration of compliance) live on `clients` table (moved from payrolls in Session 28). Payroll runs reference `payroll_id`.
+- **Client data model:** 50+ fields across identity, company details, address, 2 contact types (primary, secondary), accountant, tax/compliance (VAT, UTR, CIS, HMRC PAYE Online Auth, AE status), pension (provider, staging date, re-enrolment date, DoC deadline), billing/contract (fee, billing frequency, payment method, contract type, notice period), and metadata (tags, assigned_to, referral_source, industry, etc.). Payroll Contact removed (primary contact covers this). Registered Address and TPAS deferred.
 - **Domain routing:** Middleware-based hostname routing — `www.thepaybureau.com` serves marketing pages only (`/`, `/roadmap`, `/terms`, `/privacy`), all other routes 301 redirect to `app.thepaybureau.com`. Marketing routes skip auth/CSRF entirely. Domain constants centralised in `src/lib/domains.ts`.
 
 ## Security Notes (from audit 2026-03-07)
@@ -122,7 +122,7 @@ npx playwright test  # E2E tests
 - Profile image auto-resize on upload (client-side Canvas API, 256x256 square, WebP output)
 - Clients & payrolls data model separation (new `payrolls` table, one client → many payrolls)
 - Clients page redesign (dense flat table, sidebar Sheet form, sortable columns, pagination, CSV export, AlertDialog delete)
-- Payrolls config page with table + sidebar form (Details, Pay Schedule, HMRC, Pension, Checklist sections)
+- Payrolls config page with table + sidebar form (Details, Pay Schedule, HMRC, Checklist sections)
 - Payroll runs moved to `/dashboard/payrolls/runs` sub-route with `?payroll=` filter
 - `prospect` client status removed — only `active` and `inactive`
 - Full-width responsive dashboard layout (removed `max-w-6xl` constraint from `DashboardWrapper.tsx`)
@@ -144,6 +144,9 @@ npx playwright test  # E2E tests
 - Sidebar visual polish: indented child items, 36px row height, 18px icons, rounded-lg items
 - Sidebar search fix: clients page reads URL `?search=` param via `useSearchParams`
 - Sidebar section rename: "DEVELOPMENT" → "TRAINING"
+- Client KPI cards: Total Clients, Active, Inactive, Avg Fee, Monthly Revenue (clickable status filters, fee normalized by billing frequency)
+- Client page filters: Industry (all 20 UK industries), Company Type, SIC Code, HMRC PAYE Auth, Auto Enrolment, Payment Method, Contract Type, Portal Access
+- Pension fields moved from payrolls to clients: provider, staging date, re-enrolment date, declaration of compliance deadline
 
 ### In Progress / Planned (from tester feedback 2026-03-04)
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
@@ -743,3 +746,16 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Rename**: "DEVELOPMENT" section → "TRAINING"
 - **Files changed (2)**: `Sidebar.tsx`, `clients/page.tsx`
 - Branch: `claude/move-settings-to-navbar-fVc8G`
+
+### Session 28 — Client KPI Cards, Filters & Pension Migration (2026-03-15)
+- **KPI cards**: Replaced inline status pills with 5 KPI cards (`grid-cols-2 md:grid-cols-3 lg:grid-cols-5`) matching payrolls page pattern — Total Clients, Active, Inactive, Avg Fee, Monthly Revenue
+- **Fee normalization**: Added `normalizeToMonthly()` helper — converts fees based on `billing_frequency` (annually÷12, quarterly÷3, per_run/monthly as-is) for accurate KPI calculations
+- **Industry filter fixed**: Changed from dynamic (only industries in data) to static (all 20 `UK_INDUSTRIES`) so all options always appear
+- **7 new filter dropdowns** in collapsible filter bar: Company Type, SIC Code (dynamic from data), HMRC PAYE Online Auth (Yes/No), Auto Enrolment Status, Payment Method, Contract Type, Portal Access (Enabled/Disabled)
+- **Pension fields moved from payrolls → clients**:
+  - Added Pension `FormSection` to clients sidebar form (provider dropdown with 15 UK providers, staging date, re-enrolment date, declaration of compliance deadline)
+  - Removed Pension form section, state variables, and payloads from payrolls page
+  - No migration needed — pension columns already existed on `clients` table from migration 014
+  - Updated CSV export/import routes to include pension date fields
+- **Files changed (4)**: `clients/page.tsx`, `payrolls/page.tsx`, `clients/export/route.ts`, `clients/import/route.ts`
+- Branch: `claude/add-client-kpi-cards-baqWh`
