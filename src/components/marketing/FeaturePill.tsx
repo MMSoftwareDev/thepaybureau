@@ -9,7 +9,7 @@ const pillVariants = cva(
         free: 'text-[#401D6C] bg-[#F8F4FF] border-[rgba(64,29,108,0.14)]',
         unlimited: 'text-[#401D6C] bg-white border-[#401D6C] font-semibold',
         team: 'text-[#9B1234] bg-[#FEE9EE] border-[rgba(236,56,93,0.14)]',
-        business: 'text-[#9B1234] bg-white border-[#EC385D] font-semibold',
+        bureau: 'text-[#9B1234] bg-white border-[#EC385D] font-semibold',
         enterprise: 'text-[#7A3028] bg-[#FFF3F1] border-[rgba(255,128,115,0.22)]',
         vision: 'text-[#2B0F4E] bg-[#EDE8F5] border-[rgba(43,15,78,0.16)]',
       },

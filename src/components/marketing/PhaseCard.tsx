@@ -3,7 +3,7 @@ import { PhaseTag } from './PhaseTag'
 import { FeaturePill } from './FeaturePill'
 
 type Phase = 'v1' | 'v2' | 'v3' | 'fv'
-type Tier = 'free' | 'unlimited' | 'team' | 'business' | 'enterprise' | 'vision'
+type Tier = 'free' | 'unlimited' | 'team' | 'bureau' | 'enterprise' | 'vision'
 
 interface TierSection {
   label: string
