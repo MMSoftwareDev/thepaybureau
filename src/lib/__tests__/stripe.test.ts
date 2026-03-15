@@ -6,9 +6,9 @@ describe('Stripe PLANS configuration', () => {
     expect(PLANS.free.priceId).toBeNull()
   })
 
-  it('has unlimited plan at £9/month and £7/month annual', () => {
-    expect(PLANS.unlimited.price).toBe(9)
-    expect(PLANS.unlimited.annualPrice).toBe(7)
+  it('has unlimited plan at £19/month and £12/month annual', () => {
+    expect(PLANS.unlimited.price).toBe(19)
+    expect(PLANS.unlimited.annualPrice).toBe(12)
     expect(PLANS.unlimited.clients).toBe(Infinity)
   })
 

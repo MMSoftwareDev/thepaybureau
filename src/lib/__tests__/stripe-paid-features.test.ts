@@ -52,12 +52,12 @@ describe('isRoutePaidOnly', () => {
 })
 
 describe('PLANS consistency', () => {
-  it('free plan does not include AI Assistant feature', () => {
-    expect(PLANS.free.features).not.toContain('AI Assistant')
+  it('free plan does not include AI Payroll Assistant feature', () => {
+    expect(PLANS.free.features).not.toContain('AI Payroll Assistant')
   })
 
-  it('unlimited plan includes AI Assistant feature', () => {
-    expect(PLANS.unlimited.features).toContain('AI Assistant')
+  it('unlimited plan includes AI Payroll Assistant feature', () => {
+    expect(PLANS.unlimited.features).toContain('AI Payroll Assistant')
   })
 
   it('unlimited plan includes Training & CPD tracking', () => {
