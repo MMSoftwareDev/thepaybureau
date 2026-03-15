@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('clients')
-      .select('name, status, company_number, company_type, industry, domain, employee_count, sic_code, contact_name, contact_email, contact_phone, secondary_contact_name, secondary_contact_email, secondary_contact_phone, accountant_name, accountant_email, accountant_phone, address, notes, vat_number, utr, cis_registered, hmrc_agent_authorised, auto_enrolment_status, fee, billing_frequency, payment_method, contract_type, start_date, contract_end_date, notice_period_value, notice_period_unit, assigned_to, referral_source, bacs_bureau_number, tags, document_storage_url, portal_access_enabled, incorporation_date, created_at')
+      .select('name, status, company_number, company_type, industry, domain, employee_count, sic_code, contact_name, contact_email, contact_phone, secondary_contact_name, secondary_contact_email, secondary_contact_phone, accountant_name, accountant_email, accountant_phone, address, notes, vat_number, utr, cis_registered, hmrc_agent_authorised, auto_enrolment_status, pension_provider, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline, fee, billing_frequency, payment_method, contract_type, start_date, contract_end_date, notice_period_value, notice_period_unit, assigned_to, referral_source, bacs_bureau_number, tags, document_storage_url, portal_access_enabled, incorporation_date, created_at')
       .eq('tenant_id', user.tenant_id)
       .order('name', { ascending: true })
       .limit(5000)
@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
       'Street', 'City', 'Postcode',
       'VAT Number', 'UTR', 'CIS Registered', 'HMRC PAYE Online Authorisation',
       'Auto Enrolment Status',
+      'Pension Provider', 'Pension Staging Date', 'Pension Re-enrolment Date', 'Declaration of Compliance Deadline',
       'Fee', 'Billing Frequency', 'Payment Method',
       'Contract Type', 'Start Date', 'Contract End Date',
       'Notice Period Value', 'Notice Period Unit',
@@ -109,6 +110,10 @@ export async function GET(request: NextRequest) {
         client.cis_registered ? 'Yes' : 'No',
         client.hmrc_agent_authorised ? 'Yes' : 'No',
         client.auto_enrolment_status || '',
+        client.pension_provider || '',
+        client.pension_staging_date || '',
+        client.pension_reenrolment_date || '',
+        client.declaration_of_compliance_deadline || '',
         client.fee || '',
         client.billing_frequency || '',
         client.payment_method || '',

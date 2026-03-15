@@ -348,12 +348,6 @@ function getStatusConfig(status: PayrollStatus, isDark: boolean): StatusConfig {
   }
 }
 
-const PENSION_PROVIDERS = [
-  'NEST', 'NOW Pensions', 'Smart Pension', 'The People\'s Pension',
-  'Aviva', 'Royal London', 'Scottish Widows', 'Legal & General',
-  'Aegon', 'Standard Life', 'Hargreaves Lansdown', 'AJ Bell',
-  'Fidelity', 'Other', 'Exempt',
-]
 
 const DEFAULT_CHECKLIST = [
   { name: 'Receive payroll changes', sort_order: 0 },
@@ -558,10 +552,6 @@ export default function PayrollsPage() {
   const [formAccountsOfficeRef, setFormAccountsOfficeRef] = useState('')
   const [formPayrollSoftware, setFormPayrollSoftware] = useState('')
   const [formEmploymentAllowance, setFormEmploymentAllowance] = useState(false)
-  const [formPensionProvider, setFormPensionProvider] = useState('')
-  const [formPensionStagingDate, setFormPensionStagingDate] = useState('')
-  const [formPensionReenrolmentDate, setFormPensionReenrolmentDate] = useState('')
-  const [formDocDeadline, setFormDocDeadline] = useState('')
   const [formChecklist, setFormChecklist] = useState(DEFAULT_CHECKLIST)
   const [newStepName, setNewStepName] = useState('')
 
@@ -651,10 +641,6 @@ export default function PayrollsPage() {
     setFormAccountsOfficeRef('')
     setFormPayrollSoftware('')
     setFormEmploymentAllowance(false)
-    setFormPensionProvider('')
-    setFormPensionStagingDate('')
-    setFormPensionReenrolmentDate('')
-    setFormDocDeadline('')
     setFormChecklist(DEFAULT_CHECKLIST)
     setNewStepName('')
     setEditingPayroll(null)
@@ -686,10 +672,6 @@ export default function PayrollsPage() {
     setFormAccountsOfficeRef(payroll.accounts_office_ref || '')
     setFormPayrollSoftware(payroll.payroll_software || '')
     setFormEmploymentAllowance(payroll.employment_allowance || false)
-    setFormPensionProvider(payroll.pension_provider || '')
-    setFormPensionStagingDate(payroll.pension_staging_date || '')
-    setFormPensionReenrolmentDate(payroll.pension_reenrolment_date || '')
-    setFormDocDeadline(payroll.declaration_of_compliance_deadline || '')
     setSheetOpen(true)
   }, [])
 
@@ -743,10 +725,6 @@ export default function PayrollsPage() {
           accounts_office_ref: formAccountsOfficeRef.trim() || undefined,
           payroll_software: formPayrollSoftware.trim() || undefined,
           employment_allowance: formEmploymentAllowance,
-          pension_provider: formPensionProvider || undefined,
-          pension_staging_date: formPensionStagingDate || undefined,
-          pension_reenrolment_date: formPensionReenrolmentDate || undefined,
-          declaration_of_compliance_deadline: formDocDeadline || undefined,
         }
         const res = await fetch(`/api/payrolls/${editingPayroll.id}`, {
           method: 'PUT',
@@ -767,10 +745,6 @@ export default function PayrollsPage() {
           accounts_office_ref: formAccountsOfficeRef.trim() || undefined,
           payroll_software: formPayrollSoftware.trim() || undefined,
           employment_allowance: formEmploymentAllowance,
-          pension_provider: formPensionProvider || undefined,
-          pension_staging_date: formPensionStagingDate || undefined,
-          pension_reenrolment_date: formPensionReenrolmentDate || undefined,
-          declaration_of_compliance_deadline: formDocDeadline || undefined,
           checklist_items: formChecklist,
         }
         const res = await fetch('/api/payrolls', {
@@ -1620,16 +1594,6 @@ export default function PayrollsPage() {
                     <ViewRow label="Employment Allowance" value={viewingPayroll.employment_allowance ? 'Yes' : 'No'} colors={colors} />
                   </div>
                 )}
-                {/* Pension */}
-                {(viewingPayroll.pension_provider || viewingPayroll.pension_staging_date) && (
-                  <div className="px-5 py-4 space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>Pension</p>
-                    {viewingPayroll.pension_provider && <ViewRow label="Provider" value={viewingPayroll.pension_provider} colors={colors} />}
-                    {viewingPayroll.pension_staging_date && <ViewRow label="Staging Date" value={formatDateFull(viewingPayroll.pension_staging_date)} colors={colors} />}
-                    {viewingPayroll.pension_reenrolment_date && <ViewRow label="Re-enrolment Date" value={formatDateFull(viewingPayroll.pension_reenrolment_date)} colors={colors} />}
-                    {viewingPayroll.declaration_of_compliance_deadline && <ViewRow label="DoC Deadline" value={formatDateFull(viewingPayroll.declaration_of_compliance_deadline)} colors={colors} />}
-                  </div>
-                )}
               </div>
               <div className="px-5 py-4 flex gap-2" style={{ borderTop: `1px solid ${colors.border}` }}>
                 <Button
@@ -1788,53 +1752,6 @@ export default function PayrollsPage() {
                 <Label htmlFor="employment-allowance" className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
                   Employment Allowance
                 </Label>
-              </div>
-            </FormSection>
-
-            {/* Pension */}
-            <FormSection title="Pension" icon={Shield} defaultOpen={false} colors={colors}>
-              <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Pension Provider</Label>
-                <Select value={formPensionProvider} onValueChange={setFormPensionProvider}>
-                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
-                    <SelectValue placeholder="Select provider..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PENSION_PROVIDERS.map((p) => (
-                      <SelectItem key={p} value={p}>{p}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Pension Staging Date</Label>
-                <Input
-                  type="date"
-                  value={formPensionStagingDate}
-                  onChange={(e) => setFormPensionStagingDate(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
-              </div>
-              <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Re-enrolment Date</Label>
-                <Input
-                  type="date"
-                  value={formPensionReenrolmentDate}
-                  onChange={(e) => setFormPensionReenrolmentDate(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
-              </div>
-              <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Declaration of Compliance Deadline</Label>
-                <Input
-                  type="date"
-                  value={formDocDeadline}
-                  onChange={(e) => setFormDocDeadline(e.target.value)}
-                  className="mt-1 text-sm"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                />
               </div>
             </FormSection>
 
