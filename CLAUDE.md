@@ -198,6 +198,8 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - Pension data model clarified: dates on `clients` (company-level), provider on `payrolls` (per-payroll), API joins both tables
 - `/api/pensions/export` CSV export route with rate limiting
 - `usePensions()` SWR hook replacing raw `fetch()` on pensions page
+- Pricing model alignment: Unlimited updated to £19/mo (£12/mo annual), 5 tier cards (Free, Unlimited, Team, Bureau, Enterprise), Bureau & Enterprise as Coming Soon
+- Subscription page polish: Upgrade button overflow fix, roadmap disclaimer above FAQ
 
 ### In Progress / Planned
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
@@ -792,3 +794,18 @@ _Add notes from each Claude Code session below so context carries forward._
 - **No inline editing**: Replaced auto-save inline fields with sidebar Sheet pattern (consistent with clients/payrolls)
 - **Files changed (4)**: `swr.ts`, `api/pensions/route.ts`, `api/pensions/export/route.ts` (new), `pensions/page.tsx`
 - Branch: `claude/redesign-pensions-declarations-kD5QT`
+### Session 29 — Pricing Model Alignment & Subscription Page Polish (2026-03-16)
+- **Pricing model updated**: Unlimited tier changed from £9.99/mo (£7/mo annual) → £19/mo (£12/mo annual, £144/year)
+- **5 tier cards on subscription page**: Free, Unlimited, Team (Coming Soon), Bureau (Coming Soon), Enterprise (Coming Soon)
+- **Feature lists merged**: Free and Unlimited features consolidated from pricing document and existing codebase
+- **Bureau tier features**: Time Tracking, Client Onboarding, Forms, Custom Fields, Invoicing, Contracts & Engagement Letters, E-signatures
+- **Enterprise tier features**: AML / KYC Checks, Deep Analytics, Capacity Forecasting, Churn Risk Scoring, Revenue Forecasting, White Labelling
+- **Annual savings badge**: Updated from "Save 22%" → "Save 37%" ((19-12)/19 = 36.8%)
+- **Marketing pages updated**: PricingSection, FAQSection, roadmap page — all £9.99 refs → £19; "Business" tier renamed to "Bureau"
+- **Stripe setup**: User must create new prices in Stripe (old £9.99/£84 prices can't be edited — archive old, create new £19/£144), update `STRIPE_PRICE_UNLIMITED_MONTHLY` and `STRIPE_PRICE_UNLIMITED_ANNUAL` env vars
+- **Subscription page polish** (follow-up):
+  - Upgrade button: removed CreditCard icon, shortened "Upgrade to Unlimited" → "Upgrade" to fix overflow
+  - Added roadmap disclaimer above FAQ: "This is our roadmap — we expect features and plans to change as we grow and the community decides."
+- **50-client free tier limit confirmed**: Fully enforced at API level (POST `/api/clients` returns 403), CSV import pre-validates, frontend shows red alert at limit + yellow warning near limit (5 away), submit button disabled — no code changes needed
+- **Files changed**: `stripe.ts`, `PricingSection.tsx`, `subscription/page.tsx`, `FAQSection.tsx`, `roadmap/page.tsx`
+- Branch: `claude/review-pricing-model-aj7Wq`

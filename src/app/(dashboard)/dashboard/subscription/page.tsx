@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { useToast } from '@/components/ui/toast'
 import {
-  CreditCard,
   Check,
   Crown,
   Loader2,
@@ -562,11 +561,10 @@ function SubscriptionPage() {
                     }}
                   >
                     {checkoutLoading === tier.key ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <CreditCard className="w-4 h-4 mr-2" />
+                      'Upgrade'
                     )}
-                    Upgrade to {tier.name}
                   </Button>
                 ) : isDowngrade && subscription?.subscription ? (
                   <Button
@@ -590,6 +588,11 @@ function SubscriptionPage() {
           )
         })}
       </div>
+
+      {/* Disclaimer */}
+      <p className="text-xs text-center mb-3" style={{ color: colors.text.muted }}>
+        This is our roadmap — we expect features and plans to change as we grow and the community decides.
+      </p>
 
       {/* FAQ */}
       <Card className="border-0" style={cardStyle}>
