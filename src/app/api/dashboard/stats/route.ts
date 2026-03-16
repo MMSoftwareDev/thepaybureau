@@ -429,7 +429,6 @@ export async function GET() {
     }> = []
 
     const pensionFieldLabels: Record<string, string> = {
-      pension_reenrolment_date: 'Re-Enrolment Date',
       declaration_of_compliance_deadline: 'Declaration of Compliance',
     }
 
@@ -437,7 +436,7 @@ export async function GET() {
       // Skip exempt clients
       if (c.pension_provider?.toLowerCase() === 'exempt') continue
 
-      for (const field of ['pension_reenrolment_date', 'declaration_of_compliance_deadline'] as const) {
+      for (const field of ['declaration_of_compliance_deadline'] as const) {
         const dateStr = c[field]
         if (!dateStr) continue
 
@@ -487,6 +486,15 @@ export async function GET() {
       }
     }
 
+    // ── RE-ENROLMENTS THIS MONTH (informational, not compliance) ──
+    const monthEnd = startOfMonth(addDays(today, 31)) // first day of next month
+    const reenrolmentsThisMonth = allClients.filter((c) => {
+      if (c.pension_provider?.toLowerCase() === 'exempt') return false
+      if (!c.pension_reenrolment_date) return false
+      const d = startOfDay(parseDateString(c.pension_reenrolment_date))
+      return !isBefore(d, monthStart) && isBefore(d, monthEnd)
+    }).length
+
     // Re-sort action items after adding pension items
     actionRequired.sort((a, b) => {
       if (a.severity !== b.severity) return a.severity === 'red' ? -1 : 1
@@ -519,6 +527,7 @@ export async function GET() {
       recentActivity: limitedActivity,
       pensionOverdue: pensionOverdue.length,
       pensionDueSoon: pensionDueSoon.length,
+      reenrolmentsThisMonth,
     })
   } catch (error) {
     console.error('Unexpected error in GET /api/dashboard/stats:', error)
