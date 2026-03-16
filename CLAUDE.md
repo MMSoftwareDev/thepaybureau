@@ -196,6 +196,8 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - Pricing model alignment: Unlimited updated to £19/mo (£12/mo annual), 5 tier cards (Free, Unlimited, Team, Bureau, Enterprise), Bureau & Enterprise as Coming Soon
 - Subscription page polish: Upgrade button overflow fix, roadmap disclaimer above FAQ
 - Responsive design audit & fixes across 15 files (ChatWidget, tables, grids, marketing pages, auth, terms/privacy)
+- Pension staging date removed from dashboard overdue checks (informational only, not a compliance event)
+- Declaration of compliance completion cycle: "Complete Declaration" button advances deadline by 3 years, tracks `last_declaration_completed_at`
 
 ### In Progress / Planned
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
@@ -805,3 +807,17 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Verified already responsive**: Clients table (has `overflow-x-auto`), payrolls table (shadcn `<Table>`), pensions table (has `overflow-x-auto`), sidebar mobile overlay, dashboard KPI grids, form layouts
 - **Files changed (15)**: `ChatWidget.tsx`, `training/page.tsx`, `audit-log/page.tsx`, `terms/page.tsx`, `privacy/page.tsx`, `page.tsx` (landing), `roadmap/page.tsx`, `feature-requests/page.tsx`, `popover.tsx`, `Footer.tsx`, `ProductShowcase.tsx`, `PricingSection.tsx`, `ai-assistant/page.tsx`, `signup/page.tsx`, `ProblemStatement.tsx`
 - Branch: `claude/test-responsive-design-LDIhH`
+
+### Session 31 — Pension Staging Date & Declaration Completion Cycle (2026-03-16)
+- **Staging date no longer overdue on dashboard**: Removed `pension_staging_date` from the overdue/due-soon loop in dashboard stats API — it's a fixed/historical date, not a compliance event, no automated emails
+- **Declaration of compliance rolling 3-year cycle**:
+  - First deadline = staging date + 5 months (existing auto-calc, unchanged)
+  - "Complete Declaration" button appears when deadline is within 30 days or overdue
+  - On completion: deadline advances by 3 years, `last_declaration_completed_at` timestamp recorded
+  - Confirmation dialog shows next deadline date before confirming
+  - "Last completed" date shown below deadline field in sidebar
+- **New migration**: `021_declaration_completed.sql` — adds `last_declaration_completed_at` (timestamptz) to `clients` table
+- **API changes**: Pensions PUT accepts `complete_declaration: true` flag; GET/PUT/export all include `last_declaration_completed_at`
+- **CSV export**: Added "Last Declaration Completed" column
+- **Files changed (6)**: `dashboard/stats/route.ts`, `pensions/route.ts`, `pensions/export/route.ts`, `pensions/page.tsx`, `database.ts`, migration 021
+- Branch: `claude/fix-staging-date-overdue-9hPTI`
