@@ -64,9 +64,13 @@ import {
   Clock,
   Award,
   AlertTriangle,
-  BookOpen,
   ExternalLink,
-  Lightbulb,
+  CheckCircle2,
+  Circle,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
+  TrendingUp,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -92,8 +96,11 @@ type Category = 'hmrc_webinar' | 'cipp_webinar' | 'online_course' | 'conference'
 type StatusFilter = 'all' | 'not_started' | 'in_progress' | 'completed' | 'expiring'
 type SortField = 'title' | 'provider' | 'category' | 'cpd_hours' | 'status' | 'completed_date' | 'expiry_date'
 type SortDirection = 'asc' | 'desc'
+type RAGStatus = 'green' | 'amber' | 'red'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
+
+const CPD_ANNUAL_TARGET = 21 // CIPP recommended hours/year for payroll professionals
 
 const CATEGORY_LABELS: Record<string, string> = {
   hmrc_webinar: 'HMRC Webinar',
@@ -175,6 +182,84 @@ function isExpiringSoon(dateStr: string | null): boolean {
   const in90 = new Date()
   in90.setDate(in90.getDate() + 90)
   return exp >= new Date() && exp <= in90
+}
+
+// ── RAG Status Calculator ────────────────────────────────────────────────────
+
+interface RAGResult {
+  status: RAGStatus
+  label: string
+  reasons: string[]
+}
+
+function getTrainingRAGStatus(
+  records: TrainingRecord[],
+  cpdHoursThisYear: number,
+  recommendedCompletion: { completed: number; total: number },
+): RAGResult {
+  const now = new Date()
+  const monthsElapsed = now.getMonth() + 1
+  const proRatedTarget = CPD_ANNUAL_TARGET * (monthsElapsed / 12)
+
+  const expiredCerts = records.filter(r => isExpired(r.expiry_date)).length
+  const expiringSoonCerts = records.filter(r => isExpiringSoon(r.expiry_date)).length
+  const recommendedNotStarted = recommendedCompletion.total - recommendedCompletion.completed
+
+  const reasons: string[] = []
+
+  // RED conditions
+  if (expiredCerts > 0) {
+    reasons.push(`${expiredCerts} expired certification${expiredCerts > 1 ? 's' : ''}`)
+  }
+  if (cpdHoursThisYear < proRatedTarget * 0.5) {
+    const behind = (proRatedTarget - cpdHoursThisYear).toFixed(1)
+    reasons.push(`${behind} CPD hrs behind target`)
+  }
+
+  if (reasons.length > 0) {
+    return { status: 'red', label: 'Action Required', reasons }
+  }
+
+  // AMBER conditions
+  if (expiringSoonCerts > 0) {
+    reasons.push(`${expiringSoonCerts} cert${expiringSoonCerts > 1 ? 's' : ''} expiring within 90 days`)
+  }
+  if (cpdHoursThisYear < proRatedTarget * 0.75) {
+    const behind = (proRatedTarget - cpdHoursThisYear).toFixed(1)
+    reasons.push(`${behind} CPD hrs behind target`)
+  }
+  if (recommendedNotStarted > 0 && recommendedCompletion.total > 0) {
+    reasons.push(`${recommendedNotStarted} recommended training not started`)
+  }
+
+  if (reasons.length > 0) {
+    return { status: 'amber', label: 'Needs Attention', reasons }
+  }
+
+  return { status: 'green', label: 'Training Up to Date', reasons: [] }
+}
+
+function getRAGColors(status: RAGStatus, colors: ReturnType<typeof getThemeColors>, isDark: boolean) {
+  switch (status) {
+    case 'red': return {
+      bg: isDark ? 'rgba(239,68,68,0.08)' : '#FEF2F2',
+      border: isDark ? 'rgba(239,68,68,0.3)' : '#FECACA',
+      text: isDark ? '#F87171' : '#DC2626',
+      icon: ShieldX,
+    }
+    case 'amber': return {
+      bg: isDark ? 'rgba(245,158,11,0.08)' : '#FFFBEB',
+      border: isDark ? 'rgba(245,158,11,0.3)' : '#FDE68A',
+      text: isDark ? '#FBBF24' : '#D97706',
+      icon: ShieldAlert,
+    }
+    case 'green': return {
+      bg: isDark ? 'rgba(34,197,94,0.08)' : '#F0FDF4',
+      border: isDark ? 'rgba(34,197,94,0.3)' : '#BBF7D0',
+      text: colors.success,
+      icon: ShieldCheck,
+    }
+  }
 }
 
 // ── Column Definitions ────────────────────────────────────────────────────────
@@ -319,8 +404,8 @@ function TrainingPage() {
   // Delete dialog
   const [recordToDelete, setRecordToDelete] = useState<TrainingRecord | null>(null)
 
-  // Recommended training panel
-  const [showRecommended, setShowRecommended] = useState(false)
+  // Training plan expanded
+  const [showTrainingPlan, setShowTrainingPlan] = useState(true)
 
   // Form fields
   const [formTitle, setFormTitle] = useState('')
@@ -421,7 +506,6 @@ function TrainingPage() {
     setFormCategory(rec.category)
     setFormCpdHours(rec.hours.toString())
     setSheetOpen(true)
-    setShowRecommended(false)
   }, [resetForm])
 
   const openEdit = useCallback((record: TrainingRecord) => {
@@ -579,7 +663,7 @@ function TrainingPage() {
 
   const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (categoryFilter !== 'all' ? 1 : 0)
 
-  // ── KPI calculations ──────────────────────────────────────────────────────
+  // ── KPI & RAG calculations ────────────────────────────────────────────────
 
   const kpis = useMemo(() => {
     const now = new Date()
@@ -587,14 +671,42 @@ function TrainingPage() {
     const completedThisYear = allRecords.filter(r => r.status === 'completed' && r.completed_date && new Date(r.completed_date) >= yearStart)
     const hoursThisYear = completedThisYear.reduce((sum, r) => sum + (r.cpd_hours || 0), 0)
     const monthsElapsed = now.getMonth() + 1
-    const avgHoursPerMonth = monthsElapsed > 0 ? hoursThisYear / monthsElapsed : 0
+    const proRatedTarget = CPD_ANNUAL_TARGET * (monthsElapsed / 12)
     const inProgress = allRecords.filter(r => r.status === 'in_progress').length
     const completed = allRecords.filter(r => r.status === 'completed').length
     const expired = allRecords.filter(r => isExpired(r.expiry_date)).length
     const expiringSoon = allRecords.filter(r => isExpiringSoon(r.expiry_date)).length
 
-    return { total: allRecords.length, inProgress, completed, completedThisYear: completedThisYear.length, hoursThisYear, avgHoursPerMonth, expired, expiringSoon }
+    return { total: allRecords.length, inProgress, completed, completedThisYear: completedThisYear.length, hoursThisYear, proRatedTarget, expired, expiringSoon }
   }, [allRecords])
+
+  // Recommended training cross-reference
+  const recommendedStatus = useMemo(() => {
+    return RECOMMENDED_TRAINING.map(rec => {
+      const match = allRecords.find(r => r.title.toLowerCase() === rec.title.toLowerCase())
+      return {
+        ...rec,
+        record: match || null,
+        recordStatus: match?.status || 'not_started',
+        completedDate: match?.completed_date || null,
+      }
+    })
+  }, [allRecords])
+
+  const recommendedCompleted = recommendedStatus.filter(r => r.recordStatus === 'completed').length
+  const recommendedInProgress = recommendedStatus.filter(r => r.recordStatus === 'in_progress').length
+
+  const ragResult = useMemo(() => {
+    return getTrainingRAGStatus(allRecords, kpis.hoursThisYear, { completed: recommendedCompleted, total: RECOMMENDED_TRAINING.length })
+  }, [allRecords, kpis.hoursThisYear, recommendedCompleted])
+
+  const ragColors = getRAGColors(ragResult.status, colors, isDark)
+  const RAGIcon = ragColors.icon
+
+  // CPD progress
+  const cpdPercentage = Math.min(100, (kpis.hoursThisYear / CPD_ANNUAL_TARGET) * 100)
+  const cpdOnTrack = kpis.hoursThisYear >= kpis.proRatedTarget * 0.75
+  const cpdBehind = kpis.proRatedTarget - kpis.hoursThisYear
 
   // ── Skeleton ─────────────────────────────────────────────────────────────
 
@@ -605,9 +717,10 @@ function TrainingPage() {
           <div className="h-8 w-48 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
           <div className="h-9 w-36 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
         </div>
+        <div className="h-14 rounded-xl animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-20 rounded-xl animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
+            <div key={i} className="h-24 rounded-xl animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
           ))}
         </div>
         <div className="h-96 rounded-xl animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
@@ -637,44 +750,71 @@ function TrainingPage() {
         </Button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div
-          className="rounded-xl p-4 transition-all duration-150"
-          style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}
-        >
-          <div className="flex items-center gap-2 mb-1">
-            <GraduationCap className="w-4 h-4" style={{ color: colors.primary }} />
-            <p className="text-[0.7rem] font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
-              Total Records
-            </p>
-          </div>
-          <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
-            {kpis.total}
+      {/* RAG Status Banner */}
+      <div
+        className="flex items-center gap-3 px-4 py-3 rounded-xl"
+        style={{ backgroundColor: ragColors.bg, border: `1px solid ${ragColors.border}` }}
+      >
+        <RAGIcon className="w-5 h-5 flex-shrink-0" style={{ color: ragColors.text }} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold font-[family-name:var(--font-inter)]" style={{ color: ragColors.text }}>
+            {ragResult.label}
           </p>
-          <p className="text-[0.7rem] mt-0.5" style={{ color: colors.text.muted }}>
-            {kpis.inProgress} in progress
+          {ragResult.reasons.length > 0 && (
+            <p className="text-xs font-[family-name:var(--font-body)] mt-0.5" style={{ color: ragColors.text, opacity: 0.8 }}>
+              {ragResult.reasons.join(' · ')}
+            </p>
+          )}
+        </div>
+        <div className="text-right flex-shrink-0">
+          <p className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: ragColors.text }}>
+            {kpis.hoursThisYear.toFixed(1)} / {CPD_ANNUAL_TARGET} hrs
+          </p>
+          <p className="text-[0.65rem]" style={{ color: ragColors.text, opacity: 0.7 }}>
+            {recommendedCompleted} / {RECOMMENDED_TRAINING.length} courses
           </p>
         </div>
+      </div>
 
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* CPD Progress — hero card */}
         <div
           className="rounded-xl p-4 transition-all duration-150"
-          style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}
+          style={{
+            backgroundColor: colors.surface,
+            border: `1px solid ${colors.border}`,
+            borderLeft: `3px solid ${cpdOnTrack ? colors.success : cpdBehind > 5 ? 'var(--login-error)' : '#F59E0B'}`,
+          }}
         >
           <div className="flex items-center gap-2 mb-1">
-            <Clock className="w-4 h-4" style={{ color: colors.primary }} />
+            <TrendingUp className="w-4 h-4" style={{ color: colors.primary }} />
             <p className="text-[0.7rem] font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
-              CPD Hours (This Year)
+              CPD Progress
             </p>
           </div>
           <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
             {kpis.hoursThisYear.toFixed(1)}
+            <span className="text-sm font-normal ml-1" style={{ color: colors.text.muted }}>/ {CPD_ANNUAL_TARGET} hrs</span>
           </p>
-          <p className="text-[0.7rem] mt-0.5" style={{ color: colors.text.muted }}>
-            Avg {kpis.avgHoursPerMonth.toFixed(1)} hrs/month
+          {/* Progress bar */}
+          <div className="mt-2 h-2 rounded-full overflow-hidden" style={{ backgroundColor: `${colors.border}` }}>
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${cpdPercentage}%`,
+                background: cpdOnTrack
+                  ? `linear-gradient(90deg, ${colors.success}, #10B981)`
+                  : cpdBehind > 5 ? `linear-gradient(90deg, var(--login-error), #F87171)` : `linear-gradient(90deg, #F59E0B, #FBBF24)`,
+              }}
+            />
+          </div>
+          <p className="text-[0.7rem] mt-1.5" style={{ color: cpdOnTrack ? colors.success : cpdBehind > 5 ? 'var(--login-error)' : '#D97706' }}>
+            {cpdOnTrack ? 'On track' : `${cpdBehind.toFixed(1)} hrs behind`}
           </p>
         </div>
 
+        {/* Completed */}
         <div
           className="rounded-xl p-4 transition-all duration-150"
           style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}
@@ -693,90 +833,173 @@ function TrainingPage() {
           </p>
         </div>
 
+        {/* In Progress */}
         <div
           className="rounded-xl p-4 transition-all duration-150"
-          style={{ backgroundColor: colors.surface, border: `1px solid ${kpis.expired > 0 ? 'var(--login-error)' : colors.border}` }}
+          style={{
+            backgroundColor: colors.surface,
+            border: `1px solid ${colors.border}`,
+            borderLeft: recommendedStatus.some(r => r.recordStatus === 'not_started') ? '3px solid #F59E0B' : undefined,
+          }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <Clock className="w-4 h-4" style={{ color: colors.primary }} />
+            <p className="text-[0.7rem] font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
+              In Progress
+            </p>
+          </div>
+          <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+            {kpis.inProgress}
+          </p>
+          <p className="text-[0.7rem] mt-0.5" style={{ color: recommendedStatus.some(r => r.recordStatus === 'not_started') ? '#D97706' : colors.text.muted }}>
+            {RECOMMENDED_TRAINING.length - recommendedCompleted - recommendedInProgress} not started
+          </p>
+        </div>
+
+        {/* Certifications */}
+        <div
+          className="rounded-xl p-4 transition-all duration-150"
+          style={{
+            backgroundColor: colors.surface,
+            border: `1px solid ${kpis.expired > 0 ? 'var(--login-error)' : colors.border}`,
+            borderLeft: `3px solid ${kpis.expired > 0 ? 'var(--login-error)' : kpis.expiringSoon > 0 ? '#F59E0B' : colors.success}`,
+          }}
         >
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle className="w-4 h-4" style={{ color: kpis.expired > 0 ? 'var(--login-error)' : kpis.expiringSoon > 0 ? '#D97706' : colors.text.muted }} />
             <p className="text-[0.7rem] font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
-              Expiring Soon
+              Certifications
             </p>
           </div>
-          <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: kpis.expired > 0 ? 'var(--login-error)' : colors.text.primary }}>
-            {kpis.expiringSoon}
-          </p>
-          <p className="text-[0.7rem] mt-0.5" style={{ color: kpis.expired > 0 ? 'var(--login-error)' : colors.text.muted }}>
-            {kpis.expired > 0 ? `${kpis.expired} expired` : 'No expired certs'}
+          {kpis.expired > 0 ? (
+            <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: 'var(--login-error)' }}>
+              {kpis.expired} <span className="text-sm font-normal">expired</span>
+            </p>
+          ) : kpis.expiringSoon > 0 ? (
+            <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: '#D97706' }}>
+              {kpis.expiringSoon} <span className="text-sm font-normal">expiring</span>
+            </p>
+          ) : (
+            <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.success }}>
+              All clear
+            </p>
+          )}
+          <p className="text-[0.7rem] mt-0.5" style={{ color: colors.text.muted }}>
+            {kpis.expired > 0 && kpis.expiringSoon > 0 ? `${kpis.expiringSoon} expiring soon` : kpis.expired > 0 ? 'Renewal needed' : kpis.expiringSoon > 0 ? 'Within 90 days' : 'No issues'}
           </p>
         </div>
       </div>
 
-      {/* Recommended Training Banner */}
-      <button
-        onClick={() => setShowRecommended(!showRecommended)}
-        className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm text-left transition-colors"
-        style={{
-          backgroundColor: isDark ? `${colors.primary}10` : `${colors.primary}08`,
-          border: `1px solid ${colors.primary}20`,
-          color: colors.primary,
-        }}
-      >
-        <Lightbulb className="w-4 h-4 flex-shrink-0" />
-        <span className="font-medium font-[family-name:var(--font-inter)]">Recommended Training</span>
-        <span className="text-xs ml-1 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
-          — {RECOMMENDED_TRAINING.length} suggested courses for payroll professionals
-        </span>
-        <span className="ml-auto">
-          {showRecommended ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </span>
-      </button>
-
-      {showRecommended && (
-        <div
-          className="rounded-lg p-3 grid grid-cols-1 sm:grid-cols-2 gap-2"
-          style={{ backgroundColor: isDark ? `${colors.primary}08` : `${colors.primary}04`, border: `1px solid ${colors.border}` }}
+      {/* Training Plan Section */}
+      <div style={{ border: `1px solid ${colors.border}`, borderRadius: '0.75rem', overflow: 'hidden' }}>
+        <button
+          onClick={() => setShowTrainingPlan(!showTrainingPlan)}
+          className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
+          style={{ backgroundColor: isDark ? `${colors.primary}06` : `${colors.primary}04` }}
         >
-          {RECOMMENDED_TRAINING.map((rec) => {
-            const alreadyLogged = allRecords.some(r => r.title.toLowerCase() === rec.title.toLowerCase())
-            return (
-              <div
-                key={rec.title}
-                className="flex items-center gap-3 rounded-lg px-3 py-2"
-                style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}
-              >
-                <BookOpen className="w-4 h-4 flex-shrink-0" style={{ color: colors.primary }} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
-                    {rec.title}
-                  </p>
-                  <p className="text-[0.7rem]" style={{ color: colors.text.muted }}>
-                    {rec.provider} — {rec.hours} hrs
-                  </p>
+          <GraduationCap className="w-4 h-4" style={{ color: colors.primary }} />
+          <span className="text-sm font-semibold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+            Training Plan
+          </span>
+          <Badge
+            className="text-[0.65rem] px-1.5 py-0"
+            style={{
+              backgroundColor: recommendedCompleted === RECOMMENDED_TRAINING.length ? `${colors.success}20` : `${colors.primary}15`,
+              color: recommendedCompleted === RECOMMENDED_TRAINING.length ? colors.success : colors.primary,
+              border: 'none',
+            }}
+          >
+            {recommendedCompleted} / {RECOMMENDED_TRAINING.length}
+          </Badge>
+          <span className="text-[0.7rem] font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+            recommended for payroll professionals
+          </span>
+          <span className="ml-auto">
+            {showTrainingPlan ? <ChevronDown className="w-4 h-4" style={{ color: colors.text.muted }} /> : <ChevronRight className="w-4 h-4" style={{ color: colors.text.muted }} />}
+          </span>
+        </button>
+
+        {showTrainingPlan && (
+          <div className="divide-y" style={{ borderTop: `1px solid ${colors.border}`, borderColor: colors.border }}>
+            {recommendedStatus.map((rec) => {
+              const isComplete = rec.recordStatus === 'completed'
+              const isInProg = rec.recordStatus === 'in_progress'
+              const catColor = getCategoryColor(rec.category, isDark)
+
+              return (
+                <div
+                  key={rec.title}
+                  className="flex items-center gap-3 px-4 py-2.5 transition-colors"
+                  style={{ backgroundColor: isComplete ? (isDark ? 'rgba(34,197,94,0.04)' : '#FAFFF9') : colors.surface }}
+                >
+                  {/* Status icon */}
+                  {isComplete ? (
+                    <CheckCircle2 className="w-4.5 h-4.5 flex-shrink-0" style={{ color: colors.success }} />
+                  ) : isInProg ? (
+                    <div className="w-4 h-4 rounded-full flex-shrink-0 border-2" style={{ borderColor: '#F59E0B', backgroundColor: '#F59E0B40' }} />
+                  ) : (
+                    <Circle className="w-4 h-4 flex-shrink-0" style={{ color: colors.text.muted, opacity: 0.4 }} />
+                  )}
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className="text-sm font-medium font-[family-name:var(--font-inter)] truncate"
+                      style={{
+                        color: isComplete ? colors.text.muted : colors.text.primary,
+                        textDecoration: isComplete ? 'line-through' : 'none',
+                        textDecorationColor: `${colors.text.muted}40`,
+                      }}
+                    >
+                      {rec.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[0.7rem]" style={{ color: colors.text.muted }}>
+                        {rec.provider}
+                      </span>
+                      <span className="text-[0.6rem]" style={{ color: colors.text.muted }}>·</span>
+                      <Badge
+                        className="text-[0.6rem] px-1.5 py-0"
+                        style={{ backgroundColor: catColor.bg, color: catColor.text, border: `1px solid ${catColor.border}` }}
+                      >
+                        {CATEGORY_LABELS[rec.category]}
+                      </Badge>
+                      <span className="text-[0.6rem]" style={{ color: colors.text.muted }}>·</span>
+                      <span className="text-[0.7rem]" style={{ color: colors.text.muted }}>
+                        {rec.hours} hrs
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action / Status */}
+                  {isComplete ? (
+                    <span className="text-[0.7rem] flex-shrink-0" style={{ color: colors.success }}>
+                      {formatDate(rec.completedDate)}
+                    </span>
+                  ) : isInProg ? (
+                    <Badge
+                      className="text-[0.65rem] px-1.5 py-0 flex-shrink-0"
+                      style={{ backgroundColor: '#F59E0B20', color: '#D97706', border: '1px solid #F59E0B40' }}
+                    >
+                      In Progress
+                    </Badge>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7 px-2.5 flex-shrink-0"
+                      style={{ borderColor: colors.primary, color: colors.primary }}
+                      onClick={() => openAddFromRecommended(rec)}
+                    >
+                      Start
+                    </Button>
+                  )}
                 </div>
-                {alreadyLogged ? (
-                  <Badge
-                    className="text-[0.65rem] px-1.5 py-0.5 flex-shrink-0"
-                    style={{ backgroundColor: getStatusColor('completed', isDark).bg, color: getStatusColor('completed', isDark).text, border: `1px solid ${getStatusColor('completed', isDark).border}` }}
-                  >
-                    Logged
-                  </Badge>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-7 px-2 flex-shrink-0"
-                    style={{ borderColor: colors.primary, color: colors.primary }}
-                    onClick={() => openAddFromRecommended(rec)}
-                  >
-                    Log This
-                  </Button>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Toolbar: Search + Filters + Columns + Export */}
       <div className="flex flex-col gap-2">
@@ -889,7 +1112,7 @@ function TrainingPage() {
               No training records yet
             </h3>
             <p className="text-xs font-[family-name:var(--font-body)] mb-4" style={{ color: colors.text.muted }}>
-              Start tracking your professional development by adding your first training record.
+              Start by logging a course from the Training Plan above, or add your own.
             </p>
             <Button
               onClick={openAdd}
