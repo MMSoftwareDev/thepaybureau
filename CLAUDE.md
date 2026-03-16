@@ -805,3 +805,25 @@ _Add notes from each Claude Code session below so context carries forward._
   - TPR Dashboard = client must be added before declaration can be completed
 - **Files changed (6)**: migration 020 (new), `database.ts`, `validations.ts`, `pensions/route.ts`, `pensions/export/route.ts`, `pensions/page.tsx`
 - Branch: `claude/pensions-dashboard-dates-QGieb`
+### Session 30 — Responsive Design Audit & Fixes (2026-03-16)
+- **Full responsive audit**: Explored all dashboard, marketing, auth, and shared components for mobile/tablet issues (320px–1920px+)
+- **High priority fixes (6)**:
+  - ChatWidget: `w-[380px] h-[520px]` → `w-[min(380px,calc(100vw-2rem))] h-[min(520px,calc(100dvh-6rem))]` with responsive positioning
+  - Training page KPI grid: `grid-cols-3` → `grid-cols-1 sm:grid-cols-2 md:grid-cols-3`
+  - Audit log diff table: wrapped in `overflow-x-auto` with `min-w-[400px]`
+  - Terms/Privacy pages: outer padding `px-6` → `px-4 md:px-6`, `py-16` → `py-8 md:py-16`
+  - Privacy page table: wrapped in `overflow-x-auto` with `min-w-[420px]`
+  - Landing page + Roadmap: `w-screen` → `w-full` (prevents scrollbar-induced horizontal overflow)
+- **Medium priority fixes (6)**:
+  - Feature requests header: added `flex-wrap gap-3` for mobile wrapping
+  - Popover: added `max-w-[calc(100vw-2rem)]` to prevent overflow on small screens
+  - Footer grid: `grid-cols-2` → `grid-cols-1 sm:grid-cols-2 md:grid-cols-5`
+  - ProductShowcase: gap `gap-10` → `gap-6 md:gap-16`
+  - Pricing comparison grid: `grid-cols-[1fr_100px_100px]` → `grid-cols-[1fr_80px_80px] sm:[1fr_100px_100px] md:[1fr_140px_140px]`
+  - AI assistant: viewport height `calc(100vh-52px)` → `calc(100dvh-60px)` (navbar is 60px, not 52px; `dvh` for mobile browsers)
+- **Low priority fixes (2)**:
+  - Signup placeholder: shortened from `"Min 8 chars, upper + lower + number + special"` → `"8+ chars, mixed case + number + special"`
+  - ProblemStatement: `space-y-5` → `space-y-4 md:space-y-5`
+- **Verified already responsive**: Clients table (has `overflow-x-auto`), payrolls table (shadcn `<Table>`), pensions table (has `overflow-x-auto`), sidebar mobile overlay, dashboard KPI grids, form layouts
+- **Files changed (15)**: `ChatWidget.tsx`, `training/page.tsx`, `audit-log/page.tsx`, `terms/page.tsx`, `privacy/page.tsx`, `page.tsx` (landing), `roadmap/page.tsx`, `feature-requests/page.tsx`, `popover.tsx`, `Footer.tsx`, `ProductShowcase.tsx`, `PricingSection.tsx`, `ai-assistant/page.tsx`, `signup/page.tsx`, `ProblemStatement.tsx`
+- Branch: `claude/test-responsive-design-LDIhH`

@@ -158,7 +158,7 @@ export function PricingSection() {
         >
           {/* Header */}
           <div
-            className="grid grid-cols-[1fr_100px_100px] md:grid-cols-[1fr_140px_140px] px-5 py-3 border-b"
+            className="grid grid-cols-[1fr_80px_80px] sm:grid-cols-[1fr_100px_100px] md:grid-cols-[1fr_140px_140px] px-4 sm:px-5 py-3 border-b"
             style={{ borderColor: 'var(--mkt-border)', background: 'var(--mkt-bg-alt)' }}
           >
             <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--mkt-text-3)', fontFamily: 'var(--font-inter)' }}>Feature</span>
@@ -169,7 +169,7 @@ export function PricingSection() {
           {FEATURES.map((f) => (
             <div
               key={f.label}
-              className="grid grid-cols-[1fr_100px_100px] md:grid-cols-[1fr_140px_140px] px-5 py-3 border-b last:border-b-0 items-center"
+              className="grid grid-cols-[1fr_80px_80px] sm:grid-cols-[1fr_100px_100px] md:grid-cols-[1fr_140px_140px] px-4 sm:px-5 py-3 border-b last:border-b-0 items-center"
               style={{ borderColor: 'color-mix(in srgb, var(--mkt-border) 50%, transparent)' }}
             >
               <span className="text-sm" style={{ color: 'var(--mkt-text)', fontFamily: 'var(--font-inter)' }}>{f.label}</span>
