@@ -428,8 +428,19 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          {/* Support contact */}
+          <p className="mt-6 text-center font-[family-name:var(--font-body)] text-[0.82rem] text-[var(--login-text-3)]">
+            Can&apos;t remember your email?{' '}
+            <a
+              href="mailto:support@thepaybureau.com"
+              className="font-medium text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)]"
+            >
+              Contact support
+            </a>
+          </p>
+
           {/* Footer */}
-          <div className="mt-10 text-center font-[family-name:var(--font-body)] text-[0.78rem] leading-relaxed text-[var(--login-text-3)]">
+          <div className="mt-6 text-center font-[family-name:var(--font-body)] text-[0.78rem] leading-relaxed text-[var(--login-text-3)]">
             <p>
               By signing in you agree to our{' '}
               <Link href="/terms" className="text-[var(--login-text-2)] underline underline-offset-2 hover:text-[var(--login-purple)]">

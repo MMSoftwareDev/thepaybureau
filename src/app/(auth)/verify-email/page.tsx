@@ -1,22 +1,75 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Mail, ArrowLeft } from 'lucide-react'
+import { Mail, ArrowLeft, Loader2, RefreshCw } from 'lucide-react'
+import { createClientSupabaseClient } from '@/lib/supabase'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 
 const GRAIN_TEXTURE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E")`
 
 function VerifyEmailContent() {
   const [email, setEmail] = useState('your email')
+  const [hasStoredEmail, setHasStoredEmail] = useState(false)
+  const [resendEmail, setResendEmail] = useState('')
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendStatus, setResendStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [resendMessage, setResendMessage] = useState('')
+  const [cooldown, setCooldown] = useState(0)
+  const supabase = createClientSupabaseClient()
 
   useEffect(() => {
     const stored = sessionStorage.getItem('verify_email')
     if (stored) {
       setEmail(stored)
+      setResendEmail(stored)
+      setHasStoredEmail(true)
       sessionStorage.removeItem('verify_email')
     }
   }, [])
+
+  // Cooldown timer
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [cooldown])
+
+  const handleResend = useCallback(async () => {
+    const targetEmail = hasStoredEmail ? resendEmail : resendEmail.trim()
+    if (!targetEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail)) {
+      setResendStatus('error')
+      setResendMessage('Please enter a valid email address')
+      return
+    }
+
+    setResendLoading(true)
+    setResendStatus('idle')
+    setResendMessage('')
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: targetEmail,
+      })
+
+      if (error) {
+        setResendStatus('error')
+        setResendMessage(error.message)
+      } else {
+        setResendStatus('success')
+        setResendMessage('Verification email sent! Check your inbox.')
+        setCooldown(60)
+      }
+    } catch {
+      setResendStatus('error')
+      setResendMessage('An unexpected error occurred. Please try again.')
+    } finally {
+      setResendLoading(false)
+    }
+  }, [hasStoredEmail, resendEmail, supabase.auth])
 
   return (
     <div className="grid min-h-screen grid-cols-1 md:grid-cols-[44%_1fr]">
@@ -150,6 +203,56 @@ function VerifyEmailContent() {
               <li>Make sure you entered the correct email</li>
               <li>The email may take a minute to arrive</li>
             </ul>
+          </div>
+
+          {/* Resend verification email */}
+          <div className="mt-6">
+            {!hasStoredEmail && (
+              <div className="mb-3">
+                <Input
+                  type="email"
+                  value={resendEmail}
+                  onChange={(e) => {
+                    setResendEmail(e.target.value)
+                    if (resendStatus === 'error') {
+                      setResendStatus('idle')
+                      setResendMessage('')
+                    }
+                  }}
+                  placeholder="Enter your email address"
+                  className={cn(
+                    'h-10 rounded-lg border-2 border-transparent bg-[var(--login-cream)] px-3 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                    'transition-all duration-200',
+                    'hover:border-[var(--login-border)]',
+                    'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]'
+                  )}
+                />
+              </div>
+            )}
+            <button
+              onClick={handleResend}
+              disabled={resendLoading || cooldown > 0}
+              className="inline-flex items-center gap-2 font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)] disabled:opacity-50 disabled:hover:text-[var(--login-purple)]"
+            >
+              {resendLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {cooldown > 0
+                ? `Resend in ${cooldown}s`
+                : 'Resend verification email'}
+            </button>
+            {resendStatus === 'success' && (
+              <p className="mt-2 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-success)]">
+                {resendMessage}
+              </p>
+            )}
+            {resendStatus === 'error' && (
+              <p className="mt-2 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+                {resendMessage}
+              </p>
+            )}
           </div>
 
           <Link

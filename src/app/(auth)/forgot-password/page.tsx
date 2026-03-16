@@ -296,6 +296,17 @@ export default function ForgotPasswordPage() {
                   )}
                 </span>
               </Button>
+
+              {/* Support contact */}
+              <p className="mt-6 text-center font-[family-name:var(--font-body)] text-[0.82rem] text-[var(--login-text-3)]">
+                Can&apos;t remember your email?{' '}
+                <a
+                  href="mailto:support@thepaybureau.com"
+                  className="font-medium text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)]"
+                >
+                  Contact support
+                </a>
+              </p>
             </>
           )}
         </div>
