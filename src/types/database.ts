@@ -111,6 +111,7 @@ export interface Database {
           pension_staging_date: string | null
           pension_reenrolment_date: string | null
           declaration_of_compliance_deadline: string | null
+          last_declaration_completed_at: string | null
           payroll_software: string | null
           period_start: string | null
           period_end: string | null
@@ -185,6 +186,7 @@ export interface Database {
           pension_staging_date?: string | null
           pension_reenrolment_date?: string | null
           declaration_of_compliance_deadline?: string | null
+          last_declaration_completed_at?: string | null
           payroll_software?: string | null
           period_start?: string | null
           period_end?: string | null
@@ -253,6 +255,7 @@ export interface Database {
           pension_staging_date?: string | null
           pension_reenrolment_date?: string | null
           declaration_of_compliance_deadline?: string | null
+          last_declaration_completed_at?: string | null
           payroll_software?: string | null
           period_start?: string | null
           period_end?: string | null

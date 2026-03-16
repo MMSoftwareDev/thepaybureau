@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     const { data: clients, error: clientsError } = await supabase
       .from('clients')
-      .select('id, name, status, auto_enrolment_status, tpr_dashboard_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
+      .select('id, name, status, auto_enrolment_status, tpr_dashboard_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline, last_declaration_completed_at')
       .eq('tenant_id', user.tenant_id)
       .order('name', { ascending: true })
       .limit(5000)
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
 
     const headers = [
       'Client Name', 'Client Status', 'Auto Enrolment Status', 'TPR Dashboard',
-      'Pension Provider(s)', 'Staging Date', 'Re-enrolment Date', 'Declaration Deadline', 'Overall Status',
+      'Pension Provider(s)', 'Staging Date', 'Re-enrolment Date', 'Declaration Deadline', 'Last Declaration Completed', 'Overall Status',
     ]
 
     const rows = (clients || []).map(client => {
@@ -119,6 +119,7 @@ export async function GET(request: NextRequest) {
         client.pension_staging_date || '',
         client.pension_reenrolment_date || '',
         client.declaration_of_compliance_deadline || '',
+        client.last_declaration_completed_at ? new Date(client.last_declaration_completed_at).toISOString().split('T')[0] : '',
         getOverallStatus(client),
       ].map(v => escapeCsv(String(v))).join(',')
     })
