@@ -206,6 +206,8 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - Admin user management page (`/dashboard/admin/users`) with inline title editing, search, user table
 - Feature request cards show author avatar, title badge, and comment count toggle
 - AlertDialog component (`src/components/ui/alert-dialog.tsx`), feature request delete migrated from `window.confirm()`
+- Password recovery: Resend verification email on verify-email page (Supabase `auth.resend()`, 60s cooldown, email input fallback)
+- Password recovery: "Can't remember your email? Contact support" help text on login and forgot-password pages
 
 ### In Progress / Planned
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
@@ -854,3 +856,12 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Files created (6)**: migration 022, comments API (2 routes), admin users API (2 routes), admin users page, `alert-dialog.tsx`
 - **Files modified (7)**: `database.ts`, `feature-requests/route.ts`, `feature-requests/page.tsx`, `dashboard/stats/route.ts`, `dashboard/page.tsx`, `Sidebar.tsx`, `package.json`
 - Branch: `claude/fix-reenrolment-compliance-3uKqE`
+
+### Session 33 — Password Recovery Improvements (2026-03-16)
+- **Audit**: Reviewed full auth flow — forgot-password, reset-password, verify-email, change-password (settings) all already existed and were functional
+- **Gap identified**: No way to resend signup verification email; no guidance for users who forgot which email they used
+- **Resend verification email**: Added to `verify-email/page.tsx` — uses `supabase.auth.resend({ type: 'signup', email })` with 60s cooldown timer; when user navigates directly (no `sessionStorage` email), shows an email input field as fallback
+- **Support contact help text**: Added "Can't remember your email? Contact support" with `mailto:support@thepaybureau.com` link to both `login/page.tsx` and `forgot-password/page.tsx`
+- **Not implemented (deferred)**: OAuth/SSO (Google/Microsoft), session management UI, 2FA — already listed as planned/coming soon
+- **Files modified (3)**: `verify-email/page.tsx`, `forgot-password/page.tsx`, `login/page.tsx`
+- Branch: `claude/add-password-recovery-RezDS`
