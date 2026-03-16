@@ -149,6 +149,21 @@ function generateCPDReport(
 
   y = 50
 
+  // ── Constants ──
+  const CPD_ANNUAL_TARGET = 21 // CIPP recommended
+
+  // Recommended training titles for plan completion tracking
+  const RECOMMENDED_TITLES = [
+    'CIPP Payroll Technician Certificate',
+    'HMRC Basic PAYE Tools Training',
+    'Auto Enrolment Essentials',
+    'Payroll Year-End Procedures',
+    'RTI Compliance Update',
+    'National Minimum Wage Update',
+    'Statutory Payments (SSP/SMP/SPP)',
+    'GDPR for Payroll Professionals',
+  ]
+
   // ── Summary stats ──
   const completedRecords = records.filter(r => r.status === 'completed')
   const inProgressRecords = records.filter(r => r.status === 'in_progress')
@@ -158,6 +173,7 @@ function generateCPDReport(
   })
   const totalHoursThisYear = thisYear.reduce((sum, r) => sum + (r.cpd_hours || 0), 0)
   const totalHoursAllTime = records.reduce((sum, r) => sum + (r.cpd_hours || 0), 0)
+  const cpdPercentage = Math.min(100, Math.round((totalHoursThisYear / CPD_ANNUAL_TARGET) * 100))
 
   const expiredCount = records.filter(r => {
     if (!r.expiry_date) return false
@@ -172,6 +188,45 @@ function generateCPDReport(
     return exp >= today && exp <= in90
   }).length
 
+  // Recommended training completion
+  const recommendedCompleted = RECOMMENDED_TITLES.filter(title =>
+    records.some(r => r.title.toLowerCase() === title.toLowerCase() && r.status === 'completed')
+  ).length
+
+  // RAG status
+  const monthsElapsed = today.getMonth() + 1
+  const proRatedTarget = CPD_ANNUAL_TARGET * (monthsElapsed / 12)
+  let ragStatus: 'green' | 'amber' | 'red' = 'green'
+  let ragLabel = 'Training Up to Date'
+  if (expiredCount > 0 || totalHoursThisYear < proRatedTarget * 0.5) {
+    ragStatus = 'red'
+    ragLabel = 'Action Required'
+  } else if (expiringSoonCount > 0 || totalHoursThisYear < proRatedTarget * 0.75) {
+    ragStatus = 'amber'
+    ragLabel = 'Needs Attention'
+  }
+
+  // RAG status banner
+  const ragColors = ragStatus === 'red'
+    ? { r: 220, g: 38, b: 38 }    // red
+    : ragStatus === 'amber'
+    ? { r: 217, g: 119, b: 6 }     // amber
+    : { r: 22, g: 163, b: 74 }     // green
+
+  doc.setFillColor(ragColors.r, ragColors.g, ragColors.b)
+  doc.roundedRect(margin, y, contentWidth, 10, 2, 2, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.text(ragLabel, margin + 4, y + 6.5)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.text(
+    `${totalHoursThisYear.toFixed(1)} / ${CPD_ANNUAL_TARGET} CPD hrs (${cpdPercentage}%)  ·  ${recommendedCompleted} / ${RECOMMENDED_TITLES.length} courses`,
+    pageWidth - margin - 4, y + 6.5, { align: 'right' }
+  )
+  y += 15
+
   // Summary box
   doc.setFillColor(lightBg.r, lightBg.g, lightBg.b)
   doc.roundedRect(margin, y, contentWidth, 28, 3, 3, 'F')
@@ -180,7 +235,7 @@ function generateCPDReport(
   const stats = [
     { label: 'Total Records', value: String(records.length) },
     { label: 'Completed', value: String(completedRecords.length) },
-    { label: 'CPD Hours (Year)', value: totalHoursThisYear.toFixed(1) },
+    { label: 'CPD Hours (Year)', value: `${totalHoursThisYear.toFixed(1)} / ${CPD_ANNUAL_TARGET}` },
     { label: 'CPD Hours (All)', value: totalHoursAllTime.toFixed(1) },
   ]
 
