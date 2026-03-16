@@ -17,6 +17,7 @@ export interface Database {
           email: string
           name: string
           role: string | null
+          title: string | null
           avatar_url: string | null
           is_active: boolean | null
           created_at: string | null
@@ -28,6 +29,7 @@ export interface Database {
           email: string
           name: string
           role?: string | null
+          title?: string | null
           avatar_url?: string | null
           is_active?: boolean | null
           created_at?: string | null
@@ -39,6 +41,7 @@ export interface Database {
           email?: string
           name?: string
           role?: string | null
+          title?: string | null
           avatar_url?: string | null
           is_active?: boolean | null
           created_at?: string | null
@@ -618,6 +621,41 @@ export interface Database {
           feature_request_id?: string
           user_id?: string
           created_at?: string
+        }
+      }
+      feature_request_comments: {
+        Row: {
+          id: string
+          feature_request_id: string
+          parent_comment_id: string | null
+          user_id: string
+          user_email: string
+          user_name: string | null
+          content: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          feature_request_id: string
+          parent_comment_id?: string | null
+          user_id: string
+          user_email: string
+          user_name?: string | null
+          content: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          feature_request_id?: string
+          parent_comment_id?: string | null
+          user_id?: string
+          user_email?: string
+          user_name?: string | null
+          content?: string
+          created_at?: string
+          updated_at?: string
         }
       }
       email_logs: {

@@ -60,10 +60,38 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Fetch comment counts per request
+  const { data: commentCounts } = await supabase
+    .from('feature_request_comments')
+    .select('feature_request_id')
+    .in('feature_request_id', requestIds)
+
+  const commentCountMap: Record<string, number> = {}
+  for (const c of commentCounts || []) {
+    commentCountMap[c.feature_request_id] = (commentCountMap[c.feature_request_id] || 0) + 1
+  }
+
+  // Fetch user titles and avatars for request authors
+  const authorIds = [...new Set(requests.map(r => r.created_by_user_id).filter(Boolean))] as string[]
+  const userInfoMap: Record<string, { title: string | null; avatar_url: string | null }> = {}
+  if (authorIds.length > 0) {
+    const { data: authorUsers } = await supabase
+      .from('users')
+      .select('id, title, avatar_url')
+      .in('id', authorIds)
+
+    for (const u of authorUsers || []) {
+      userInfoMap[u.id] = { title: u.title, avatar_url: u.avatar_url }
+    }
+  }
+
   const enriched = requests.map(r => ({
     ...r,
     vote_count: voteCountMap[r.id] || 0,
     user_has_voted: !!userVoteMap[r.id],
+    comment_count: commentCountMap[r.id] || 0,
+    created_by_title: r.created_by_user_id ? userInfoMap[r.created_by_user_id]?.title || null : null,
+    created_by_avatar_url: r.created_by_user_id ? userInfoMap[r.created_by_user_id]?.avatar_url || null : null,
   }))
 
   // Sort by votes if requested (after enrichment)

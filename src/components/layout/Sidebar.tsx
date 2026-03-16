@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import {
   LayoutDashboard,
   Users,
-
+  UsersRound,
   ClipboardCheck,
   Shield,
   Search,
@@ -82,6 +82,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'ADMIN',
     items: [
       { name: 'Audit Log', href: '/dashboard/audit-log', icon: ScrollText },
+      // User Management added dynamically for platform admins (see navSections below)
     ],
   },
   {
@@ -95,6 +96,21 @@ const NAV_SECTIONS: NavSection[] = [
 export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const { isAdmin, plan } = useAuth()
   const isFreePlan = plan === 'free' || plan === 'trial'
+
+  // Dynamically add admin-only nav items
+  const navSections: NavSection[] = NAV_SECTIONS.map(section => {
+    if (section.label === 'ADMIN' && isAdmin) {
+      return {
+        ...section,
+        items: [
+          ...section.items,
+          { name: 'User Management', href: '/dashboard/admin/users', icon: UsersRound },
+        ],
+      }
+    }
+    return section
+  })
+
   const router = useRouter()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
@@ -269,7 +285,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 pt-3 scrollbar-thin">
-        {NAV_SECTIONS.map((section) => {
+        {navSections.map((section) => {
           const isExpanded = expandedSections.has(section.label)
           return (
           <div key={section.label} className="mb-3">
