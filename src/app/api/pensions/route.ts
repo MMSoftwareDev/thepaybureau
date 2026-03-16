@@ -3,6 +3,7 @@ import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { writeAuditLog, diffChanges } from '@/lib/audit'
+import { addYears, format } from 'date-fns'
 
 export async function GET() {
   try {
@@ -26,7 +27,7 @@ export async function GET() {
     // Fetch clients with company-level pension fields
     const { data: clients, error: clientsError } = await supabase
       .from('clients')
-      .select('id, name, status, auto_enrolment_status, tpr_dashboard_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
+      .select('id, name, status, auto_enrolment_status, tpr_dashboard_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline, last_declaration_completed_at')
       .eq('tenant_id', user.tenant_id)
       .order('name', { ascending: true })
 
@@ -73,6 +74,7 @@ const updateSchema = z.object({
   pension_staging_date: z.string().optional().nullable(),
   pension_reenrolment_date: z.string().optional().nullable(),
   declaration_of_compliance_deadline: z.string().optional().nullable(),
+  complete_declaration: z.boolean().optional(),
 })
 
 export async function PUT(request: NextRequest) {
@@ -95,12 +97,12 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { client_id, ...updates } = updateSchema.parse(body)
+    const { client_id, complete_declaration, ...updates } = updateSchema.parse(body)
 
     // Fetch existing client for audit diff
     const { data: existingClient, error: clientError } = await supabase
       .from('clients')
-      .select('id, name, auto_enrolment_status, tpr_dashboard_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
+      .select('id, name, auto_enrolment_status, tpr_dashboard_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline, last_declaration_completed_at')
       .eq('id', client_id)
       .eq('tenant_id', user.tenant_id)
       .single()
@@ -109,12 +111,23 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
+    // Handle declaration completion: advance deadline by 3 years
+    if (complete_declaration) {
+      const currentDeadline = existingClient.declaration_of_compliance_deadline
+      if (!currentDeadline) {
+        return NextResponse.json({ error: 'No declaration deadline set to complete' }, { status: 400 })
+      }
+      const newDeadline = addYears(new Date(currentDeadline), 3)
+      updates.declaration_of_compliance_deadline = format(newDeadline, 'yyyy-MM-dd')
+      ;(updates as Record<string, unknown>).last_declaration_completed_at = new Date().toISOString()
+    }
+
     const { data: updated, error: updateError } = await supabase
       .from('clients')
       .update(updates)
       .eq('id', client_id)
       .eq('tenant_id', user.tenant_id)
-      .select('id, name, status, auto_enrolment_status, tpr_dashboard_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
+      .select('id, name, status, auto_enrolment_status, tpr_dashboard_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline, last_declaration_completed_at')
       .single()
 
     if (updateError) {

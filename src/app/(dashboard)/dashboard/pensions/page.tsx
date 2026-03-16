@@ -49,6 +49,7 @@ import {
   ExternalLink,
   HelpCircle,
   ClipboardCheck,
+  CheckCircle2,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
@@ -72,6 +73,7 @@ interface PensionClient {
   pension_staging_date: string | null
   pension_reenrolment_date: string | null
   declaration_of_compliance_deadline: string | null
+  last_declaration_completed_at: string | null
   pension_providers: PensionPayroll[]
 }
 
@@ -350,6 +352,10 @@ export default function PensionDeclarationsPage() {
   // Track whether dates were auto-calculated (so we can show helper text)
   const [datesAutoCalculated, setDatesAutoCalculated] = useState(false)
 
+  // Declaration completion
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false)
+  const [completing, setCompleting] = useState(false)
+
   // Export
   const [exporting, setExporting] = useState(false)
 
@@ -454,6 +460,35 @@ export default function PensionDeclarationsPage() {
       toast((err as Error).message, 'error')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleCompleteDeclaration = async () => {
+    if (!editingClient) return
+    setCompleting(true)
+    try {
+      const res = await fetch('/api/pensions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: editingClient.id, complete_declaration: true }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to complete declaration')
+      }
+      const updated = await res.json()
+      const newDeadline = updated.declaration_of_compliance_deadline
+        ? format(new Date(updated.declaration_of_compliance_deadline), 'dd MMM yyyy')
+        : 'unknown'
+      toast(`Declaration completed. Next deadline: ${newDeadline}`)
+      mutate('/api/pensions')
+      setCompleteDialogOpen(false)
+      setSheetOpen(false)
+      resetForm()
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    } finally {
+      setCompleting(false)
     }
   }
 
@@ -968,6 +1003,41 @@ export default function PensionDeclarationsPage() {
       )}
 
       {/* Column Customizer Dialog */}
+      {/* Complete Declaration Confirmation Dialog */}
+      <Dialog open={completeDialogOpen} onOpenChange={setCompleteDialogOpen}>
+        <DialogContent style={{ backgroundColor: colors.surface, borderColor: colors.border }} className="max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+              Complete Declaration
+            </DialogTitle>
+            <DialogDescription className="font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+              {editingClient?.declaration_of_compliance_deadline
+                ? `The next declaration deadline will be ${format(addYears(new Date(editingClient.declaration_of_compliance_deadline), 3), 'dd MMM yyyy')}. This cannot be undone.`
+                : 'Mark this declaration as completed.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCompleteDialogOpen(false)}
+              style={{ borderColor: colors.border, color: colors.text.secondary }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleCompleteDeclaration}
+              disabled={completing}
+              style={{ backgroundColor: colors.success, color: '#fff' }}
+            >
+              {completing && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />}
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={columnsDialogOpen} onOpenChange={setColumnsDialogOpen}>
         <DialogContent style={{ backgroundColor: colors.surface, borderColor: colors.border }} className="max-w-[400px]">
           <DialogHeader>
@@ -1166,6 +1236,32 @@ export default function PensionDeclarationsPage() {
                 <p className="text-[0.7rem] mt-0.5 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
                   Must be completed or receive a &pound;400 penalty.
                 </p>
+                {editingClient?.last_declaration_completed_at && (
+                  <p className="text-[0.7rem] mt-1 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+                    Last completed: {format(new Date(editingClient.last_declaration_completed_at), 'dd MMM yyyy')}
+                  </p>
+                )}
+                {editingClient?.declaration_of_compliance_deadline && (() => {
+                  const deadline = startOfDay(new Date(editingClient.declaration_of_compliance_deadline))
+                  const today = startOfDay(new Date())
+                  const daysUntil = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                  // Show button when deadline is past or within 30 days
+                  if (daysUntil <= 30) {
+                    return (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="mt-2 gap-1.5 text-xs"
+                        style={{ backgroundColor: colors.success, color: '#fff' }}
+                        onClick={() => setCompleteDialogOpen(true)}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Complete Declaration
+                      </Button>
+                    )
+                  }
+                  return null
+                })()}
               </div>
             </FormSection>
 

@@ -429,7 +429,6 @@ export async function GET() {
     }> = []
 
     const pensionFieldLabels: Record<string, string> = {
-      pension_staging_date: 'Staging Date',
       pension_reenrolment_date: 'Re-Enrolment Date',
       declaration_of_compliance_deadline: 'Declaration of Compliance',
     }
@@ -438,7 +437,7 @@ export async function GET() {
       // Skip exempt clients
       if (c.pension_provider?.toLowerCase() === 'exempt') continue
 
-      for (const field of ['pension_staging_date', 'pension_reenrolment_date', 'declaration_of_compliance_deadline'] as const) {
+      for (const field of ['pension_reenrolment_date', 'declaration_of_compliance_deadline'] as const) {
         const dateStr = c[field]
         if (!dateStr) continue
 
