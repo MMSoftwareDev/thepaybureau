@@ -79,7 +79,8 @@ npx playwright test  # E2E tests
 - **Data fetching:** SWR for client-side caching.
 - **Cron routes:** Protected by `CRON_SECRET` bearer token.
 - **Admin routes:** Protected by `PLATFORM_ADMIN_EMAILS` env check.
-- **Clients vs Payrolls:** Separate tables — one client can have multiple payrolls. Payroll config fields (frequency, pay day, PAYE ref, pension) live on `payrolls` table, not `clients`. Payroll runs reference `payroll_id`.
+- **Clients vs Payrolls:** Separate tables — one client can have multiple payrolls. Payroll config fields (frequency, pay day, PAYE ref) live on `payrolls` table, not `clients`. Payroll runs reference `payroll_id`.
+- **Pension data model:** Pension dates (staging, re-enrolment, declaration of compliance) are company-level and live on `clients` table. Pension provider is per-payroll and lives on `payrolls` table. The `/api/pensions` GET endpoint joins both tables. A client can have multiple pension providers (one per payroll).
 - **Client data model:** 45+ fields across identity, company details, address, 2 contact types (primary, secondary), accountant, tax/compliance (VAT, UTR, CIS, HMRC PAYE Online Auth, AE status), billing/contract (fee, billing frequency, payment method, contract type, notice period), and metadata (tags, assigned_to, referral_source, industry, etc.). Payroll Contact removed (primary contact covers this). Registered Address and TPAS deferred.
 - **Domain routing:** Middleware-based hostname routing — `www.thepaybureau.com` serves marketing pages only (`/`, `/roadmap`, `/terms`, `/privacy`), all other routes 301 redirect to `app.thepaybureau.com`. Marketing routes skip auth/CSRF entirely. Domain constants centralised in `src/lib/domains.ts`.
 
@@ -193,6 +194,10 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - Sidebar search fix: clients page reads URL `?search=` param via `useSearchParams`
 - Sidebar section rename: "DEVELOPMENT" → "TRAINING"
 - Clients page aligned to payrolls page design (consistent header, toolbar, filters, pagination, empty state, default columns)
+- Pensions page redesigned to match clients/payrolls canonical pattern (KPIs, toolbar, sortable table, sidebar Sheet, column customization, CSV export)
+- Pension data model clarified: dates on `clients` (company-level), provider on `payrolls` (per-payroll), API joins both tables
+- `/api/pensions/export` CSV export route with rate limiting
+- `usePensions()` SWR hook replacing raw `fetch()` on pensions page
 - Pricing model alignment: Unlimited updated to £19/mo (£12/mo annual), 5 tier cards (Free, Unlimited, Team, Bureau, Enterprise), Bureau & Enterprise as Coming Soon
 - Subscription page polish: Upgrade button overflow fix, roadmap disclaimer above FAQ
 
@@ -455,6 +460,9 @@ Every new page or component **must** satisfy all of these before it's considered
 | Jest config | `jest.config.js` |
 | Vector search migration | `supabase/migrations/019_fix_vector_search.sql` |
 | Domain constants | `src/lib/domains.ts` (`APP_DOMAIN`, `MARKETING_DOMAIN`, `MARKETING_ROUTES`) |
+| Pensions page | `src/app/(dashboard)/dashboard/pensions/page.tsx` |
+| Pensions API | `src/app/api/pensions/route.ts` |
+| Pensions CSV export API | `src/app/api/pensions/export/route.ts` |
 
 ## Session Log
 
@@ -766,6 +774,26 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Files changed (1)**: `clients/page.tsx`
 - Branch: `claude/align-dashboard-pages-LkdkS`
 
+### Session 29 — Pensions Page Redesign & Data Model (2026-03-16)
+- **Goal**: Redesign pensions page to match clients/payrolls canonical pattern; clarify pension data model
+- **Data model decision**: Pension dates (staging, re-enrolment, declaration of compliance) are company-level → stay on `clients` table. Pension provider is per-payroll → stays on `payrolls` table. No migration needed — fields already exist on both tables
+- **API rewrite** (`/api/pensions`): GET now joins `clients` (dates + AE status) + `payrolls` (providers), returns combined data. PUT updated to handle `auto_enrolment_status`, removed `pension_provider` (managed on payrolls page)
+- **New route**: `/api/pensions/export` — CSV export with rate limiting (5 req/15 min), exports client name, status, AE status, providers, dates, overall status
+- **SWR hook**: Added `usePensions()` to `src/lib/swr.ts`, replacing raw `fetch()` + `useState` + `useEffect`
+- **Page rewrite** (`pensions/page.tsx`): Complete rewrite from 582-line inline-editable table to canonical pattern:
+  - 5 KPI cards: Total Clients (non-exempt), Exempt, Overdue, Due Soon, Missing Info — all clickable as filters
+  - Toolbar: Search (by client name or provider) → Filters → Columns → Export
+  - Expandable filter: Auto Enrolment Status (All / Exempt / Currently Not Required / Enrolled)
+  - Sortable table with 7 columns + pinned Client Name, pagination (25/page)
+  - Column customization with localStorage persistence
+  - Sidebar Sheet form: AE Status dropdown, 3 date inputs with status dots, read-only provider list with "Manage on Payrolls page" link
+  - Status badges: Overdue (red), Due Soon (amber), OK (green), Exempt/Missing (gray)
+  - Exempt clients shown with reduced opacity
+  - Legend bar for status dot colors
+- **Provider display**: User chose "Primary provider + count badge" format — e.g. "NEST (+1 more)"
+- **No inline editing**: Replaced auto-save inline fields with sidebar Sheet pattern (consistent with clients/payrolls)
+- **Files changed (4)**: `swr.ts`, `api/pensions/route.ts`, `api/pensions/export/route.ts` (new), `pensions/page.tsx`
+- Branch: `claude/redesign-pensions-declarations-kD5QT`
 ### Session 29 — Pricing Model Alignment & Subscription Page Polish (2026-03-16)
 - **Pricing model updated**: Unlimited tier changed from £9.99/mo (£7/mo annual) → £19/mo (£12/mo annual, £144/year)
 - **5 tier cards on subscription page**: Free, Unlimited, Team (Coming Soon), Bureau (Coming Soon), Enterprise (Coming Soon)
