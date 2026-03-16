@@ -32,6 +32,10 @@ export function useDashboardStats() {
   return useSWR('/api/dashboard/stats', fetcher, defaultConfig)
 }
 
+export function usePensions() {
+  return useSWR('/api/pensions', fetcher, defaultConfig)
+}
+
 export function useTrainingRecords() {
   return useSWR('/api/training', fetcher, defaultConfig)
 }

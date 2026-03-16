@@ -23,18 +23,43 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const { data: clients, error } = await supabase
+    // Fetch clients with company-level pension fields
+    const { data: clients, error: clientsError } = await supabase
       .from('clients')
-      .select('id, name, status, pension_provider, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
+      .select('id, name, status, auto_enrolment_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
       .eq('tenant_id', user.tenant_id)
       .order('name', { ascending: true })
 
-    if (error) {
-      console.error('Database error in GET /api/pensions:', error)
+    if (clientsError) {
+      console.error('Database error in GET /api/pensions (clients):', clientsError)
       return NextResponse.json({ error: 'Failed to fetch pension data' }, { status: 400 })
     }
 
-    return NextResponse.json(clients || [])
+    // Fetch payrolls with per-payroll pension provider
+    const { data: payrolls, error: payrollsError } = await supabase
+      .from('payrolls')
+      .select('id, client_id, name, pension_provider')
+      .eq('tenant_id', user.tenant_id)
+
+    if (payrollsError) {
+      console.error('Database error in GET /api/pensions (payrolls):', payrollsError)
+      return NextResponse.json({ error: 'Failed to fetch payroll data' }, { status: 400 })
+    }
+
+    // Join: attach pension providers from payrolls to each client
+    const payrollsByClient = new Map<string, Array<{ payroll_id: string; payroll_name: string; pension_provider: string | null }>>()
+    for (const p of payrolls || []) {
+      const list = payrollsByClient.get(p.client_id) || []
+      list.push({ payroll_id: p.id, payroll_name: p.name, pension_provider: p.pension_provider })
+      payrollsByClient.set(p.client_id, list)
+    }
+
+    const result = (clients || []).map(client => ({
+      ...client,
+      pension_providers: payrollsByClient.get(client.id) || [],
+    }))
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Unexpected error in GET /api/pensions:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -43,7 +68,7 @@ export async function GET() {
 
 const updateSchema = z.object({
   client_id: z.string().uuid(),
-  pension_provider: z.string().optional(),
+  auto_enrolment_status: z.enum(['enrolled', 'exempt', 'currently_not_required']).optional().nullable(),
   pension_staging_date: z.string().optional().nullable(),
   pension_reenrolment_date: z.string().optional().nullable(),
   declaration_of_compliance_deadline: z.string().optional().nullable(),
@@ -74,7 +99,7 @@ export async function PUT(request: NextRequest) {
     // Fetch existing client for audit diff
     const { data: existingClient, error: clientError } = await supabase
       .from('clients')
-      .select('id, name, pension_provider, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
+      .select('id, name, auto_enrolment_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
       .eq('id', client_id)
       .eq('tenant_id', user.tenant_id)
       .single()
@@ -88,7 +113,7 @@ export async function PUT(request: NextRequest) {
       .update(updates)
       .eq('id', client_id)
       .eq('tenant_id', user.tenant_id)
-      .select('id, name, status, pension_provider, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
+      .select('id, name, status, auto_enrolment_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
       .single()
 
     if (updateError) {
