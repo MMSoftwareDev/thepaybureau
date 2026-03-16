@@ -113,6 +113,7 @@ export const createClientSchema = z.object({
   sic_code: z.string().optional(),
   hmrc_agent_authorised: z.boolean().optional(),
   auto_enrolment_status: z.enum(['enrolled', 'exempt', 'currently_not_required']).optional(),
+  tpr_dashboard_status: z.enum(['not_added', 'waiting', 'added']).optional(),
   // Company Details
   company_type: z.enum(['ltd', 'llp', 'sole_trader', 'charity', 'public_sector', 'partnership']).optional(),
   incorporation_date: z.string().optional(),

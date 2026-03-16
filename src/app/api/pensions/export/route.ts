@@ -21,16 +21,17 @@ function getDateStatus(dateStr: string | null): string {
   return 'OK'
 }
 
-function getOverallStatus(client: { pension_staging_date: string | null; pension_reenrolment_date: string | null; declaration_of_compliance_deadline: string | null }): string {
-  const statuses = [
-    getDateStatus(client.pension_staging_date),
-    getDateStatus(client.pension_reenrolment_date),
-    getDateStatus(client.declaration_of_compliance_deadline),
-  ]
-  if (statuses.includes('Overdue')) return 'Overdue'
-  if (statuses.includes('Due soon')) return 'Due soon'
-  if (statuses.includes('Not set')) return 'Missing info'
-  return 'OK'
+function getOverallStatus(client: { pension_staging_date: string | null; pension_reenrolment_date: string | null; declaration_of_compliance_deadline: string | null; auto_enrolment_status: string | null }): string {
+  if (client.auto_enrolment_status === 'exempt') return 'Exempt'
+  if (!client.pension_reenrolment_date || !client.declaration_of_compliance_deadline) return 'Missing info'
+  const declarationStatus = getDateStatus(client.declaration_of_compliance_deadline)
+  if (declarationStatus === 'Overdue') return 'Overdue'
+  if (declarationStatus === 'Due soon') return 'Due soon'
+  const reenrolmentDate = new Date(client.pension_reenrolment_date)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  if (reenrolmentDate <= today) return 'Ready'
+  return 'Waiting'
 }
 
 export async function GET(request: NextRequest) {
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     const { data: clients, error: clientsError } = await supabase
       .from('clients')
-      .select('id, name, status, auto_enrolment_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
+      .select('id, name, status, auto_enrolment_status, tpr_dashboard_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
       .eq('tenant_id', user.tenant_id)
       .order('name', { ascending: true })
       .limit(5000)
@@ -96,9 +97,15 @@ export async function GET(request: NextRequest) {
       enrolled: 'Enrolled',
     }
 
+    const TPR_LABELS: Record<string, string> = {
+      not_added: 'Not Added',
+      waiting: 'Waiting',
+      added: 'Added',
+    }
+
     const headers = [
-      'Client Name', 'Client Status', 'Auto Enrolment Status', 'Pension Provider(s)',
-      'Staging Date', 'Re-enrolment Date', 'Declaration Deadline', 'Overall Status',
+      'Client Name', 'Client Status', 'Auto Enrolment Status', 'TPR Dashboard',
+      'Pension Provider(s)', 'Staging Date', 'Re-enrolment Date', 'Declaration Deadline', 'Overall Status',
     ]
 
     const rows = (clients || []).map(client => {
@@ -107,11 +114,12 @@ export async function GET(request: NextRequest) {
         client.name || '',
         client.status || '',
         client.auto_enrolment_status ? AE_LABELS[client.auto_enrolment_status] || client.auto_enrolment_status : '',
+        client.tpr_dashboard_status ? TPR_LABELS[client.tpr_dashboard_status] || client.tpr_dashboard_status : 'Not Added',
         providers.join('; ') || '',
         client.pension_staging_date || '',
         client.pension_reenrolment_date || '',
         client.declaration_of_compliance_deadline || '',
-        client.auto_enrolment_status === 'exempt' ? 'Exempt' : getOverallStatus(client),
+        getOverallStatus(client),
       ].map(v => escapeCsv(String(v))).join(',')
     })
 

@@ -133,6 +133,7 @@ export interface Database {
           hmrc_agent_authorised: boolean
           tpas_authorised: boolean
           auto_enrolment_status: string | null
+          tpr_dashboard_status: string | null
           // Company Details
           company_type: string | null
           incorporation_date: string | null
@@ -205,6 +206,7 @@ export interface Database {
           hmrc_agent_authorised?: boolean
           tpas_authorised?: boolean
           auto_enrolment_status?: string | null
+          tpr_dashboard_status?: string | null
           company_type?: string | null
           incorporation_date?: string | null
           registered_address?: Json | null
@@ -272,6 +274,7 @@ export interface Database {
           hmrc_agent_authorised?: boolean
           tpas_authorised?: boolean
           auto_enrolment_status?: string | null
+          tpr_dashboard_status?: string | null
           company_type?: string | null
           incorporation_date?: string | null
           registered_address?: Json | null
