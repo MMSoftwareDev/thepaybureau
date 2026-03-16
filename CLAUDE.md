@@ -195,6 +195,7 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - Clients page aligned to payrolls page design (consistent header, toolbar, filters, pagination, empty state, default columns)
 - Pricing model alignment: Unlimited updated to £19/mo (£12/mo annual), 5 tier cards (Free, Unlimited, Team, Bureau, Enterprise), Bureau & Enterprise as Coming Soon
 - Subscription page polish: Upgrade button overflow fix, roadmap disclaimer above FAQ
+- Responsive design audit & fixes across 15 files (ChatWidget, tables, grids, marketing pages, auth, terms/privacy)
 
 ### In Progress / Planned
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
@@ -781,3 +782,26 @@ _Add notes from each Claude Code session below so context carries forward._
 - **50-client free tier limit confirmed**: Fully enforced at API level (POST `/api/clients` returns 403), CSV import pre-validates, frontend shows red alert at limit + yellow warning near limit (5 away), submit button disabled — no code changes needed
 - **Files changed**: `stripe.ts`, `PricingSection.tsx`, `subscription/page.tsx`, `FAQSection.tsx`, `roadmap/page.tsx`
 - Branch: `claude/review-pricing-model-aj7Wq`
+
+### Session 30 — Responsive Design Audit & Fixes (2026-03-16)
+- **Full responsive audit**: Explored all dashboard, marketing, auth, and shared components for mobile/tablet issues (320px–1920px+)
+- **High priority fixes (6)**:
+  - ChatWidget: `w-[380px] h-[520px]` → `w-[min(380px,calc(100vw-2rem))] h-[min(520px,calc(100dvh-6rem))]` with responsive positioning
+  - Training page KPI grid: `grid-cols-3` → `grid-cols-1 sm:grid-cols-2 md:grid-cols-3`
+  - Audit log diff table: wrapped in `overflow-x-auto` with `min-w-[400px]`
+  - Terms/Privacy pages: outer padding `px-6` → `px-4 md:px-6`, `py-16` → `py-8 md:py-16`
+  - Privacy page table: wrapped in `overflow-x-auto` with `min-w-[420px]`
+  - Landing page + Roadmap: `w-screen` → `w-full` (prevents scrollbar-induced horizontal overflow)
+- **Medium priority fixes (6)**:
+  - Feature requests header: added `flex-wrap gap-3` for mobile wrapping
+  - Popover: added `max-w-[calc(100vw-2rem)]` to prevent overflow on small screens
+  - Footer grid: `grid-cols-2` → `grid-cols-1 sm:grid-cols-2 md:grid-cols-5`
+  - ProductShowcase: gap `gap-10` → `gap-6 md:gap-16`
+  - Pricing comparison grid: `grid-cols-[1fr_100px_100px]` → `grid-cols-[1fr_80px_80px] sm:[1fr_100px_100px] md:[1fr_140px_140px]`
+  - AI assistant: viewport height `calc(100vh-52px)` → `calc(100dvh-60px)` (navbar is 60px, not 52px; `dvh` for mobile browsers)
+- **Low priority fixes (2)**:
+  - Signup placeholder: shortened from `"Min 8 chars, upper + lower + number + special"` → `"8+ chars, mixed case + number + special"`
+  - ProblemStatement: `space-y-5` → `space-y-4 md:space-y-5`
+- **Verified already responsive**: Clients table (has `overflow-x-auto`), payrolls table (shadcn `<Table>`), pensions table (has `overflow-x-auto`), sidebar mobile overlay, dashboard KPI grids, form layouts
+- **Files changed (15)**: `ChatWidget.tsx`, `training/page.tsx`, `audit-log/page.tsx`, `terms/page.tsx`, `privacy/page.tsx`, `page.tsx` (landing), `roadmap/page.tsx`, `feature-requests/page.tsx`, `popover.tsx`, `Footer.tsx`, `ProductShowcase.tsx`, `PricingSection.tsx`, `ai-assistant/page.tsx`, `signup/page.tsx`, `ProblemStatement.tsx`
+- Branch: `claude/test-responsive-design-LDIhH`
