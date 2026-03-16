@@ -26,7 +26,7 @@ export async function GET() {
     // Fetch clients with company-level pension fields
     const { data: clients, error: clientsError } = await supabase
       .from('clients')
-      .select('id, name, status, auto_enrolment_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
+      .select('id, name, status, auto_enrolment_status, tpr_dashboard_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
       .eq('tenant_id', user.tenant_id)
       .order('name', { ascending: true })
 
@@ -69,6 +69,7 @@ export async function GET() {
 const updateSchema = z.object({
   client_id: z.string().uuid(),
   auto_enrolment_status: z.enum(['enrolled', 'exempt', 'currently_not_required']).optional().nullable(),
+  tpr_dashboard_status: z.enum(['not_added', 'waiting', 'added']).optional().nullable(),
   pension_staging_date: z.string().optional().nullable(),
   pension_reenrolment_date: z.string().optional().nullable(),
   declaration_of_compliance_deadline: z.string().optional().nullable(),
@@ -99,7 +100,7 @@ export async function PUT(request: NextRequest) {
     // Fetch existing client for audit diff
     const { data: existingClient, error: clientError } = await supabase
       .from('clients')
-      .select('id, name, auto_enrolment_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
+      .select('id, name, auto_enrolment_status, tpr_dashboard_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
       .eq('id', client_id)
       .eq('tenant_id', user.tenant_id)
       .single()
@@ -113,7 +114,7 @@ export async function PUT(request: NextRequest) {
       .update(updates)
       .eq('id', client_id)
       .eq('tenant_id', user.tenant_id)
-      .select('id, name, status, auto_enrolment_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
+      .select('id, name, status, auto_enrolment_status, tpr_dashboard_status, pension_staging_date, pension_reenrolment_date, declaration_of_compliance_deadline')
       .single()
 
     if (updateError) {

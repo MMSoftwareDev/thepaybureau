@@ -45,15 +45,14 @@ import {
   ArrowDown,
   Download,
   Settings2,
-  AlertTriangle,
-  Clock,
   CalendarDays,
   ExternalLink,
   HelpCircle,
+  ClipboardCheck,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
-import { parseISO, isBefore, addDays, startOfDay, format } from 'date-fns'
+import { parseISO, isBefore, addDays, addMonths, addYears, startOfDay, format } from 'date-fns'
 import Link from 'next/link'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -69,15 +68,16 @@ interface PensionClient {
   name: string
   status: string
   auto_enrolment_status: string | null
+  tpr_dashboard_status: string | null
   pension_staging_date: string | null
   pension_reenrolment_date: string | null
   declaration_of_compliance_deadline: string | null
   pension_providers: PensionPayroll[]
 }
 
-type PensionFilter = 'all' | 'overdue' | 'due_soon' | 'missing' | 'exempt'
+type PensionFilter = 'all' | 'overdue' | 'due_soon' | 'ready' | 'exempt'
 type AEFilter = 'all' | 'exempt' | 'currently_not_required' | 'enrolled'
-type SortField = 'name' | 'auto_enrolment_status' | 'staging_date' | 'reenrolment_date' | 'declaration_deadline' | 'status_indicator'
+type SortField = 'name' | 'auto_enrolment_status' | 'tpr_dashboard_status' | 'staging_date' | 'reenrolment_date' | 'declaration_deadline' | 'status_indicator'
 type SortDirection = 'asc' | 'desc'
 
 const PAGE_SIZE = 25
@@ -85,41 +85,37 @@ const LOCALSTORAGE_KEY = 'tpb_pension_columns'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function getDateStatus(dateStr: string | null): 'overdue' | 'due_soon' | 'ok' | 'none' {
-  if (!dateStr) return 'none'
-  const date = parseISO(dateStr)
-  const today = startOfDay(new Date())
-  if (isBefore(date, today)) return 'overdue'
-  if (isBefore(date, addDays(today, 30))) return 'due_soon'
-  return 'ok'
-}
+type OverallStatus = 'overdue' | 'due_soon' | 'ready' | 'waiting' | 'missing' | 'exempt'
 
-function getOverallStatus(client: PensionClient): 'overdue' | 'due_soon' | 'ok' | 'none' | 'exempt' {
+function getOverallStatus(client: PensionClient): OverallStatus {
   if (client.auto_enrolment_status === 'exempt') return 'exempt'
-  const statuses = [
-    getDateStatus(client.pension_staging_date),
-    getDateStatus(client.pension_reenrolment_date),
-    getDateStatus(client.declaration_of_compliance_deadline),
-  ]
-  if (statuses.includes('overdue')) return 'overdue'
-  if (statuses.includes('due_soon')) return 'due_soon'
-  if (statuses.includes('none')) return 'none'
-  return 'ok'
+  // Must have re-enrolment date and declaration deadline to determine status
+  if (!client.pension_reenrolment_date || !client.declaration_of_compliance_deadline) return 'missing'
+  const today = startOfDay(new Date())
+  const declarationDate = parseISO(client.declaration_of_compliance_deadline)
+  // Overdue: only if declaration deadline has passed
+  if (isBefore(declarationDate, today)) return 'overdue'
+  // Due soon: declaration deadline within 30 days
+  if (isBefore(declarationDate, addDays(today, 30))) return 'due_soon'
+  // Ready: re-enrolment date has passed, declaration can be completed
+  const reenrolmentDate = parseISO(client.pension_reenrolment_date)
+  if (isBefore(reenrolmentDate, today) || reenrolmentDate.getTime() === today.getTime()) return 'ready'
+  // Waiting: re-enrolment date in the future
+  return 'waiting'
 }
 
-const STATUS_PRIORITY: Record<string, number> = { overdue: 0, due_soon: 1, none: 2, ok: 3, exempt: 4 }
-
-function getStatusDotColor(status: string, colors: ReturnType<typeof getThemeColors>): string {
-  if (status === 'overdue') return colors.error
-  if (status === 'due_soon') return '#F59E0B'
-  if (status === 'ok') return colors.success
-  return colors.text.muted
-}
+const STATUS_PRIORITY: Record<string, number> = { overdue: 0, due_soon: 1, ready: 2, waiting: 3, missing: 4, exempt: 5 }
 
 const AE_LABELS: Record<string, string> = {
   exempt: 'Exempt',
   currently_not_required: 'Currently Not Required',
   enrolled: 'Enrolled',
+}
+
+const TPR_LABELS: Record<string, string> = {
+  not_added: 'Not Added',
+  waiting: 'Waiting',
+  added: 'Added',
 }
 
 // Deterministic avatar color from name
@@ -164,6 +160,13 @@ const ALL_COLUMNS: ColumnDef[] = [
     getValue: (c) => c.auto_enrolment_status ? AE_LABELS[c.auto_enrolment_status] || c.auto_enrolment_status : '-',
   },
   {
+    id: 'tpr_dashboard_status',
+    label: 'TPR Dashboard',
+    sortField: 'tpr_dashboard_status',
+    defaultVisible: true,
+    getValue: (c) => c.tpr_dashboard_status ? TPR_LABELS[c.tpr_dashboard_status] || c.tpr_dashboard_status : 'Not Added',
+  },
+  {
     id: 'staging_date',
     label: 'Staging Date',
     sortField: 'staging_date',
@@ -193,9 +196,10 @@ const ALL_COLUMNS: ColumnDef[] = [
       const status = getOverallStatus(c)
       if (status === 'exempt') return 'Exempt'
       if (status === 'overdue') return 'Overdue'
-      if (status === 'due_soon') return 'Due soon'
-      if (status === 'ok') return 'OK'
-      return 'Missing info'
+      if (status === 'due_soon') return 'Due Soon'
+      if (status === 'ready') return 'Ready'
+      if (status === 'waiting') return 'Waiting'
+      return 'Missing Info'
     },
   },
   {
@@ -339,9 +343,12 @@ export default function PensionDeclarationsPage() {
 
   // Form fields
   const [formAutoEnrolmentStatus, setFormAutoEnrolmentStatus] = useState('')
+  const [formTprDashboardStatus, setFormTprDashboardStatus] = useState('')
   const [formStagingDate, setFormStagingDate] = useState('')
   const [formReenrolmentDate, setFormReenrolmentDate] = useState('')
   const [formDeclarationDeadline, setFormDeclarationDeadline] = useState('')
+  // Track whether dates were auto-calculated (so we can show helper text)
+  const [datesAutoCalculated, setDatesAutoCalculated] = useState(false)
 
   // Export
   const [exporting, setExporting] = useState(false)
@@ -395,18 +402,22 @@ export default function PensionDeclarationsPage() {
 
   const resetForm = useCallback(() => {
     setFormAutoEnrolmentStatus('')
+    setFormTprDashboardStatus('')
     setFormStagingDate('')
     setFormReenrolmentDate('')
     setFormDeclarationDeadline('')
+    setDatesAutoCalculated(false)
     setEditingClient(null)
   }, [])
 
   const openEdit = useCallback((client: PensionClient) => {
     setEditingClient(client)
     setFormAutoEnrolmentStatus(client.auto_enrolment_status || '')
+    setFormTprDashboardStatus(client.tpr_dashboard_status || 'not_added')
     setFormStagingDate(client.pension_staging_date || '')
     setFormReenrolmentDate(client.pension_reenrolment_date || '')
     setFormDeclarationDeadline(client.declaration_of_compliance_deadline || '')
+    setDatesAutoCalculated(false)
     setSheetOpen(true)
   }, [])
 
@@ -418,6 +429,7 @@ export default function PensionDeclarationsPage() {
       const payload = {
         client_id: editingClient.id,
         auto_enrolment_status: formAutoEnrolmentStatus || null,
+        tpr_dashboard_status: formTprDashboardStatus || null,
         pension_staging_date: formStagingDate || null,
         pension_reenrolment_date: formReenrolmentDate || null,
         declaration_of_compliance_deadline: formDeclarationDeadline || null,
@@ -468,6 +480,21 @@ export default function PensionDeclarationsPage() {
     }
   }
 
+  // ── Staging date auto-calculation ────────────────────────────────────────
+  const handleStagingDateChange = useCallback((newDate: string) => {
+    setFormStagingDate(newDate)
+    if (newDate) {
+      const staging = parseISO(newDate)
+      // Declaration deadline = staging date + 5 calendar months
+      const deadline = addMonths(staging, 5)
+      setFormDeclarationDeadline(format(deadline, 'yyyy-MM-dd'))
+      // Re-enrolment date = staging date + 3 years
+      const reenrolment = addYears(staging, 3)
+      setFormReenrolmentDate(format(reenrolment, 'yyyy-MM-dd'))
+      setDatesAutoCalculated(true)
+    }
+  }, [])
+
   // ── Sort handler ───────────────────────────────────────────────────────
 
   const handleSort = useCallback((field: SortField) => {
@@ -495,15 +522,11 @@ export default function PensionDeclarationsPage() {
     if (pensionFilter === 'exempt') {
       filtered = filtered.filter(c => c.auto_enrolment_status === 'exempt')
     } else if (pensionFilter === 'overdue') {
-      filtered = filtered.filter(c => c.auto_enrolment_status !== 'exempt' && getOverallStatus(c) === 'overdue')
+      filtered = filtered.filter(c => getOverallStatus(c) === 'overdue')
     } else if (pensionFilter === 'due_soon') {
-      filtered = filtered.filter(c => c.auto_enrolment_status !== 'exempt' && getOverallStatus(c) === 'due_soon')
-    } else if (pensionFilter === 'missing') {
-      filtered = filtered.filter(c => {
-        if (c.auto_enrolment_status === 'exempt') return false
-        const hasProvider = c.pension_providers.some(p => p.pension_provider)
-        return !hasProvider || !c.pension_staging_date || !c.pension_reenrolment_date || !c.declaration_of_compliance_deadline
-      })
+      filtered = filtered.filter(c => getOverallStatus(c) === 'due_soon')
+    } else if (pensionFilter === 'ready') {
+      filtered = filtered.filter(c => getOverallStatus(c) === 'ready')
     }
 
     // AE status filter (from expandable filters)
@@ -528,6 +551,8 @@ export default function PensionDeclarationsPage() {
           return dir * a.name.localeCompare(b.name)
         case 'auto_enrolment_status':
           return dir * (a.auto_enrolment_status || '').localeCompare(b.auto_enrolment_status || '')
+        case 'tpr_dashboard_status':
+          return dir * (a.tpr_dashboard_status || '').localeCompare(b.tpr_dashboard_status || '')
         case 'staging_date':
           return dir * ((a.pension_staging_date || '').localeCompare(b.pension_staging_date || ''))
         case 'reenrolment_date':
@@ -565,10 +590,7 @@ export default function PensionDeclarationsPage() {
       exempt: all.filter(c => c.auto_enrolment_status === 'exempt').length,
       overdue: nonExempt.filter(c => getOverallStatus(c) === 'overdue').length,
       dueSoon: nonExempt.filter(c => getOverallStatus(c) === 'due_soon').length,
-      missing: nonExempt.filter(c => {
-        const hasProvider = c.pension_providers.some(p => p.pension_provider)
-        return !hasProvider || !c.pension_staging_date || !c.pension_reenrolment_date || !c.declaration_of_compliance_deadline
-      }).length,
+      ready: nonExempt.filter(c => getOverallStatus(c) === 'ready').length,
     }
   }, [pensionClients])
 
@@ -579,13 +601,29 @@ export default function PensionDeclarationsPage() {
       case 'overdue':
         return <Badge className="text-xs" style={{ backgroundColor: `${colors.error}20`, color: colors.error, border: `1px solid ${colors.error}40` }}>Overdue</Badge>
       case 'due_soon':
-        return <Badge className="text-xs" style={{ backgroundColor: '#F59E0B20', color: '#F59E0B', border: '1px solid #F59E0B40' }}>Due soon</Badge>
-      case 'ok':
-        return <Badge className="text-xs" style={{ backgroundColor: `${colors.success}20`, color: colors.success, border: `1px solid ${colors.success}40` }}>OK</Badge>
+        return <Badge className="text-xs" style={{ backgroundColor: '#F59E0B20', color: '#F59E0B', border: '1px solid #F59E0B40' }}>Due Soon</Badge>
+      case 'ready':
+        return <Badge className="text-xs" style={{ backgroundColor: `${colors.primary}20`, color: colors.primary, border: `1px solid ${colors.primary}40` }}>Ready</Badge>
+      case 'waiting':
+        return <Badge className="text-xs" style={{ backgroundColor: '#3B82F620', color: '#3B82F6', border: '1px solid #3B82F640' }}>Waiting</Badge>
       case 'exempt':
         return <Badge className="text-xs" style={{ backgroundColor: `${colors.text.muted}20`, color: colors.text.muted, border: `1px solid ${colors.text.muted}40` }}>Exempt</Badge>
       default:
-        return <Badge className="text-xs" style={{ backgroundColor: `${colors.text.muted}20`, color: colors.text.muted, border: `1px solid ${colors.text.muted}40` }}>Missing info</Badge>
+        return <Badge className="text-xs" style={{ backgroundColor: `${colors.text.muted}20`, color: colors.text.muted, border: `1px solid ${colors.text.muted}40` }}>Missing Info</Badge>
+    }
+  }
+
+  // TPR dashboard badge renderer
+  const tprBadge = (status: string | null) => {
+    const tprStatus = status || 'not_added'
+    const label = TPR_LABELS[tprStatus] || tprStatus
+    switch (tprStatus) {
+      case 'added':
+        return <Badge className="text-xs" style={{ backgroundColor: `${colors.success}20`, color: colors.success, border: `1px solid ${colors.success}40` }}>{label}</Badge>
+      case 'waiting':
+        return <Badge className="text-xs" style={{ backgroundColor: '#F59E0B20', color: '#F59E0B', border: '1px solid #F59E0B40' }}>{label}</Badge>
+      default:
+        return <Badge className="text-xs" style={{ backgroundColor: `${colors.text.muted}20`, color: colors.text.muted, border: `1px solid ${colors.text.muted}40` }}>{label}</Badge>
     }
   }
 
@@ -649,10 +687,10 @@ export default function PensionDeclarationsPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
         {[
           { label: 'Total Clients', value: counts.total.toString(), color: colors.primary, filterKey: 'all' as PensionFilter },
-          { label: 'Exempt', value: counts.exempt.toString(), color: colors.text.muted, filterKey: 'exempt' as PensionFilter },
           { label: 'Overdue', value: counts.overdue.toString(), color: colors.error, filterKey: 'overdue' as PensionFilter },
-          { label: 'Due Within 30 Days', value: counts.dueSoon.toString(), color: '#F59E0B', filterKey: 'due_soon' as PensionFilter },
-          { label: 'Missing Info', value: counts.missing.toString(), color: colors.secondary, filterKey: 'missing' as PensionFilter },
+          { label: 'Due Soon', value: counts.dueSoon.toString(), color: '#F59E0B', filterKey: 'due_soon' as PensionFilter },
+          { label: 'Ready', value: counts.ready.toString(), color: colors.primary, filterKey: 'ready' as PensionFilter },
+          { label: 'Exempt', value: counts.exempt.toString(), color: colors.text.muted, filterKey: 'exempt' as PensionFilter },
         ].map((kpi) => {
           const isActive = pensionFilter === kpi.filterKey
           return (
@@ -772,19 +810,23 @@ export default function PensionDeclarationsPage() {
       >
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full" style={{ background: colors.error }} />
-          Overdue
+          Overdue (declaration deadline passed)
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full" style={{ background: '#F59E0B' }} />
-          Due within 30 days
+          Due Soon (within 30 days)
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full" style={{ background: colors.success }} />
-          OK
+          <div className="w-2 h-2 rounded-full" style={{ background: colors.primary }} />
+          Ready (can complete declaration)
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded-full" style={{ background: '#3B82F6' }} />
+          Waiting (re-enrolment not yet due)
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full" style={{ background: colors.text.muted }} />
-          Not set / Exempt
+          Missing Info / Exempt
         </div>
       </div>
 
@@ -856,6 +898,7 @@ export default function PensionDeclarationsPage() {
                         >
                           {col.id === 'status_indicator' ? statusBadge(client)
                             : col.id === 'auto_enrolment_status' ? aeBadge(client.auto_enrolment_status)
+                            : col.id === 'tpr_dashboard_status' ? tprBadge(client.tpr_dashboard_status)
                             : col.id === 'client_status' ? (
                               <Badge className="text-xs" style={{
                                 backgroundColor: client.status === 'active' ? `${colors.success}20` : `${colors.text.muted}20`,
@@ -1032,7 +1075,7 @@ export default function PensionDeclarationsPage() {
             <FormSection title="Auto Enrolment" icon={Shield} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
-                  Status
+                  AE Status
                 </Label>
                 <Select value={formAutoEnrolmentStatus} onValueChange={setFormAutoEnrolmentStatus}>
                   <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
@@ -1047,66 +1090,82 @@ export default function PensionDeclarationsPage() {
               </div>
             </FormSection>
 
+            <FormSection title="TPR Dashboard" icon={ClipboardCheck} colors={colors}>
+              <div>
+                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
+                  Status
+                </Label>
+                <Select value={formTprDashboardStatus} onValueChange={setFormTprDashboardStatus}>
+                  <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}>
+                    <SelectValue placeholder="Select status..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="not_added">Not Added</SelectItem>
+                    <SelectItem value="waiting">Waiting</SelectItem>
+                    <SelectItem value="added">Added</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[0.7rem] mt-1 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+                  Client must be added to The Pension Regulator dashboard before completing declaration.
+                </p>
+              </div>
+            </FormSection>
+
             <FormSection title="Pension Dates" icon={CalendarDays} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
                   Staging Date
                 </Label>
-                <div className="flex items-center gap-2 mt-1">
-                  {formStagingDate && (
-                    <div
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ background: getStatusDotColor(getDateStatus(formStagingDate), colors) }}
-                    />
-                  )}
-                  <Input
-                    type="date"
-                    value={formStagingDate}
-                    onChange={(e) => setFormStagingDate(e.target.value)}
-                    className="text-sm"
-                    style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                  />
-                </div>
+                <Input
+                  type="date"
+                  value={formStagingDate}
+                  onChange={(e) => handleStagingDateChange(e.target.value)}
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+                <p className="text-[0.7rem] mt-1 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+                  Start date for pensions. Changing this will auto-calculate the dates below.
+                </p>
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
                   Re-enrolment Date
                 </Label>
-                <div className="flex items-center gap-2 mt-1">
-                  {formReenrolmentDate && (
-                    <div
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ background: getStatusDotColor(getDateStatus(formReenrolmentDate), colors) }}
-                    />
-                  )}
-                  <Input
-                    type="date"
-                    value={formReenrolmentDate}
-                    onChange={(e) => setFormReenrolmentDate(e.target.value)}
-                    className="text-sm"
-                    style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                  />
-                </div>
+                <Input
+                  type="date"
+                  value={formReenrolmentDate}
+                  onChange={(e) => { setFormReenrolmentDate(e.target.value); setDatesAutoCalculated(false) }}
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+                {datesAutoCalculated && (
+                  <p className="text-[0.7rem] mt-1 font-[family-name:var(--font-body)]" style={{ color: colors.primary }}>
+                    Auto-calculated (staging date + 3 years). You can override this.
+                  </p>
+                )}
+                <p className="text-[0.7rem] mt-0.5 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+                  Happens every 3 years. Update manually after each re-enrolment exercise.
+                </p>
               </div>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
                   Declaration of Compliance Deadline
                 </Label>
-                <div className="flex items-center gap-2 mt-1">
-                  {formDeclarationDeadline && (
-                    <div
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ background: getStatusDotColor(getDateStatus(formDeclarationDeadline), colors) }}
-                    />
-                  )}
-                  <Input
-                    type="date"
-                    value={formDeclarationDeadline}
-                    onChange={(e) => setFormDeclarationDeadline(e.target.value)}
-                    className="text-sm"
-                    style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
-                  />
-                </div>
+                <Input
+                  type="date"
+                  value={formDeclarationDeadline}
+                  onChange={(e) => { setFormDeclarationDeadline(e.target.value); setDatesAutoCalculated(false) }}
+                  className="mt-1 text-sm"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+                />
+                {datesAutoCalculated && (
+                  <p className="text-[0.7rem] mt-1 font-[family-name:var(--font-body)]" style={{ color: colors.primary }}>
+                    Auto-calculated (staging date + 5 months). You can override this.
+                  </p>
+                )}
+                <p className="text-[0.7rem] mt-0.5 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+                  Must be completed or receive a &pound;400 penalty.
+                </p>
               </div>
             </FormSection>
 
