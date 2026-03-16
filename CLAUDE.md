@@ -195,7 +195,7 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - Clients page aligned to payrolls page design (consistent header, toolbar, filters, pagination, empty state, default columns)
 - Pricing model alignment: Unlimited updated to £19/mo (£12/mo annual), 5 tier cards (Free, Unlimited, Team, Bureau, Enterprise), Bureau & Enterprise as Coming Soon
 - Subscription page polish: Upgrade button overflow fix, roadmap disclaimer above FAQ
-- Responsive design audit & fixes across 15 files (ChatWidget, tables, grids, marketing pages, auth, terms/privacy)
+- Pensions dashboard: TPR Dashboard Status column, fixed status logic (overdue = declaration deadline only), auto-calculated dates from staging date
 
 ### In Progress / Planned
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
@@ -783,6 +783,28 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Files changed**: `stripe.ts`, `PricingSection.tsx`, `subscription/page.tsx`, `FAQSection.tsx`, `roadmap/page.tsx`
 - Branch: `claude/review-pricing-model-aj7Wq`
 
+### Session 30 — Pensions Dashboard: TPR Column, Status Logic & Date Auto-Calculation (2026-03-16)
+- **New column: TPR Dashboard Status** — tracks whether client has been added to The Pension Regulator dashboard; values: `not_added` (grey), `waiting` (amber), `added` (green); badge in table, dropdown in sidebar form
+- **Migration 020**: `ALTER TABLE clients ADD COLUMN tpr_dashboard_status TEXT DEFAULT 'not_added'` with CHECK constraint
+- **Status logic rewrite** — `getOverallStatus()` completely rewritten:
+  - `Overdue`: only when declaration deadline has passed (previously any past date triggered this)
+  - `Due Soon`: declaration deadline within 30 days
+  - `Ready`: re-enrolment date passed, declaration can now be completed
+  - `Waiting`: re-enrolment date still in the future
+  - `Missing Info`: required dates not set
+  - `Exempt`: AE status is exempt
+  - Staging date no longer factors into status — purely informational
+- **Date auto-calculation**: Setting staging date auto-fills declaration deadline (+5 months) and re-enrolment date (+3 years); both remain manually editable; helper text shows "Auto-calculated" when auto-filled
+- **KPI cards updated**: Total, Overdue, Due Soon, Ready, Exempt (replaced "Missing Info" with "Ready")
+- **Legend updated**: 5 status dots with descriptions explaining each state
+- **Export route fixed**: `getOverallStatus()` in export route also rewritten to match new logic; TPR Dashboard column added to CSV
+- **Domain knowledge captured**:
+  - Staging date = start date for pensions (informational only)
+  - Re-enrolment = happens every 3 years, date updated manually after each exercise
+  - Declaration deadline = compliance form deadline, £400 penalty if missed, normally 5 months after staging date
+  - TPR Dashboard = client must be added before declaration can be completed
+- **Files changed (6)**: migration 020 (new), `database.ts`, `validations.ts`, `pensions/route.ts`, `pensions/export/route.ts`, `pensions/page.tsx`
+- Branch: `claude/pensions-dashboard-dates-QGieb`
 ### Session 30 — Responsive Design Audit & Fixes (2026-03-16)
 - **Full responsive audit**: Explored all dashboard, marketing, auth, and shared components for mobile/tablet issues (320px–1920px+)
 - **High priority fixes (6)**:
