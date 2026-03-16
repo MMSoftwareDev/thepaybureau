@@ -18,6 +18,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 301)
   }
 
+  // Vercel default domain → app redirect
+  if (host.endsWith('.vercel.app')) {
+    const url = new URL(pathname, `https://${APP_HOST}`)
+    url.search = request.nextUrl.search
+    return NextResponse.redirect(url, 301)
+  }
+
   // Marketing domain — only serve marketing routes, redirect everything else to app
   if (host === MARKETING_HOST) {
     const isMarketingRoute = MARKETING_ROUTES.some((route) =>
