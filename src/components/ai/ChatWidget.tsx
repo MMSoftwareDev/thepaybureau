@@ -132,7 +132,7 @@ export default function ChatWidget() {
       {/* Chat panel */}
       {open && (
         <div
-          className="fixed bottom-6 right-6 z-50 w-[380px] h-[520px] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-[min(380px,calc(100vw-2rem))] h-[min(520px,calc(100dvh-6rem))] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
           style={{
             background: colors.surface,
             border: `1px solid ${colors.border}`,

@@ -437,7 +437,7 @@ export default function SignupPage() {
                 type="password"
                 value={formData.password}
                 onChange={(e) => handleInputChange('password', e.target.value)}
-                placeholder="Min 8 chars, upper + lower + number + special"
+                placeholder="8+ chars, mixed case + number + special"
                 autoComplete="new-password"
                 disabled={loading}
                 className={cn(

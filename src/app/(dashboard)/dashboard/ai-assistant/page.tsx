@@ -261,7 +261,7 @@ function AIAssistantPage() {
   const grouped = groupConversations()
 
   return (
-    <div className="flex h-[calc(100vh-52px)] -mx-4 -my-6 md:-mx-8 md:-my-8">
+    <div className="flex h-[calc(100dvh-60px)] -mx-4 -my-6 md:-mx-8 md:-my-8">
       {/* Conversations sidebar */}
       <div
         className="hidden md:flex w-[260px] flex-col border-r flex-shrink-0"

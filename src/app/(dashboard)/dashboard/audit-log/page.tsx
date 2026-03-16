@@ -428,11 +428,12 @@ export default function AuditLogPage() {
                       className="px-4 pb-4 pt-1 ml-11"
                       style={{ background: isDark ? '#0f172a' : '#f8fafc' }}
                     >
+                      <div className="overflow-x-auto">
                       <div
                         className="rounded-lg border overflow-hidden text-sm"
                         style={{ borderColor: colors.border }}
                       >
-                        <table className="w-full">
+                        <table className="w-full min-w-[400px]">
                           <thead>
                             <tr style={{ background: isDark ? '#1e293b' : '#f1f5f9' }}>
                               <th
@@ -485,6 +486,7 @@ export default function AuditLogPage() {
                             ))}
                           </tbody>
                         </table>
+                      </div>
                       </div>
                     </div>
                   )}
