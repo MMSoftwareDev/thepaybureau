@@ -98,7 +98,8 @@ All tables are scoped by `tenant_id` with RLS policies (except `tenants` itself 
 | `checklist_items` | Run-specific checklist entries | `payroll_run_id` → payroll_runs |
 | `training_records` | CPD / training tracking | `tenant_id` |
 | `audit_logs` | Immutable audit trail | `tenant_id`, action/entity_type/changes (JSON) |
-| `feature_requests` | User feature requests | `tenant_id`, admin-only UPDATE/DELETE |
+| `feature_requests` | User feature requests | Cross-tenant, admin-only UPDATE/DELETE |
+| `feature_request_comments` | Threaded comments on feature requests | `feature_request_id` → feature_requests, `user_id`, cross-tenant |
 | `user_stats` | Gamification stats | `user_id` → users |
 | `user_badges` | Earned badges | `user_id` → users |
 | `ai_conversations` | AI chat sessions | `user_id` → users |
@@ -141,6 +142,7 @@ All tables are scoped by `tenant_id` with RLS policies (except `tenants` itself 
 
 - **Remaining domain references**: Email templates, CI config, and Supabase config still reference `app.thepaybureau.com` (see Sessions 11, 25). Marketing pages and middleware now use `www.thepaybureau.com` correctly.
 - **Serverless fire-and-forget caveat**: Never use unawaited promises for critical side effects (emails, webhooks) in Vercel serverless routes — the runtime may terminate before they complete. Always `await` or use `waitUntil()`. Fixed for feedback/feature-request emails in Session 16; audit other routes if adding new email sends.
+- **Admin users page not yet verified in production**: Built and passes types/lint/tests locally, but user reported it may not work at `app.thepaybureau.com/dashboard/admin/users`. Migration 022 must be run in Supabase SQL Editor first. Debug if issue persists after migration.
 - **CSS variable naming**: All CSS variables use legacy `--login-*` prefix (e.g., `--login-purple`, `--login-surface`) even though they're used app-wide. Historical artifact from when they only existed on the login page. Rename to `--brand-*` or `--app-*` when convenient.
 
 ## Common Pitfalls
@@ -198,11 +200,18 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - Responsive design audit & fixes across 15 files (ChatWidget, tables, grids, marketing pages, auth, terms/privacy)
 - Pension staging date removed from dashboard overdue checks (informational only, not a compliance event)
 - Declaration of compliance completion cycle: "Complete Declaration" button advances deadline by 3 years, tracks `last_declaration_completed_at`
+- Re-enrolment dates removed from dashboard compliance alerts (informational only), replaced with "X re-enrolments this month" count on Pensions KPI card
+- User titles: `title` column on users table, admin-editable via `/dashboard/admin/users`, "Founder" set for platform owner
+- Threaded comments on feature requests (max 2 levels: top-level + replies), with author avatars + title badges
+- Admin user management page (`/dashboard/admin/users`) with inline title editing, search, user table
+- Feature request cards show author avatar, title badge, and comment count toggle
+- AlertDialog component (`src/components/ui/alert-dialog.tsx`), feature request delete migrated from `window.confirm()`
 
 ### In Progress / Planned
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
 - Reorder pension tasks after payroll run in checklists
 - Global auth context for reactive user tracking
+- Debug admin users page if still broken after migration 022 is applied
 
 ## Workflow Rules
 
@@ -237,6 +246,8 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - **API route SELECT:** Use explicit column selection on list/read endpoints. Only use `select('*')` when the full record is needed (e.g., account export, audit diffs, edit forms that need all fields).
 - **Cross-domain links:** On marketing pages, use `<a href={APP_DOMAIN + '/login'}>` (not `<Link>`) for links to `app.thepaybureau.com` — Next.js `<Link>` is for same-origin client-side navigation only. Import `APP_DOMAIN` from `@/lib/domains`.
 - **Sidebar sections:** Collapsible with `ChevronDown` toggle. Auto-expand section containing active route. Nav items indented (`pl-2`), 36px rows (`h-9`), 18px icons, `rounded-lg`. Section labels are uppercase buttons.
+- **User titles:** Stored in `users.title` (VARCHAR 100). Displayed as `TitleBadge` component — "Founder" gets gradient bg, others get subtle purple. Editable by platform admins only via `/dashboard/admin/users`.
+- **Feature request comments:** Cross-tenant (no `tenant_id`), max 2 levels (top-level + replies). Author + admin can delete. Rate limited 20/15min. Denormalized `user_name`/`user_email` at write time; `title`/`avatar_url` fetched live from users table.
 - **Dashboard list page layout:** All list pages must follow the canonical pattern — see payrolls page as reference. Structure: (1) Header with title + Add button; (2) KPI cards; (3) Toolbar: Search → Filters → Columns (`Settings2`) → Export; (4) Expandable filters; (5) Table; (6) Pagination (`pt-2`, icon-only `h-7` buttons, `X / Y` format).
 
 ## Design Consistency & Brand Standards
@@ -458,6 +469,12 @@ Every new page or component **must** satisfy all of these before it's considered
 | Jest config | `jest.config.js` |
 | Vector search migration | `supabase/migrations/019_fix_vector_search.sql` |
 | Domain constants | `src/lib/domains.ts` (`APP_DOMAIN`, `MARKETING_DOMAIN`, `MARKETING_ROUTES`) |
+| Feature requests page | `src/app/(dashboard)/dashboard/feature-requests/page.tsx` |
+| Feature request comments API | `src/app/api/feature-requests/[id]/comments/route.ts` |
+| Admin user management page | `src/app/(dashboard)/dashboard/admin/users/page.tsx` |
+| Admin users API | `src/app/api/admin/users/route.ts` |
+| AlertDialog component | `src/components/ui/alert-dialog.tsx` |
+| User titles + comments migration | `supabase/migrations/022_user_titles_and_comments.sql` |
 
 ## Session Log
 
@@ -821,3 +838,19 @@ _Add notes from each Claude Code session below so context carries forward._
 - **CSV export**: Added "Last Declaration Completed" column
 - **Files changed (6)**: `dashboard/stats/route.ts`, `pensions/route.ts`, `pensions/export/route.ts`, `pensions/page.tsx`, `database.ts`, migration 021
 - Branch: `claude/fix-staging-date-overdue-9hPTI`
+
+### Session 32 — Re-enrolment Fix, User Titles, Threaded Comments & Profile Pictures (2026-03-16)
+- **Re-enrolment compliance fix**: Removed `pension_reenrolment_date` from dashboard overdue/due-soon compliance loop — informational only, not a compliance event (same reasoning as staging date fix in Session 31)
+- **Re-enrolments this month**: Added `reenrolmentsThisMonth` count to dashboard stats API; Pensions KPI card shows "X re-enrolments this month" as neutral informational line
+- **User titles**: Added `title` VARCHAR(100) column to `users` table; "Founder" set for `minhaz.moosa@intelligentpayroll.co.uk` via migration 022
+- **Admin user management page**: New `/dashboard/admin/users` page with user table, inline title editing, search; admin-only access
+- **Admin users API**: `GET /api/admin/users` (list all users with tenant names), `PUT /api/admin/users/[id]` (update title)
+- **Threaded comments on feature requests**: New `feature_request_comments` table (cross-tenant, max 2 levels enforced in API); `GET`/`POST` on `/api/feature-requests/[id]/comments`, `DELETE` on `/api/feature-requests/[id]/comments/[commentId]`; rate limited 20/15min
+- **Feature requests page redesign**: Author avatars (gradient initial fallback), `TitleBadge` next to name ("Founder" gets gradient bg), `MessageSquare` toggle with comment count, inline threaded comments with reply forms
+- **AlertDialog**: Created `src/components/ui/alert-dialog.tsx` (shadcn pattern, `@radix-ui/react-alert-dialog`); migrated feature request delete from `window.confirm()` to `AlertDialog`
+- **Feature requests GET enriched**: Added `comment_count`, `created_by_title`, `created_by_avatar_url` to response via batch user + comment queries
+- **Sidebar**: Added "User Management" link in ADMIN section (visible to platform admins only via dynamic `navSections`)
+- **Known issue**: User reported admin users page may not work in production — likely migration 022 not yet applied to Supabase
+- **Files created (6)**: migration 022, comments API (2 routes), admin users API (2 routes), admin users page, `alert-dialog.tsx`
+- **Files modified (7)**: `database.ts`, `feature-requests/route.ts`, `feature-requests/page.tsx`, `dashboard/stats/route.ts`, `dashboard/page.tsx`, `Sidebar.tsx`, `package.json`
+- Branch: `claude/fix-reenrolment-compliance-3uKqE`
