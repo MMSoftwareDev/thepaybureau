@@ -78,6 +78,7 @@ interface DashboardStats {
   recentActivity: ActivityItem[]
   pensionOverdue: number
   pensionDueSoon: number
+  reenrolmentsThisMonth: number
 }
 
 function getGreeting(): string {
@@ -290,6 +291,11 @@ export default function DashboardPage() {
               ) : (
                 <p className="text-2xl md:text-3xl font-bold" style={{ color: colors.success }}>
                   All clear
+                </p>
+              )}
+              {(stats?.reenrolmentsThisMonth ?? 0) > 0 && (
+                <p className="text-[0.78rem] mt-1.5" style={{ color: colors.text.secondary }}>
+                  {stats?.reenrolmentsThisMonth} re-enrolment{stats?.reenrolmentsThisMonth !== 1 ? 's' : ''} this month
                 </p>
               )}
             </CardContent>
