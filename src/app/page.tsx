@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 export default function LandingPage() {
   return (
     <div
-      className="overflow-x-clip w-screen scroll-smooth"
+      className="overflow-x-clip w-full scroll-smooth"
       style={{ background: 'var(--mkt-bg)', fontFamily: 'var(--font-body), Plus Jakarta Sans, system-ui, sans-serif' }}
     >
       <Navbar />

@@ -51,7 +51,7 @@ export function ProductShowcase() {
     <section style={{ background: 'var(--mkt-bg)' }}>
       <div className="max-w-[1200px] mx-auto px-5 py-20 md:py-28 space-y-20 md:space-y-28">
         {/* ── 1. Client Management ── */}
-        <div className="flex flex-col md:flex-row gap-10 md:gap-16 items-center">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-16 items-center">
           <div className="md:w-[38%] text-center md:text-left">
             <SectionHeader
               eyebrow="Client Management"
@@ -166,7 +166,7 @@ export function ProductShowcase() {
         <div className="w-16 h-px mx-auto" style={{ background: 'var(--mkt-border)' }} />
 
         {/* ── 3. Checklists ── */}
-        <div className="flex flex-col md:flex-row gap-10 md:gap-16 items-center">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-16 items-center">
           <div className="md:w-[38%] text-center md:text-left">
             <SectionHeader
               eyebrow="Checklists"

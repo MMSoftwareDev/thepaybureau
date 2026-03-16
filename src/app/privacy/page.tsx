@@ -7,7 +7,7 @@ export const metadata = {
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-3xl mx-auto px-6 py-16">
+      <div className="max-w-3xl mx-auto px-4 md:px-6 py-8 md:py-16">
         <div className="mb-8">
           <Link
             href="/"
@@ -71,7 +71,8 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">5. Third-Party Processors</h2>
               <p>We use the following third-party services to operate the Service. Each processes data on our behalf under appropriate data processing agreements:</p>
-              <table className="w-full text-sm border-collapse mt-3">
+              <div className="overflow-x-auto -mx-1">
+              <table className="w-full text-sm border-collapse mt-3 min-w-[420px]">
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-2 pr-4 font-semibold text-gray-900">Provider</th>
@@ -102,6 +103,7 @@ export default function PrivacyPage() {
                   </tr>
                 </tbody>
               </table>
+              </div>
             </section>
 
             <section>

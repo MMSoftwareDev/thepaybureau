@@ -31,7 +31,7 @@ export function ProblemStatement() {
         </h2>
 
         {/* Pain points list — tighter, 4 items */}
-        <ul className="space-y-5">
+        <ul className="space-y-4 md:space-y-5">
           {PAIN_POINTS.map((point) => (
             <li key={point} className="flex items-start gap-3">
               <div
