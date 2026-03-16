@@ -96,7 +96,7 @@ All tables are scoped by `tenant_id` with RLS policies (except `tenants` itself 
 | `payroll_runs` | Individual payroll run instances | `payroll_id` → payrolls |
 | `checklist_templates` | Reusable checklist definitions | `payroll_id` → payrolls |
 | `checklist_items` | Run-specific checklist entries | `payroll_run_id` → payroll_runs |
-| `training_records` | CPD / training tracking | `tenant_id` |
+| `training_records` | CPD / training tracking (cpd_hours, expiry_date, certificate_url, status enum) | `tenant_id` |
 | `audit_logs` | Immutable audit trail | `tenant_id`, action/entity_type/changes (JSON) |
 | `feature_requests` | User feature requests | Cross-tenant, admin-only UPDATE/DELETE |
 | `feature_request_comments` | Threaded comments on feature requests | `feature_request_id` → feature_requests, `user_id`, cross-tenant |
@@ -208,6 +208,7 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - AlertDialog component (`src/components/ui/alert-dialog.tsx`), feature request delete migrated from `window.confirm()`
 - Password recovery: Resend verification email on verify-email page (Supabase `auth.resend()`, 60s cooldown, email input fallback)
 - Password recovery: "Can't remember your email? Contact support" help text on login and forgot-password pages
+- Training & CPD page redesign: canonical dashboard layout (sortable table, Sheet sidebar, KPIs, pagination, customizable columns), RAG status banner, CPD progress tracking (21 hrs/year CIPP benchmark), Training Plan section with recommended courses, PDF export with branded CPD report
 
 ### In Progress / Planned
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
@@ -477,6 +478,10 @@ Every new page or component **must** satisfy all of these before it's considered
 | Admin users API | `src/app/api/admin/users/route.ts` |
 | AlertDialog component | `src/components/ui/alert-dialog.tsx` |
 | User titles + comments migration | `supabase/migrations/022_user_titles_and_comments.sql` |
+| Training page | `src/app/(dashboard)/dashboard/training/page.tsx` |
+| Training API | `src/app/api/training/route.ts` |
+| Training PDF export API | `src/app/api/training/export-pdf/route.ts` |
+| Training CPD migration | `supabase/migrations/023_training_cpd_enhancements.sql` |
 
 ## Session Log
 
@@ -865,3 +870,22 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Not implemented (deferred)**: OAuth/SSO (Google/Microsoft), session management UI, 2FA — already listed as planned/coming soon
 - **Files modified (3)**: `verify-email/page.tsx`, `forgot-password/page.tsx`, `login/page.tsx`
 - Branch: `claude/add-password-recovery-RezDS`
+
+### Session 34 — Training & CPD Page Redesign (2026-03-16)
+- **Goal**: Redesign training page to match payrolls/pensions canonical layout; add RAG status, CPD tracking, recommended training plan, PDF export
+- **Design discussion**: Discussed what the page should be (consultant training log + manager visibility), agreed on: all proposed fields, static recommended list, 21 hrs/year CIPP benchmark, flag expired certs, top banner RAG status, unlimited-only
+- **Data model (migration 023)**: Added `cpd_hours` (NUMERIC), `expiry_date` (DATE), `certificate_url` (TEXT), `status` (VARCHAR enum: not_started/in_progress/completed replacing boolean `completed`); migrates existing data; indexes on expiry_date and status
+- **API route updated**: New fields in Zod schemas, status/completed kept in sync for backward compat, explicit column selection
+- **PDF export** (`/api/training/export-pdf`): New route using `jspdf` — branded A4 PDF with purple header, RAG status banner, CPD target progress (X/21 hrs, X%), training plan completion (X/8 courses), summary stats, category breakdown, full records table with status colouring, page footer
+- **Page redesign (V1)**: Canonical layout matching payrolls/pensions — sortable table, Sheet sidebar form (Details/Progress/Certification sections), 4 KPI cards, pagination, customizable columns, AlertDialog delete, filters (status incl. expiring/expired + category), toolbar (search/filters/columns/export PDF)
+- **Critical review & V2 improvements**: Identified 5 fundamental gaps — consultants don't find training (it's provided), no RAG status, no CPD benchmark, recommended training too passive, no manager view prep
+- **RAG status banner**: Full-width coloured banner below header; cascading priority logic: Red (expired certs OR CPD < 50% pro-rated target) → Amber (expiring certs OR CPD < 75% target OR recommended not started) → Green (all clear); shows CPD progress + course completion on right side
+- **CPD Progress**: 21 hrs/year CIPP benchmark, pro-rated by month (June = 10.5 hrs expected); hero KPI card with visual progress bar, "On track" / "X hrs behind" indicator, left-border RAG colour
+- **KPI cards reworked**: CPD Progress (hero with progress bar + left border), Completed, In Progress (shows recommended gaps with amber border), Certifications (All clear / X expiring / X expired with RAG left border)
+- **Training Plan section**: Replaced passive "Recommended Training" suggestions with checklist-style Training Plan; each item shows status icon (green checkmark / amber dot / gray circle), cross-referenced against logged records by title, "Start" button pre-fills Sheet form, completion date shown for done items, header shows "X / 8" progress badge
+- **PDF export enhanced**: RAG status banner (coloured bar), CPD target context (X/21 hrs, X%), training plan completion count
+- **Decisions**: CPD target = 21 hrs/year (CIPP standard); recommended list = static for V1 (admin-configurable later); RAG banner = top of page below header; training remains Unlimited plan only
+- **Dependencies installed**: `jspdf` for server-side PDF generation
+- **Files created (2)**: `src/app/api/training/export-pdf/route.ts`, `supabase/migrations/023_training_cpd_enhancements.sql`
+- **Files modified (3)**: `training/page.tsx` (full rewrite), `api/training/route.ts`, `database.ts`
+- Branch: `claude/design-training-development-page-Erglr`
