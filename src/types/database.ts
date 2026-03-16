@@ -536,6 +536,10 @@ export interface Database {
           notes: string | null
           completed: boolean
           completed_date: string | null
+          cpd_hours: number | null
+          expiry_date: string | null
+          certificate_url: string | null
+          status: 'not_started' | 'in_progress' | 'completed'
           created_at: string
           updated_at: string
         }
@@ -550,6 +554,10 @@ export interface Database {
           notes?: string | null
           completed?: boolean
           completed_date?: string | null
+          cpd_hours?: number | null
+          expiry_date?: string | null
+          certificate_url?: string | null
+          status?: 'not_started' | 'in_progress' | 'completed'
           created_at?: string
           updated_at?: string
         }
@@ -564,6 +572,10 @@ export interface Database {
           notes?: string | null
           completed?: boolean
           completed_date?: string | null
+          cpd_hours?: number | null
+          expiry_date?: string | null
+          certificate_url?: string | null
+          status?: 'not_started' | 'in_progress' | 'completed'
           created_at?: string
           updated_at?: string
         }

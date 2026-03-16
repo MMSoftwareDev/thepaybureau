@@ -5,14 +5,21 @@ import { z } from 'zod'
 import { writeAuditLog } from '@/lib/audit'
 import { hasPaidFeature } from '@/lib/stripe'
 
+const CATEGORIES = ['hmrc_webinar', 'cipp_webinar', 'online_course', 'conference', 'workshop', 'self_study', 'other'] as const
+const STATUSES = ['not_started', 'in_progress', 'completed'] as const
+
 const createSchema = z.object({
   title: z.string().min(1).max(500),
   provider: z.string().max(255).optional().nullable(),
-  category: z.enum(['hmrc_webinar', 'cipp_webinar', 'online_course', 'conference', 'workshop', 'self_study', 'other']).optional().nullable(),
+  category: z.enum(CATEGORIES).optional().nullable(),
   url: z.string().url().max(2000).optional().nullable().or(z.literal('')),
   notes: z.string().max(2000).optional().nullable(),
   completed: z.boolean().optional(),
   completed_date: z.string().optional().nullable(),
+  cpd_hours: z.number().min(0).max(999).optional().nullable(),
+  expiry_date: z.string().optional().nullable(),
+  certificate_url: z.string().url().max(2000).optional().nullable().or(z.literal('')),
+  status: z.enum(STATUSES).optional(),
 })
 
 const updateSchema = createSchema.partial().extend({
@@ -20,6 +27,8 @@ const updateSchema = createSchema.partial().extend({
 })
 
 const PLAN_ERROR = { error: 'Training & CPD tracking requires an Unlimited plan. Please upgrade to access this feature.' }
+
+const SELECT_COLUMNS = 'id, tenant_id, created_by, title, provider, category, url, notes, completed, completed_date, cpd_hours, expiry_date, certificate_url, status, created_at, updated_at'
 
 async function checkTrainingAccess(supabase: ReturnType<typeof createServerSupabaseClient>, tenantId: string): Promise<boolean> {
   const { data: tenant } = await supabase.from('tenants').select('plan').eq('id', tenantId).single()
@@ -51,7 +60,7 @@ export async function GET() {
 
     const { data: records, error } = await supabase
       .from('training_records')
-      .select('id, tenant_id, created_by, title, provider, category, url, notes, completed, completed_date, created_at, updated_at')
+      .select(SELECT_COLUMNS)
       .eq('tenant_id', user.tenant_id)
       .order('created_at', { ascending: false })
 
@@ -93,11 +102,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validated = createSchema.parse(body)
 
+    // Derive completed boolean from status for backward compatibility
+    const status = validated.status || (validated.completed ? 'completed' : 'not_started')
+    const completed = status === 'completed'
+    const completedDate = completed && validated.completed_date ? validated.completed_date : (completed ? new Date().toISOString().split('T')[0] : null)
+
     const { data: record, error } = await supabase
       .from('training_records')
       .insert({
-        ...validated,
+        title: validated.title,
+        provider: validated.provider || null,
+        category: validated.category || null,
         url: validated.url || null,
+        notes: validated.notes || null,
+        cpd_hours: validated.cpd_hours ?? null,
+        expiry_date: validated.expiry_date || null,
+        certificate_url: validated.certificate_url || null,
+        status,
+        completed,
+        completed_date: completedDate,
         tenant_id: user.tenant_id,
         created_by: authUser.id,
       })
@@ -168,13 +191,27 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Record not found' }, { status: 404 })
     }
 
+    // Sync completed boolean with status
+    const updateData: Record<string, unknown> = {
+      ...updates,
+      url: updates.url || null,
+      certificate_url: updates.certificate_url || null,
+      updated_at: new Date().toISOString(),
+    }
+
+    if (updates.status !== undefined) {
+      updateData.completed = updates.status === 'completed'
+      if (updates.status === 'completed' && !updates.completed_date) {
+        updateData.completed_date = new Date().toISOString().split('T')[0]
+      }
+      if (updates.status !== 'completed') {
+        updateData.completed_date = null
+      }
+    }
+
     const { data: record, error } = await supabase
       .from('training_records')
-      .update({
-        ...updates,
-        url: updates.url || null,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single()

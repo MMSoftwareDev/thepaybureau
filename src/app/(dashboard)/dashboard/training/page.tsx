@@ -1,27 +1,75 @@
-// src/app/(dashboard)/dashboard/training/page.tsx
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { useToast } from '@/components/ui/toast'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useTrainingRecords, useSubscription } from '@/lib/swr'
 import { useDebounce } from '@/hooks/useDebounce'
 import UpgradePrompt from '@/components/ui/UpgradePrompt'
+import { mutate } from 'swr'
 import {
   GraduationCap,
   Plus,
-  Check,
-  ExternalLink,
-  Trash2,
-  Pencil,
-  X,
   Search,
   Filter,
+  Download,
+  Settings2,
+  Edit,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  ChevronLeft,
+  ArrowUp,
+  ArrowDown,
+  Loader2,
+  FileText,
+  Clock,
+  Award,
+  AlertTriangle,
+  BookOpen,
+  ExternalLink,
+  Lightbulb,
 } from 'lucide-react'
 
-// ─── Types ───────────────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 interface TrainingRecord {
   id: string
@@ -32,12 +80,20 @@ interface TrainingRecord {
   notes: string | null
   completed: boolean
   completed_date: string | null
+  cpd_hours: number | null
+  expiry_date: string | null
+  certificate_url: string | null
+  status: 'not_started' | 'in_progress' | 'completed'
   created_at: string
+  updated_at: string
 }
 
 type Category = 'hmrc_webinar' | 'cipp_webinar' | 'online_course' | 'conference' | 'workshop' | 'self_study' | 'other'
+type StatusFilter = 'all' | 'not_started' | 'in_progress' | 'completed' | 'expiring'
+type SortField = 'title' | 'provider' | 'category' | 'cpd_hours' | 'status' | 'completed_date' | 'expiry_date'
+type SortDirection = 'asc' | 'desc'
 
-// ─── Helpers ─────────────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────────
 
 const CATEGORY_LABELS: Record<string, string> = {
   hmrc_webinar: 'HMRC Webinar',
@@ -49,25 +105,161 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: 'Other',
 }
 
-const CATEGORY_COLORS: Record<string, { text: string; bg: string }> = {
-  hmrc_webinar: { text: '#7c3aed', bg: 'rgba(124,58,237,0.1)' },
-  cipp_webinar: { text: '#2563eb', bg: 'rgba(37,99,235,0.1)' },
-  online_course: { text: '#059669', bg: 'rgba(5,150,105,0.1)' },
-  conference: { text: '#d97706', bg: 'rgba(217,119,6,0.1)' },
-  workshop: { text: '#dc2626', bg: 'rgba(220,38,38,0.1)' },
-  self_study: { text: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
-  other: { text: '#64748b', bg: 'rgba(100,116,139,0.1)' },
+function getCategoryColor(cat: string | null, isDark: boolean): { bg: string; text: string; border: string } {
+  switch (cat) {
+    case 'hmrc_webinar':
+      return { bg: isDark ? 'rgba(124,92,191,0.15)' : '#F5F3FF', text: isDark ? '#A78BFA' : '#7C3AED', border: isDark ? 'rgba(124,92,191,0.3)' : '#DDD6FE' }
+    case 'cipp_webinar':
+      return { bg: isDark ? 'rgba(59,130,246,0.15)' : '#EFF6FF', text: isDark ? '#60A5FA' : '#2563EB', border: isDark ? 'rgba(59,130,246,0.3)' : '#BFDBFE' }
+    case 'online_course':
+      return { bg: isDark ? 'rgba(34,197,94,0.15)' : '#F0FDF4', text: isDark ? '#4ADE80' : '#16A34A', border: isDark ? 'rgba(34,197,94,0.3)' : '#BBF7D0' }
+    case 'conference':
+      return { bg: isDark ? 'rgba(245,158,11,0.15)' : '#FFFBEB', text: isDark ? '#FBBF24' : '#D97706', border: isDark ? 'rgba(245,158,11,0.3)' : '#FDE68A' }
+    case 'workshop':
+      return { bg: isDark ? 'rgba(236,56,93,0.15)' : '#FFF1F2', text: isDark ? '#F06082' : '#E11D48', border: isDark ? 'rgba(236,56,93,0.3)' : '#FECDD3' }
+    case 'self_study':
+      return { bg: isDark ? 'rgba(99,102,241,0.15)' : '#EEF2FF', text: isDark ? '#818CF8' : '#6366F1', border: isDark ? 'rgba(99,102,241,0.3)' : '#C7D2FE' }
+    default:
+      return { bg: isDark ? 'rgba(156,163,175,0.15)' : '#F9FAFB', text: isDark ? '#9CA3AF' : '#6B7280', border: isDark ? 'rgba(156,163,175,0.3)' : '#E5E7EB' }
+  }
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
+const STATUS_LABELS: Record<string, string> = {
+  not_started: 'Not Started',
+  in_progress: 'In Progress',
+  completed: 'Completed',
 }
 
-// ─── Component ───────────────────────────────────────────────────────
+function getStatusColor(status: string, isDark: boolean): { bg: string; text: string; border: string; dot: string } {
+  switch (status) {
+    case 'completed':
+      return { bg: isDark ? 'rgba(34,197,94,0.15)' : '#F0FDF4', text: isDark ? '#4ADE80' : '#16A34A', border: isDark ? 'rgba(34,197,94,0.3)' : '#BBF7D0', dot: '#22C55E' }
+    case 'in_progress':
+      return { bg: isDark ? 'rgba(245,158,11,0.15)' : '#FFFBEB', text: isDark ? '#FBBF24' : '#D97706', border: isDark ? 'rgba(245,158,11,0.3)' : '#FDE68A', dot: '#F59E0B' }
+    default:
+      return { bg: isDark ? 'rgba(156,163,175,0.15)' : '#F9FAFB', text: isDark ? '#9CA3AF' : '#6B7280', border: isDark ? 'rgba(156,163,175,0.3)' : '#E5E7EB', dot: '#9CA3AF' }
+  }
+}
+
+const RECOMMENDED_TRAINING = [
+  { title: 'CIPP Payroll Technician Certificate', provider: 'CIPP', category: 'cipp_webinar' as Category, hours: 40 },
+  { title: 'HMRC Basic PAYE Tools Training', provider: 'HMRC', category: 'hmrc_webinar' as Category, hours: 2 },
+  { title: 'Auto Enrolment Essentials', provider: 'The Pensions Regulator', category: 'online_course' as Category, hours: 3 },
+  { title: 'Payroll Year-End Procedures', provider: 'HMRC', category: 'hmrc_webinar' as Category, hours: 1.5 },
+  { title: 'RTI Compliance Update', provider: 'HMRC', category: 'hmrc_webinar' as Category, hours: 1 },
+  { title: 'National Minimum Wage Update', provider: 'HMRC', category: 'hmrc_webinar' as Category, hours: 1 },
+  { title: 'Statutory Payments (SSP/SMP/SPP)', provider: 'CIPP', category: 'cipp_webinar' as Category, hours: 2 },
+  { title: 'GDPR for Payroll Professionals', provider: 'CIPP', category: 'online_course' as Category, hours: 2 },
+]
+
+const PAGE_SIZE = 25
+const LOCALSTORAGE_KEY = 'tpb_training_columns'
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  try {
+    return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  } catch {
+    return '-'
+  }
+}
+
+function isExpired(dateStr: string | null): boolean {
+  if (!dateStr) return false
+  return new Date(dateStr) < new Date()
+}
+
+function isExpiringSoon(dateStr: string | null): boolean {
+  if (!dateStr) return false
+  const exp = new Date(dateStr)
+  const in90 = new Date()
+  in90.setDate(in90.getDate() + 90)
+  return exp >= new Date() && exp <= in90
+}
+
+// ── Column Definitions ────────────────────────────────────────────────────────
+
+interface ColumnDef {
+  id: string
+  label: string
+  sortField?: SortField
+  defaultVisible: boolean
+  getValue: (r: TrainingRecord) => string
+}
+
+const ALL_COLUMNS: ColumnDef[] = [
+  { id: 'title', label: 'Title', sortField: 'title', defaultVisible: true, getValue: (r) => r.title },
+  { id: 'provider', label: 'Provider', sortField: 'provider', defaultVisible: true, getValue: (r) => r.provider || '-' },
+  { id: 'category', label: 'Category', sortField: 'category', defaultVisible: true, getValue: (r) => CATEGORY_LABELS[r.category || ''] || '-' },
+  { id: 'cpd_hours', label: 'CPD Hours', sortField: 'cpd_hours', defaultVisible: true, getValue: (r) => r.cpd_hours ? r.cpd_hours.toFixed(1) : '-' },
+  { id: 'status', label: 'Status', sortField: 'status', defaultVisible: true, getValue: (r) => STATUS_LABELS[r.status] || r.status },
+  { id: 'completed_date', label: 'Completed', sortField: 'completed_date', defaultVisible: true, getValue: (r) => formatDate(r.completed_date) },
+  { id: 'expiry_date', label: 'Expiry', sortField: 'expiry_date', defaultVisible: true, getValue: (r) => formatDate(r.expiry_date) },
+]
+
+const DEFAULT_VISIBLE = ALL_COLUMNS.filter(c => c.defaultVisible).map(c => c.id)
+const DEFAULT_ORDER = ALL_COLUMNS.map(c => c.id)
+
+// ── SortableHeader ───────────────────────────────────────────────────────────
+
+function SortableHeader({
+  label, field, currentField, currentDirection, onSort, colors, className = '',
+}: {
+  label: string
+  field: SortField
+  currentField: SortField
+  currentDirection: SortDirection
+  onSort: (field: SortField) => void
+  colors: ReturnType<typeof getThemeColors>
+  className?: string
+}) {
+  const isActive = currentField === field
+  return (
+    <TableHead
+      className={`px-4 py-3 text-xs font-medium uppercase tracking-wider cursor-pointer select-none font-[family-name:var(--font-inter)] ${className}`}
+      style={{ color: isActive ? colors.primary : colors.text.muted }}
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {isActive && (currentDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
+      </div>
+    </TableHead>
+  )
+}
+
+// ── FormSection ──────────────────────────────────────────────────────────────
+
+function FormSection({
+  title, icon: Icon, defaultOpen = true, colors, children,
+}: {
+  title: string
+  icon: React.ComponentType<{ className?: string }>
+  defaultOpen?: boolean
+  colors: ReturnType<typeof getThemeColors>
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div style={{ borderBottom: `1px solid ${colors.border}` }}>
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 px-5 py-3 text-left text-sm font-semibold font-[family-name:var(--font-inter)] transition-colors"
+        style={{ color: colors.text.primary }}
+        onClick={() => setOpen(!open)}
+      >
+        <Icon className="w-4 h-4" />
+        {title}
+        <span className="ml-auto">
+          {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </span>
+      </button>
+      {open && <div className="px-5 pb-4 space-y-3">{children}</div>}
+    </div>
+  )
+}
+
+// ── Wrapper (plan gate) ──────────────────────────────────────────────────────
 
 export default function TrainingPageWrapper() {
   const { data: subscriptionData } = useSubscription()
@@ -77,7 +269,7 @@ export default function TrainingPageWrapper() {
     return (
       <UpgradePrompt
         feature="Training & CPD"
-        description="Track your professional development, HMRC webinars, CIPP courses, and CPD hours. Upgrade to Unlimited to unlock Training & CPD tracking."
+        description="Track your professional development, HMRC webinars, CIPP courses, and CPD hours. Export professional PDF reports of your training record. Upgrade to Unlimited to unlock Training & CPD tracking."
         icon={GraduationCap}
       />
     )
@@ -86,57 +278,174 @@ export default function TrainingPageWrapper() {
   return <TrainingPage />
 }
 
+// ── Main Page ────────────────────────────────────────────────────────────────
+
 function TrainingPage() {
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
   const { toast } = useToast()
 
-  const { data: records = [], isLoading: loading, mutate } = useTrainingRecords()
-  const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
-  const debouncedSearch = useDebounce(search, 200)
-  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending'>('all')
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  // Data
+  const { data: records = [], isLoading } = useTrainingRecords()
+  const allRecords = records as TrainingRecord[]
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearch = useDebounce(searchQuery, 300)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [showFilters, setShowFilters] = useState(false)
 
-  // Form state
+  // Sort
+  const [sortField, setSortField] = useState<SortField>('completed_date')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Column prefs
+  const [columnPrefs, setColumnPrefs] = useState<{ visible: string[]; order: string[] }>({ visible: DEFAULT_VISIBLE, order: DEFAULT_ORDER })
+  const [columnsDialogOpen, setColumnsDialogOpen] = useState(false)
+
+  // Sheet
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<TrainingRecord | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  // Delete dialog
+  const [recordToDelete, setRecordToDelete] = useState<TrainingRecord | null>(null)
+
+  // Recommended training panel
+  const [showRecommended, setShowRecommended] = useState(false)
+
+  // Form fields
   const [formTitle, setFormTitle] = useState('')
   const [formProvider, setFormProvider] = useState('')
   const [formCategory, setFormCategory] = useState<Category | ''>('')
   const [formUrl, setFormUrl] = useState('')
   const [formNotes, setFormNotes] = useState('')
-  const [formCompleted, setFormCompleted] = useState(false)
+  const [formStatus, setFormStatus] = useState<'not_started' | 'in_progress' | 'completed'>('not_started')
   const [formCompletedDate, setFormCompletedDate] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [formCpdHours, setFormCpdHours] = useState('')
+  const [formExpiryDate, setFormExpiryDate] = useState('')
+  const [formCertificateUrl, setFormCertificateUrl] = useState('')
 
-  const resetForm = () => {
+  // Load column prefs
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(LOCALSTORAGE_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored) as { visible: string[]; order: string[] }
+        const allIds = ALL_COLUMNS.map(c => c.id)
+        const validVisible = parsed.visible.filter((id: string) => allIds.includes(id))
+        const validOrder = parsed.order.filter((id: string) => allIds.includes(id))
+        const newIds = allIds.filter(id => !validOrder.includes(id))
+        setColumnPrefs({
+          visible: validVisible.length > 0 ? validVisible : DEFAULT_VISIBLE,
+          order: [...validOrder, ...newIds],
+        })
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  const saveColumnPrefs = useCallback((prefs: { visible: string[]; order: string[] }) => {
+    setColumnPrefs(prefs)
+    try { localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(prefs)) } catch { /* ignore */ }
+  }, [])
+
+  const toggleColumn = useCallback((id: string) => {
+    const next = { ...columnPrefs }
+    if (next.visible.includes(id)) {
+      next.visible = next.visible.filter(v => v !== id)
+    } else {
+      next.visible = [...next.visible, id]
+    }
+    saveColumnPrefs(next)
+  }, [columnPrefs, saveColumnPrefs])
+
+  const moveColumn = useCallback((id: string, dir: 'up' | 'down') => {
+    const idx = columnPrefs.order.indexOf(id)
+    if (idx < 0) return
+    const next = [...columnPrefs.order]
+    const swapIdx = dir === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= next.length) return
+    ;[next[idx], next[swapIdx]] = [next[swapIdx], next[idx]]
+    saveColumnPrefs({ ...columnPrefs, order: next })
+  }, [columnPrefs, saveColumnPrefs])
+
+  const resetColumns = useCallback(() => {
+    saveColumnPrefs({ visible: DEFAULT_VISIBLE, order: DEFAULT_ORDER })
+  }, [saveColumnPrefs])
+
+  const activeColumns = useMemo(() => {
+    return columnPrefs.order
+      .filter(id => columnPrefs.visible.includes(id))
+      .map(id => ALL_COLUMNS.find(c => c.id === id)!)
+      .filter(Boolean)
+  }, [columnPrefs])
+
+  const handleSort = useCallback((field: SortField) => {
+    setSortDirection(prev => sortField === field ? (prev === 'asc' ? 'desc' : 'asc') : 'asc')
+    setSortField(field)
+  }, [sortField])
+
+  // ── Form handlers ──────────────────────────────────────────────────────────
+
+  const resetForm = useCallback(() => {
     setFormTitle('')
     setFormProvider('')
     setFormCategory('')
     setFormUrl('')
     setFormNotes('')
-    setFormCompleted(false)
+    setFormStatus('not_started')
     setFormCompletedDate('')
-    setEditingId(null)
-    setShowForm(false)
-  }
+    setFormCpdHours('')
+    setFormExpiryDate('')
+    setFormCertificateUrl('')
+    setEditingRecord(null)
+  }, [])
 
-  const startEdit = (record: TrainingRecord) => {
+  const openAdd = useCallback(() => {
+    resetForm()
+    setSheetOpen(true)
+  }, [resetForm])
+
+  const openAddFromRecommended = useCallback((rec: typeof RECOMMENDED_TRAINING[0]) => {
+    resetForm()
+    setFormTitle(rec.title)
+    setFormProvider(rec.provider)
+    setFormCategory(rec.category)
+    setFormCpdHours(rec.hours.toString())
+    setSheetOpen(true)
+    setShowRecommended(false)
+  }, [resetForm])
+
+  const openEdit = useCallback((record: TrainingRecord) => {
+    setEditingRecord(record)
     setFormTitle(record.title)
     setFormProvider(record.provider || '')
     setFormCategory((record.category as Category) || '')
     setFormUrl(record.url || '')
     setFormNotes(record.notes || '')
-    setFormCompleted(record.completed)
+    setFormStatus(record.status)
     setFormCompletedDate(record.completed_date || '')
-    setEditingId(record.id)
-    setShowForm(true)
-  }
+    setFormCpdHours(record.cpd_hours ? String(record.cpd_hours) : '')
+    setFormExpiryDate(record.expiry_date || '')
+    setFormCertificateUrl(record.certificate_url || '')
+    setSheetOpen(true)
+  }, [])
 
-  const handleSubmit = async () => {
-    if (!formTitle.trim()) return
+  const handleSave = async () => {
+    if (!formTitle.trim()) {
+      toast('Title is required', 'error')
+      return
+    }
+
     setSaving(true)
-
     try {
       const body: Record<string, unknown> = {
         title: formTitle.trim(),
@@ -144,431 +453,902 @@ function TrainingPage() {
         category: formCategory || null,
         url: formUrl.trim() || null,
         notes: formNotes.trim() || null,
-        completed: formCompleted,
-        completed_date: formCompleted && formCompletedDate ? formCompletedDate : null,
+        status: formStatus,
+        completed_date: formStatus === 'completed' && formCompletedDate ? formCompletedDate : null,
+        cpd_hours: formCpdHours ? parseFloat(formCpdHours) : null,
+        expiry_date: formExpiryDate || null,
+        certificate_url: formCertificateUrl.trim() || null,
       }
 
-      if (editingId) {
-        body.id = editingId
+      if (editingRecord) {
+        body.id = editingRecord.id
       }
 
       const res = await fetch('/api/training', {
-        method: editingId ? 'PUT' : 'POST',
+        method: editingRecord ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
 
-      if (!res.ok) throw new Error('Failed to save')
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to save')
+      }
 
-      toast(editingId ? 'Training record updated' : 'Training record added', 'success')
+      toast(editingRecord ? 'Training record updated' : 'Training record added', 'success')
+      setSheetOpen(false)
       resetForm()
-      mutate()
-    } catch {
-      toast('Failed to save training record', 'error')
+      mutate('/api/training')
+    } catch (err) {
+      toast((err as Error).message, 'error')
     } finally {
       setSaving(false)
     }
   }
 
-  const toggleCompleted = async (record: TrainingRecord) => {
-    const nowCompleted = !record.completed
-    const completedDate = nowCompleted ? new Date().toISOString().split('T')[0] : null
-
-    // Optimistic update: reflect in UI instantly
-    const previous = records
-    mutate(
-      (records as TrainingRecord[]).map((r: TrainingRecord) =>
-        r.id === record.id ? { ...r, completed: nowCompleted, completed_date: completedDate } : r
-      ),
-      false
-    )
-
+  const handleDelete = async (record: TrainingRecord) => {
     try {
-      const res = await fetch('/api/training', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: record.id, completed: nowCompleted, completed_date: completedDate }),
-      })
-      if (!res.ok) throw new Error('Failed to update')
-    } catch {
-      // Rollback on error
-      mutate(previous, false)
-      toast('Failed to update', 'error')
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    try {
-      const res = await fetch(`/api/training?id=${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/training?id=${record.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Failed to delete')
       toast('Training record deleted', 'success')
-      mutate((records as TrainingRecord[]).filter((r: TrainingRecord) => r.id !== id), false)
+      mutate('/api/training')
+      setRecordToDelete(null)
     } catch {
-      toast('Failed to delete', 'error')
+      toast('Failed to delete training record', 'error')
     }
   }
 
-  // Filter records
-  const filtered = (records as TrainingRecord[]).filter((r: TrainingRecord) => {
-    if (statusFilter === 'completed' && !r.completed) return false
-    if (statusFilter === 'pending' && r.completed) return false
-    if (debouncedSearch && !r.title.toLowerCase().includes(debouncedSearch.toLowerCase()) &&
-        !(r.provider || '').toLowerCase().includes(debouncedSearch.toLowerCase())) return false
-    return true
-  })
+  const handleExportPdf = async () => {
+    setExporting(true)
+    try {
+      const res = await fetch('/api/training/export-pdf')
+      if (!res.ok) throw new Error('Failed to export')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `cpd-record-${new Date().toISOString().split('T')[0]}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      toast('Failed to export PDF', 'error')
+    } finally {
+      setExporting(false)
+    }
+  }
 
-  const completedCount = (records as TrainingRecord[]).filter((r: TrainingRecord) => r.completed).length
-  const pendingCount = (records as TrainingRecord[]).length - completedCount
+  // ── Filtered + sorted data ──────────────────────────────────────────────────
+
+  const filteredSorted: TrainingRecord[] = useMemo(() => {
+    let filtered = allRecords
+
+    if (statusFilter === 'expiring') {
+      filtered = filtered.filter(r => isExpired(r.expiry_date) || isExpiringSoon(r.expiry_date))
+    } else if (statusFilter !== 'all') {
+      filtered = filtered.filter(r => r.status === statusFilter)
+    }
+
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter(r => r.category === categoryFilter)
+    }
+
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase()
+      filtered = filtered.filter(r =>
+        r.title.toLowerCase().includes(q) ||
+        (r.provider || '').toLowerCase().includes(q) ||
+        (r.notes || '').toLowerCase().includes(q)
+      )
+    }
+
+    filtered = [...filtered].sort((a, b) => {
+      const dir = sortDirection === 'asc' ? 1 : -1
+      switch (sortField) {
+        case 'title': return dir * a.title.localeCompare(b.title)
+        case 'provider': return dir * (a.provider || '').localeCompare(b.provider || '')
+        case 'category': return dir * (a.category || '').localeCompare(b.category || '')
+        case 'cpd_hours': return dir * ((a.cpd_hours || 0) - (b.cpd_hours || 0))
+        case 'status': return dir * a.status.localeCompare(b.status)
+        case 'completed_date': {
+          if (!a.completed_date && !b.completed_date) return 0
+          if (!a.completed_date) return 1
+          if (!b.completed_date) return -1
+          return dir * a.completed_date.localeCompare(b.completed_date)
+        }
+        case 'expiry_date': {
+          if (!a.expiry_date && !b.expiry_date) return 0
+          if (!a.expiry_date) return 1
+          if (!b.expiry_date) return -1
+          return dir * a.expiry_date.localeCompare(b.expiry_date)
+        }
+        default: return 0
+      }
+    })
+
+    return filtered
+  }, [allRecords, statusFilter, categoryFilter, debouncedSearch, sortField, sortDirection])
+
+  useEffect(() => { setCurrentPage(1) }, [statusFilter, categoryFilter, debouncedSearch, sortField, sortDirection])
+
+  const totalPages = Math.max(1, Math.ceil(filteredSorted.length / PAGE_SIZE))
+  const paginated = filteredSorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+  const showingFrom = filteredSorted.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
+  const showingTo = Math.min(currentPage * PAGE_SIZE, filteredSorted.length)
+
+  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (categoryFilter !== 'all' ? 1 : 0)
+
+  // ── KPI calculations ──────────────────────────────────────────────────────
+
+  const kpis = useMemo(() => {
+    const now = new Date()
+    const yearStart = new Date(now.getFullYear(), 0, 1)
+    const completedThisYear = allRecords.filter(r => r.status === 'completed' && r.completed_date && new Date(r.completed_date) >= yearStart)
+    const hoursThisYear = completedThisYear.reduce((sum, r) => sum + (r.cpd_hours || 0), 0)
+    const monthsElapsed = now.getMonth() + 1
+    const avgHoursPerMonth = monthsElapsed > 0 ? hoursThisYear / monthsElapsed : 0
+    const inProgress = allRecords.filter(r => r.status === 'in_progress').length
+    const completed = allRecords.filter(r => r.status === 'completed').length
+    const expired = allRecords.filter(r => isExpired(r.expiry_date)).length
+    const expiringSoon = allRecords.filter(r => isExpiringSoon(r.expiry_date)).length
+
+    return { total: allRecords.length, inProgress, completed, completedThisYear: completedThisYear.length, hoursThisYear, avgHoursPerMonth, expired, expiringSoon }
+  }, [allRecords])
+
+  // ── Skeleton ─────────────────────────────────────────────────────────────
+
+  if (!mounted || isLoading) {
+    return (
+      <div className="p-4 md:p-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="h-8 w-48 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
+          <div className="h-9 w-36 rounded-lg animate-pulse" style={{ backgroundColor: colors.border }} />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-20 rounded-xl animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
+          ))}
+        </div>
+        <div className="h-96 rounded-xl animate-pulse" style={{ backgroundColor: `${colors.border}60` }} />
+      </div>
+    )
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 md:p-6 space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: colors.text.primary }}>
-            Training &amp; CPD
-          </h1>
-          <p className="mt-1 text-sm" style={{ color: colors.text.secondary }}>
-            Track your continuing professional development
-          </p>
-        </div>
-        <Button
-          onClick={() => { resetForm(); setShowForm(true) }}
-          className="flex items-center gap-2"
-          style={{ background: colors.primary }}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h1
+          className="text-xl md:text-2xl font-bold tracking-tight font-[family-name:var(--font-inter)]"
+          style={{ color: colors.text.primary }}
         >
-          <Plus size={16} />
+          Training &amp; CPD
+        </h1>
+        <Button
+          onClick={openAdd}
+          className="text-white text-sm"
+          style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+        >
+          <Plus className="w-4 h-4 mr-1.5" />
           Add Training
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {[
-          { label: 'Total', value: records.length },
-          { label: 'Completed', value: completedCount },
-          { label: 'Pending', value: pendingCount },
-        ].map(stat => (
-          <div
-            key={stat.label}
-            className="rounded-xl border p-4 text-center"
-            style={{ background: colors.surface, borderColor: colors.border }}
-          >
-            <div className="text-2xl font-bold" style={{ color: colors.text.primary }}>
-              {stat.value}
-            </div>
-            <div className="text-xs mt-1" style={{ color: colors.text.muted }}>
-              {stat.label}
-            </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div
+          className="rounded-xl p-4 transition-all duration-150"
+          style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <GraduationCap className="w-4 h-4" style={{ color: colors.primary }} />
+            <p className="text-[0.7rem] font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
+              Total Records
+            </p>
           </div>
-        ))}
+          <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+            {kpis.total}
+          </p>
+          <p className="text-[0.7rem] mt-0.5" style={{ color: colors.text.muted }}>
+            {kpis.inProgress} in progress
+          </p>
+        </div>
+
+        <div
+          className="rounded-xl p-4 transition-all duration-150"
+          style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <Clock className="w-4 h-4" style={{ color: colors.primary }} />
+            <p className="text-[0.7rem] font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
+              CPD Hours (This Year)
+            </p>
+          </div>
+          <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+            {kpis.hoursThisYear.toFixed(1)}
+          </p>
+          <p className="text-[0.7rem] mt-0.5" style={{ color: colors.text.muted }}>
+            Avg {kpis.avgHoursPerMonth.toFixed(1)} hrs/month
+          </p>
+        </div>
+
+        <div
+          className="rounded-xl p-4 transition-all duration-150"
+          style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <Award className="w-4 h-4" style={{ color: getStatusColor('completed', isDark).text }} />
+            <p className="text-[0.7rem] font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
+              Completed
+            </p>
+          </div>
+          <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+            {kpis.completed}
+          </p>
+          <p className="text-[0.7rem] mt-0.5" style={{ color: colors.text.muted }}>
+            {kpis.completedThisYear} this year
+          </p>
+        </div>
+
+        <div
+          className="rounded-xl p-4 transition-all duration-150"
+          style={{ backgroundColor: colors.surface, border: `1px solid ${kpis.expired > 0 ? 'var(--login-error)' : colors.border}` }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <AlertTriangle className="w-4 h-4" style={{ color: kpis.expired > 0 ? 'var(--login-error)' : kpis.expiringSoon > 0 ? '#D97706' : colors.text.muted }} />
+            <p className="text-[0.7rem] font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
+              Expiring Soon
+            </p>
+          </div>
+          <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: kpis.expired > 0 ? 'var(--login-error)' : colors.text.primary }}>
+            {kpis.expiringSoon}
+          </p>
+          <p className="text-[0.7rem] mt-0.5" style={{ color: kpis.expired > 0 ? 'var(--login-error)' : colors.text.muted }}>
+            {kpis.expired > 0 ? `${kpis.expired} expired` : 'No expired certs'}
+          </p>
+        </div>
       </div>
 
-      {/* Add/Edit form */}
-      {showForm && (
+      {/* Recommended Training Banner */}
+      <button
+        onClick={() => setShowRecommended(!showRecommended)}
+        className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm text-left transition-colors"
+        style={{
+          backgroundColor: isDark ? `${colors.primary}10` : `${colors.primary}08`,
+          border: `1px solid ${colors.primary}20`,
+          color: colors.primary,
+        }}
+      >
+        <Lightbulb className="w-4 h-4 flex-shrink-0" />
+        <span className="font-medium font-[family-name:var(--font-inter)]">Recommended Training</span>
+        <span className="text-xs ml-1 font-[family-name:var(--font-body)]" style={{ color: colors.text.muted }}>
+          — {RECOMMENDED_TRAINING.length} suggested courses for payroll professionals
+        </span>
+        <span className="ml-auto">
+          {showRecommended ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </span>
+      </button>
+
+      {showRecommended && (
         <div
-          className="rounded-xl border p-5 space-y-4"
-          style={{ background: colors.surface, borderColor: colors.border }}
+          className="rounded-lg p-3 grid grid-cols-1 sm:grid-cols-2 gap-2"
+          style={{ backgroundColor: isDark ? `${colors.primary}08` : `${colors.primary}04`, border: `1px solid ${colors.border}` }}
         >
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold" style={{ color: colors.text.primary }}>
-              {editingId ? 'Edit Training Record' : 'Add Training Record'}
-            </h2>
-            <button onClick={resetForm} style={{ color: colors.text.muted }}>
-              <X size={16} />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="text-xs font-medium block mb-1" style={{ color: colors.text.secondary }}>
-                Title *
-              </label>
-              <Input
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
-                placeholder="e.g. HMRC Employment Income Manual Webinar"
-                style={{ background: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium block mb-1" style={{ color: colors.text.secondary }}>
-                Provider
-              </label>
-              <Input
-                value={formProvider}
-                onChange={(e) => setFormProvider(e.target.value)}
-                placeholder="e.g. HMRC, CIPP, Brightpay"
-                style={{ background: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium block mb-1" style={{ color: colors.text.secondary }}>
-                Category
-              </label>
-              <select
-                value={formCategory}
-                onChange={(e) => setFormCategory(e.target.value as Category)}
-                className="w-full rounded-lg px-3 py-2 text-sm border"
-                style={{ background: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
+          {RECOMMENDED_TRAINING.map((rec) => {
+            const alreadyLogged = allRecords.some(r => r.title.toLowerCase() === rec.title.toLowerCase())
+            return (
+              <div
+                key={rec.title}
+                className="flex items-center gap-3 rounded-lg px-3 py-2"
+                style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}
               >
-                <option value="">Select category...</option>
-                {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="text-xs font-medium block mb-1" style={{ color: colors.text.secondary }}>
-                Link (URL)
-              </label>
-              <Input
-                value={formUrl}
-                onChange={(e) => setFormUrl(e.target.value)}
-                placeholder="https://..."
-                style={{ background: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="text-xs font-medium block mb-1" style={{ color: colors.text.secondary }}>
-                Notes
-              </label>
-              <textarea
-                value={formNotes}
-                onChange={(e) => setFormNotes(e.target.value)}
-                placeholder="Key takeaways, topics covered..."
-                rows={2}
-                className="w-full rounded-lg px-3 py-2 text-sm border resize-none"
-                style={{ background: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
-              />
-            </div>
-
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formCompleted}
-                  onChange={(e) => {
-                    setFormCompleted(e.target.checked)
-                    if (e.target.checked && !formCompletedDate) {
-                      setFormCompletedDate(new Date().toISOString().split('T')[0])
-                    }
-                  }}
-                  className="rounded"
-                />
-                <span className="text-sm" style={{ color: colors.text.primary }}>Completed</span>
-              </label>
-            </div>
-
-            {formCompleted && (
-              <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: colors.text.secondary }}>
-                  Date Completed
-                </label>
-                <Input
-                  type="date"
-                  value={formCompletedDate}
-                  onChange={(e) => setFormCompletedDate(e.target.value)}
-                  style={{ background: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
-                />
+                <BookOpen className="w-4 h-4 flex-shrink-0" style={{ color: colors.primary }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                    {rec.title}
+                  </p>
+                  <p className="text-[0.7rem]" style={{ color: colors.text.muted }}>
+                    {rec.provider} — {rec.hours} hrs
+                  </p>
+                </div>
+                {alreadyLogged ? (
+                  <Badge
+                    className="text-[0.65rem] px-1.5 py-0.5 flex-shrink-0"
+                    style={{ backgroundColor: getStatusColor('completed', isDark).bg, color: getStatusColor('completed', isDark).text, border: `1px solid ${getStatusColor('completed', isDark).border}` }}
+                  >
+                    Logged
+                  </Badge>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-7 px-2 flex-shrink-0"
+                    style={{ borderColor: colors.primary, color: colors.primary }}
+                    onClick={() => openAddFromRecommended(rec)}
+                  >
+                    Log This
+                  </Button>
+                )}
               </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Toolbar: Search + Filters + Columns + Export */}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: colors.text.muted }} />
+            <Input
+              placeholder="Search training records..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9 text-sm"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className="text-xs gap-1.5 h-9"
+            style={{
+              borderColor: activeFilterCount > 0 ? colors.primary : colors.border,
+              color: activeFilterCount > 0 ? colors.primary : colors.text.secondary,
+            }}
+          >
+            <Filter className="w-3.5 h-3.5" />
+            Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setColumnsDialogOpen(true)}
+            className="text-xs gap-1.5 h-9"
+            style={{ borderColor: colors.border, color: colors.text.secondary }}
+          >
+            <Settings2 className="w-3.5 h-3.5" />
+            Columns
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPdf}
+            disabled={exporting}
+            className="text-xs gap-1.5 h-9"
+            style={{ borderColor: colors.border, color: colors.text.secondary }}
+          >
+            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            Export PDF
+          </Button>
+        </div>
+
+        {/* Expandable Filters */}
+        {showFilters && (
+          <div
+            className="rounded-lg p-3 flex flex-wrap items-center gap-3"
+            style={{ backgroundColor: isDark ? `${colors.primary}08` : `${colors.primary}04`, border: `1px solid ${colors.border}` }}
+          >
+            <div className="flex items-center gap-2">
+              <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>Status</Label>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                <SelectTrigger className="h-8 w-[140px] text-xs" style={{ borderColor: colors.border, color: colors.text.primary, backgroundColor: colors.surface }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="not_started">Not Started</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="expiring">Expiring / Expired</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>Category</Label>
+              <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v)}>
+                <SelectTrigger className="h-8 w-[160px] text-xs" style={{ borderColor: colors.border, color: colors.text.primary, backgroundColor: colors.surface }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={() => { setStatusFilter('all'); setCategoryFilter('all') }}
+                className="text-xs font-medium ml-auto"
+                style={{ color: colors.primary }}
+              >
+                Clear All
+              </button>
             )}
           </div>
+        )}
+      </div>
 
-          <div className="flex gap-2 pt-2">
-            <Button
-              onClick={handleSubmit}
-              disabled={!formTitle.trim() || saving}
-              style={{ background: colors.primary }}
+      {/* Table */}
+      {allRecords.length === 0 ? (
+        <Card style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+          <CardContent className="p-12 text-center">
+            <div
+              className="w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center"
+              style={{ backgroundColor: `${colors.primary}12` }}
             >
-              {saving ? 'Saving...' : editingId ? 'Update' : 'Add'}
+              <GraduationCap className="w-6 h-6" style={{ color: colors.primary }} />
+            </div>
+            <h3 className="text-sm font-semibold font-[family-name:var(--font-inter)] mb-1" style={{ color: colors.text.primary }}>
+              No training records yet
+            </h3>
+            <p className="text-xs font-[family-name:var(--font-body)] mb-4" style={{ color: colors.text.muted }}>
+              Start tracking your professional development by adding your first training record.
+            </p>
+            <Button
+              onClick={openAdd}
+              className="text-white text-sm"
+              style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              Add Training
+            </Button>
+          </CardContent>
+        </Card>
+      ) : filteredSorted.length === 0 ? (
+        <Card style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+          <CardContent className="p-12 text-center">
+            <Search className="w-8 h-8 mx-auto mb-3" style={{ color: colors.text.muted, opacity: 0.4 }} />
+            <p className="text-sm font-medium" style={{ color: colors.text.secondary }}>No matching records</p>
+            <p className="text-xs mt-1" style={{ color: colors.text.muted }}>Try adjusting your search or filters</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="overflow-x-auto rounded-xl" style={{ border: `1px solid ${colors.border}` }}>
+          <Table>
+            <TableHeader>
+              <TableRow style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#FAFAFA' }}>
+                {activeColumns.map((col) => (
+                  col.sortField ? (
+                    <SortableHeader
+                      key={col.id}
+                      label={col.label}
+                      field={col.sortField}
+                      currentField={sortField}
+                      currentDirection={sortDirection}
+                      onSort={handleSort}
+                      colors={colors}
+                    />
+                  ) : (
+                    <TableHead key={col.id} className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
+                      {col.label}
+                    </TableHead>
+                  )
+                ))}
+                <TableHead className="px-4 py-3 text-xs font-medium uppercase tracking-wider font-[family-name:var(--font-inter)] w-[60px]" style={{ color: colors.text.muted }}>
+                  Actions
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginated.map((record) => (
+                <TableRow
+                  key={record.id}
+                  className="transition-colors duration-150 cursor-pointer group"
+                  style={{ borderColor: colors.border }}
+                  onClick={() => openEdit(record)}
+                >
+                  {activeColumns.map((col) => {
+                    if (col.id === 'category') {
+                      const catColor = getCategoryColor(record.category, isDark)
+                      return (
+                        <TableCell key={col.id} className="px-4 py-2.5">
+                          {record.category ? (
+                            <Badge
+                              className="text-[0.7rem] font-medium px-2 py-0.5"
+                              style={{ backgroundColor: catColor.bg, color: catColor.text, border: `1px solid ${catColor.border}` }}
+                            >
+                              {CATEGORY_LABELS[record.category] || record.category}
+                            </Badge>
+                          ) : (
+                            <span className="text-sm" style={{ color: colors.text.muted }}>-</span>
+                          )}
+                        </TableCell>
+                      )
+                    }
+
+                    if (col.id === 'status') {
+                      const sc = getStatusColor(record.status, isDark)
+                      return (
+                        <TableCell key={col.id} className="px-4 py-2.5">
+                          <Badge
+                            className="text-[0.7rem] font-medium px-2 py-0.5"
+                            style={{ backgroundColor: sc.bg, color: sc.text, border: `1px solid ${sc.border}` }}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full mr-1.5 inline-block" style={{ backgroundColor: sc.dot }} />
+                            {STATUS_LABELS[record.status]}
+                          </Badge>
+                        </TableCell>
+                      )
+                    }
+
+                    if (col.id === 'expiry_date') {
+                      const expired = isExpired(record.expiry_date)
+                      const expiring = isExpiringSoon(record.expiry_date)
+                      return (
+                        <TableCell key={col.id} className="px-4 py-2.5">
+                          <span
+                            className="text-sm font-[family-name:var(--font-body)]"
+                            style={{
+                              color: expired ? 'var(--login-error)' : expiring ? '#D97706' : colors.text.primary,
+                              fontWeight: expired || expiring ? 600 : 400,
+                            }}
+                          >
+                            {formatDate(record.expiry_date)}
+                          </span>
+                          {expired && (
+                            <Badge className="ml-1.5 text-[0.6rem] px-1 py-0" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--login-error)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                              Expired
+                            </Badge>
+                          )}
+                          {!expired && expiring && (
+                            <Badge className="ml-1.5 text-[0.6rem] px-1 py-0" style={{ backgroundColor: 'rgba(217,119,6,0.1)', color: '#D97706', border: '1px solid rgba(217,119,6,0.2)' }}>
+                              Soon
+                            </Badge>
+                          )}
+                        </TableCell>
+                      )
+                    }
+
+                    if (col.id === 'title') {
+                      return (
+                        <TableCell key={col.id} className="px-4 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium font-[family-name:var(--font-inter)] truncate max-w-[300px]" style={{ color: colors.text.primary }}>
+                              {record.title}
+                            </span>
+                            {record.url && (
+                              <a
+                                href={record.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-shrink-0"
+                                style={{ color: colors.primary }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
+                        </TableCell>
+                      )
+                    }
+
+                    return (
+                      <TableCell key={col.id} className="px-4 py-2.5">
+                        <span className="text-sm font-[family-name:var(--font-body)]" style={{ color: colors.text.primary }}>
+                          {col.getValue(record)}
+                        </span>
+                      </TableCell>
+                    )
+                  })}
+                  <TableCell className="px-4 py-2.5">
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openEdit(record) }}
+                        className="p-1.5 rounded-lg transition-colors"
+                        style={{ color: colors.text.muted }}
+                        title="Edit"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setRecordToDelete(record) }}
+                        className="p-1.5 rounded-lg transition-colors"
+                        style={{ color: colors.text.muted }}
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {filteredSorted.length > 0 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
+            Showing {showingFrom}–{showingTo} of {filteredSorted.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 w-7 p-0"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(p => p - 1)}
+              style={{ borderColor: colors.border, color: colors.text.secondary }}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-xs font-medium px-2 font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+              {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 w-7 p-0"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(p => p + 1)}
+              style={{ borderColor: colors.border, color: colors.text.secondary }}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Columns Dialog */}
+      <Dialog open={columnsDialogOpen} onOpenChange={setColumnsDialogOpen}>
+        <DialogContent style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+          <DialogHeader>
+            <DialogTitle className="font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+              Customize Columns
+            </DialogTitle>
+            <DialogDescription style={{ color: colors.text.muted }}>
+              Toggle visibility and reorder columns.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1 max-h-64 overflow-y-auto">
+            {columnPrefs.order.map((id) => {
+              const col = ALL_COLUMNS.find(c => c.id === id)
+              if (!col) return null
+              const isVisible = columnPrefs.visible.includes(id)
+              return (
+                <div key={id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg" style={{ backgroundColor: isVisible ? `${colors.primary}08` : 'transparent' }}>
+                  <input
+                    type="checkbox"
+                    checked={isVisible}
+                    onChange={() => toggleColumn(id)}
+                    className="rounded"
+                  />
+                  <span className="flex-1 text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+                    {col.label}
+                  </span>
+                  <button onClick={() => moveColumn(id, 'up')} className="p-0.5" style={{ color: colors.text.muted }}>
+                    <ArrowUp className="w-3 h-3" />
+                  </button>
+                  <button onClick={() => moveColumn(id, 'down')} className="p-0.5" style={{ color: colors.text.muted }}>
+                    <ArrowDown className="w-3 h-3" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={resetColumns} style={{ borderColor: colors.border, color: colors.text.secondary }}>
+              Reset
+            </Button>
+            <Button size="sm" onClick={() => setColumnsDialogOpen(false)} style={{ background: colors.primary }} className="text-white">
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!recordToDelete} onOpenChange={(open) => !open && setRecordToDelete(null)}>
+        <AlertDialogContent style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle style={{ color: colors.text.primary }}>Delete Training Record</AlertDialogTitle>
+            <AlertDialogDescription style={{ color: colors.text.secondary }}>
+              Are you sure you want to delete &ldquo;{recordToDelete?.title}&rdquo;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel style={{ borderColor: colors.border, color: colors.text.secondary }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => recordToDelete && handleDelete(recordToDelete)}
+              className="text-white"
+              style={{ backgroundColor: 'var(--login-error)' }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Add/Edit Sheet */}
+      <Sheet open={sheetOpen} onOpenChange={(open) => { if (!open) { setSheetOpen(false); resetForm() } }}>
+        <SheetContent
+          className="w-full sm:max-w-lg overflow-y-auto p-0"
+          style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+        >
+          <SheetHeader className="px-5 py-4" style={{ borderBottom: `1px solid ${colors.border}` }}>
+            <SheetTitle className="font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
+              {editingRecord ? 'Edit Training Record' : 'Add Training Record'}
+            </SheetTitle>
+            <SheetDescription style={{ color: colors.text.muted }}>
+              {editingRecord ? 'Update the details of this training record.' : 'Log a new training or CPD activity.'}
+            </SheetDescription>
+          </SheetHeader>
+
+          {/* Details Section */}
+          <FormSection title="Details" icon={FileText} defaultOpen={true} colors={colors}>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>Title *</Label>
+                <Input
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  placeholder="e.g. HMRC Employment Income Manual Webinar"
+                  className="mt-1"
+                  style={{ backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>Provider</Label>
+                  <Input
+                    value={formProvider}
+                    onChange={(e) => setFormProvider(e.target.value)}
+                    placeholder="e.g. HMRC, CIPP"
+                    className="mt-1"
+                    style={{ backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>Category</Label>
+                  <Select value={formCategory || 'none'} onValueChange={(v) => setFormCategory(v === 'none' ? '' : v as Category)}>
+                    <SelectTrigger className="mt-1" style={{ backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}>
+                      <SelectValue placeholder="Select category..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No category</SelectItem>
+                      {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>Training URL</Label>
+                <Input
+                  value={formUrl}
+                  onChange={(e) => setFormUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="mt-1"
+                  style={{ backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>Notes</Label>
+                <textarea
+                  value={formNotes}
+                  onChange={(e) => setFormNotes(e.target.value)}
+                  placeholder="Key takeaways, topics covered..."
+                  rows={3}
+                  className="w-full rounded-lg px-3 py-2 text-sm border resize-none mt-1"
+                  style={{ backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+            </div>
+          </FormSection>
+
+          {/* Progress Section */}
+          <FormSection title="Progress" icon={Clock} defaultOpen={true} colors={colors}>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>Status</Label>
+                  <Select value={formStatus} onValueChange={(v) => {
+                    const newStatus = v as 'not_started' | 'in_progress' | 'completed'
+                    setFormStatus(newStatus)
+                    if (newStatus === 'completed' && !formCompletedDate) {
+                      setFormCompletedDate(new Date().toISOString().split('T')[0])
+                    }
+                  }}>
+                    <SelectTrigger className="mt-1" style={{ backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="not_started">Not Started</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>CPD Hours</Label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={formCpdHours}
+                    onChange={(e) => setFormCpdHours(e.target.value)}
+                    placeholder="e.g. 2.5"
+                    className="mt-1"
+                    style={{ backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
+                  />
+                </div>
+              </div>
+              {formStatus === 'completed' && (
+                <div>
+                  <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>Date Completed</Label>
+                  <Input
+                    type="date"
+                    value={formCompletedDate}
+                    onChange={(e) => setFormCompletedDate(e.target.value)}
+                    className="mt-1"
+                    style={{ backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
+                  />
+                </div>
+              )}
+            </div>
+          </FormSection>
+
+          {/* Certification Section */}
+          <FormSection title="Certification" icon={Award} defaultOpen={false} colors={colors}>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>Certificate URL</Label>
+                <Input
+                  value={formCertificateUrl}
+                  onChange={(e) => setFormCertificateUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="mt-1"
+                  style={{ backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>Expiry Date</Label>
+                <Input
+                  type="date"
+                  value={formExpiryDate}
+                  onChange={(e) => setFormExpiryDate(e.target.value)}
+                  className="mt-1"
+                  style={{ backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
+                />
+                <p className="text-[0.7rem] mt-1" style={{ color: colors.text.muted }}>
+                  Leave blank if no expiry. You&apos;ll be alerted 90 days before expiry.
+                </p>
+              </div>
+            </div>
+          </FormSection>
+
+          {/* Submit buttons */}
+          <div className="px-5 py-4 flex gap-2" style={{ borderTop: `1px solid ${colors.border}` }}>
+            <Button
+              onClick={handleSave}
+              disabled={!formTitle.trim() || saving}
+              className="flex-1 text-white"
+              style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+            >
+              {saving ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : null}
+              {saving ? 'Saving...' : editingRecord ? 'Update' : 'Add Training'}
             </Button>
             <Button
-              onClick={resetForm}
               variant="outline"
+              onClick={() => { setSheetOpen(false); resetForm() }}
               style={{ borderColor: colors.border, color: colors.text.secondary }}
             >
               Cancel
             </Button>
           </div>
-        </div>
-      )}
-
-      {/* Search & Filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2"
-            style={{ color: colors.text.muted }}
-          />
-          <Input
-            placeholder="Search training records..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-            style={{ background: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border, color: colors.text.primary }}
-          />
-        </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm border"
-          style={{
-            borderColor: statusFilter !== 'all' ? colors.primary : colors.border,
-            color: statusFilter !== 'all' ? colors.primary : colors.text.secondary,
-            background: 'transparent',
-          }}
-        >
-          <Filter size={14} />
-          {statusFilter === 'all' ? 'Filter' : statusFilter === 'completed' ? 'Completed' : 'Pending'}
-        </button>
-      </div>
-
-      {showFilters && (
-        <div className="flex gap-2">
-          {(['all', 'completed', 'pending'] as const).map(s => (
-            <button
-              key={s}
-              onClick={() => { setStatusFilter(s); setShowFilters(false) }}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium border"
-              style={{
-                borderColor: statusFilter === s ? colors.primary : colors.border,
-                color: statusFilter === s ? colors.primary : colors.text.secondary,
-                background: statusFilter === s ? (isDark ? 'rgba(59,130,246,0.1)' : 'rgba(59,130,246,0.05)') : 'transparent',
-              }}
-            >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Records list */}
-      <div
-        className="rounded-xl border overflow-hidden"
-        style={{ background: colors.surface, borderColor: colors.border }}
-      >
-        {loading ? (
-          <div className="py-16 text-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 mx-auto mb-3" style={{ borderColor: colors.primary }} />
-            <p className="text-sm" style={{ color: colors.text.muted }}>Loading...</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="py-16 text-center">
-            <GraduationCap size={40} className="mx-auto mb-3" style={{ color: colors.text.muted, opacity: 0.4 }} />
-            <p className="text-sm font-medium" style={{ color: colors.text.secondary }}>
-              {records.length === 0 ? 'No training records yet' : 'No matching records'}
-            </p>
-            <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
-              {records.length === 0 ? 'Click "Add Training" to log your first CPD entry' : 'Try adjusting your search or filters'}
-            </p>
-          </div>
-        ) : (
-          filtered.map((record, idx) => {
-            const catConfig = record.category ? CATEGORY_COLORS[record.category] : null
-
-            return (
-              <div
-                key={record.id}
-                className="flex items-start gap-3 px-4 py-3"
-                style={{
-                  borderBottom: idx < filtered.length - 1 ? `1px solid ${isDark ? '#1e293b' : '#f1f5f9'}` : 'none',
-                }}
-              >
-                {/* Completed checkbox */}
-                <button
-                  onClick={() => toggleCompleted(record)}
-                  className="flex-shrink-0 mt-0.5 w-5 h-5 rounded border flex items-center justify-center"
-                  style={{
-                    borderColor: record.completed ? '#22c55e' : colors.border,
-                    background: record.completed ? '#22c55e' : 'transparent',
-                  }}
-                >
-                  {record.completed && <Check size={12} style={{ color: '#fff' }} />}
-                </button>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span
-                      className="text-sm font-medium"
-                      style={{
-                        color: colors.text.primary,
-                        textDecoration: record.completed ? 'line-through' : 'none',
-                        opacity: record.completed ? 0.7 : 1,
-                      }}
-                    >
-                      {record.title}
-                    </span>
-                    {record.url && (
-                      <a
-                        href={record.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-shrink-0"
-                        style={{ color: colors.primary }}
-                      >
-                        <ExternalLink size={13} />
-                      </a>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    {record.provider && (
-                      <span className="text-xs" style={{ color: colors.text.muted }}>
-                        {record.provider}
-                      </span>
-                    )}
-                    {record.category && catConfig && (
-                      <span
-                        className="text-xs px-2 py-0.5 rounded-full font-medium"
-                        style={{ color: catConfig.text, background: catConfig.bg }}
-                      >
-                        {CATEGORY_LABELS[record.category]}
-                      </span>
-                    )}
-                    {record.completed_date && (
-                      <span className="text-xs" style={{ color: colors.text.muted }}>
-                        Completed {formatDate(record.completed_date)}
-                      </span>
-                    )}
-                  </div>
-
-                  {record.notes && (
-                    <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
-                      {record.notes}
-                    </p>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex-shrink-0 flex gap-1">
-                  <button
-                    onClick={() => startEdit(record)}
-                    className="p-1.5 rounded-lg"
-                    style={{ color: colors.text.muted }}
-                    title="Edit"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(record.id)}
-                    className="p-1.5 rounded-lg"
-                    style={{ color: colors.text.muted }}
-                    title="Delete"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            )
-          })
-        )}
-      </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
