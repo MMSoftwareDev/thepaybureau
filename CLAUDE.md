@@ -214,8 +214,9 @@ Hard-won lessons from previous sessions — check here before making changes in 
 ### In Progress / Planned
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
 - Reorder pension tasks after payroll run in checklists
-- Global auth context for reactive user tracking
-- Debug admin users page if still broken after migration 022 is applied
+- Global auth context for reactive user tracking (SWR cache clear + revalidation done in Sessions 5, 13, 23; full reactive context still pending)
+- Verify admin users page works in production after migration 022 is applied
+- Run migrations 022 and 023 in Supabase SQL Editor (user action required)
 
 ## Workflow Rules
 
@@ -899,3 +900,13 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Migration 022 reminder**: User must run `022_user_titles_and_comments.sql` in Supabase SQL Editor for admin users page to work in production
 - **Files modified (16)**: `register/route.ts`, `.env.example`, `globals.css`, `ThemeContext.tsx`, `FeedbackWidget.tsx`, `training/export-pdf/route.ts`, `training/page.tsx`, `pensions/page.tsx`, `settings/page.tsx`, `clients/page.tsx`, `login/page.tsx`, `signup/page.tsx`, `verify-email/page.tsx`, `forgot-password/page.tsx`, `reset-password/page.tsx`, `CLAUDE.md`
 - Branch: `claude/review-release-prep-brPlR`
+
+### Session 36 — Codebase Review, Todo List & Domain Reference Fixes (2026-03-17)
+- **Full codebase review**: Ran 3 parallel Explore agents to audit codebase against CLAUDE.md — identified gaps, verified completions, and prioritised outstanding work
+- **CLAUDE.md updates**: Updated Known Issues (domain refs narrowed to 3 specific locations, CSS variable naming marked resolved, migrations 022/023 tracking added); clarified In Progress items (SWR fix done, global auth context still pending)
+- **tasks/todo.md populated**: Added prioritised to-do list — Critical (migrations, admin page verification), Should Do (hero screenshots, pension task reorder, global auth context), V2 Deferred (checklist templates, OAuth, 2FA, etc.)
+- **Email template domain fix**: `src/lib/email-templates.ts` — replaced 6 hardcoded `app.thepaybureau.com` URLs with `APP_BASE_URL` constant (reads `NEXT_PUBLIC_APP_URL` env var with fallback)
+- **CI config domain fix**: `.github/workflows/ci.yml` — `NEXT_PUBLIC_APP_URL` now reads from GitHub Actions vars with fallback
+- **Supabase config**: `supabase/config.toml` left unchanged (local dev config, intentionally static)
+- **Files modified (4)**: `CLAUDE.md`, `tasks/todo.md`, `src/lib/email-templates.ts`, `.github/workflows/ci.yml`
+- Branch: `claude/review-code-tasks-1cQu8`
