@@ -101,7 +101,7 @@ export default function ResetPasswordPage() {
       {/* ═══ BRAND PANEL (left) ═══ */}
       <aside
         className="relative hidden flex-col justify-between overflow-hidden p-10 lg:p-12 md:flex"
-        style={{ background: 'var(--login-purple-d)' }}
+        style={{ background: 'var(--brand-purple-d)' }}
         aria-hidden="true"
       >
         {/* Animated mesh gradient */}
@@ -112,10 +112,10 @@ export default function ResetPasswordPage() {
             width: '200%',
             height: '200%',
             background: `
-              radial-gradient(ellipse at 20% 50%, var(--login-purple-l) 0%, transparent 50%),
-              radial-gradient(ellipse at 80% 20%, var(--login-pink) 0%, transparent 40%),
-              radial-gradient(ellipse at 60% 80%, var(--login-peach) 0%, transparent 45%),
-              radial-gradient(ellipse at 40% 30%, var(--login-purple) 0%, transparent 50%)
+              radial-gradient(ellipse at 20% 50%, var(--brand-purple-l) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 20%, var(--brand-pink) 0%, transparent 40%),
+              radial-gradient(ellipse at 60% 80%, var(--brand-peach) 0%, transparent 45%),
+              radial-gradient(ellipse at 40% 30%, var(--brand-purple) 0%, transparent 50%)
             `,
             animation: 'meshShift 20s ease-in-out infinite alternate',
           }}
@@ -143,7 +143,7 @@ export default function ResetPasswordPage() {
             <em
               className="italic"
               style={{
-                background: 'linear-gradient(135deg, var(--login-peach), var(--login-pink))',
+                background: 'linear-gradient(135deg, var(--brand-peach), var(--brand-pink))',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
@@ -177,7 +177,7 @@ export default function ResetPasswordPage() {
         <div className="relative z-10 flex items-center gap-3">
           <div
             className="login-pulse-dot h-2 w-2 rounded-full"
-            style={{ background: 'var(--login-peach)', animation: 'loginPulse 3s ease-in-out infinite' }}
+            style={{ background: 'var(--brand-peach)', animation: 'loginPulse 3s ease-in-out infinite' }}
           />
           <span className="font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-white/45">
             Secure password recovery
@@ -186,7 +186,7 @@ export default function ResetPasswordPage() {
       </aside>
 
       {/* ═══ FORM PANEL (right) ═══ */}
-      <main className="relative flex items-center justify-center bg-[var(--login-surface)] p-6 md:p-12">
+      <main className="relative flex items-center justify-center bg-[var(--brand-surface)] p-6 md:p-12">
         {/* Faint blush gradient */}
         <div
           className="pointer-events-none absolute opacity-100"
@@ -205,14 +205,14 @@ export default function ResetPasswordPage() {
             <div className="text-center">
               <div
                 className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full"
-                style={{ background: 'var(--login-success-bg)' }}
+                style={{ background: 'var(--brand-success-bg)' }}
               >
-                <CheckCircle2 className="h-8 w-8" style={{ color: 'var(--login-success)' }} />
+                <CheckCircle2 className="h-8 w-8" style={{ color: 'var(--brand-success)' }} />
               </div>
-              <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--login-text)]">
+              <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--brand-text)]">
                 Password updated
               </h2>
-              <p className="mt-3 font-[family-name:var(--font-body)] text-[0.95rem] leading-relaxed text-[var(--login-text-3)]">
+              <p className="mt-3 font-[family-name:var(--font-body)] text-[0.95rem] leading-relaxed text-[var(--brand-text-3)]">
                 Your password has been reset successfully. Redirecting you to sign in&hellip;
               </p>
             </div>
@@ -221,21 +221,21 @@ export default function ResetPasswordPage() {
             <div className="text-center">
               <div
                 className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full"
-                style={{ background: 'var(--login-error-bg)' }}
+                style={{ background: 'var(--brand-error-bg)' }}
               >
-                <svg width="32" height="32" viewBox="0 0 16 16" fill="var(--login-error)" className="h-8 w-8">
+                <svg width="32" height="32" viewBox="0 0 16 16" fill="var(--brand-error)" className="h-8 w-8">
                   <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
                 </svg>
               </div>
-              <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--login-text)]">
+              <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--brand-text)]">
                 Link expired
               </h2>
-              <p className="mt-3 font-[family-name:var(--font-body)] text-[0.95rem] leading-relaxed text-[var(--login-text-3)]">
+              <p className="mt-3 font-[family-name:var(--font-body)] text-[0.95rem] leading-relaxed text-[var(--brand-text-3)]">
                 This password reset link has expired or is no longer valid. Please request a new one.
               </p>
               <Link
                 href="/forgot-password"
-                className="mt-6 inline-block font-[family-name:var(--font-body)] text-[0.95rem] font-semibold text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)]"
+                className="mt-6 inline-block font-[family-name:var(--font-body)] text-[0.95rem] font-semibold text-[var(--brand-purple)] transition-colors hover:text-[var(--brand-pink)]"
               >
                 Request new reset link
               </Link>
@@ -243,8 +243,8 @@ export default function ResetPasswordPage() {
           ) : !sessionReady ? (
             /* ── Loading state ── */
             <div className="flex flex-col items-center gap-4">
-              <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--login-purple)' }} />
-              <p className="font-[family-name:var(--font-body)] text-[0.95rem] text-[var(--login-text-3)]">
+              <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--brand-purple)' }} />
+              <p className="font-[family-name:var(--font-body)] text-[0.95rem] text-[var(--brand-text-3)]">
                 Verifying your reset link&hellip;
               </p>
             </div>
@@ -254,17 +254,17 @@ export default function ResetPasswordPage() {
               {/* Mobile logo */}
               <div className="mb-8 flex items-center gap-2 md:hidden">
                 <Image src="/logo.png" alt="ThePayBureau" width={36} height={36} className="rounded-lg" />
-                <span className="font-[family-name:var(--font-body)] text-lg font-extrabold tracking-tight text-[var(--login-text)]">
+                <span className="font-[family-name:var(--font-body)] text-lg font-extrabold tracking-tight text-[var(--brand-text)]">
                   ThePayBureau
                 </span>
               </div>
 
               {/* Form header */}
               <div className="mb-8">
-                <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--login-text)]">
+                <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--brand-text)]">
                   Set new password
                 </h2>
-                <p className="mt-2 font-[family-name:var(--font-body)] text-[0.95rem] text-[var(--login-text-3)]">
+                <p className="mt-2 font-[family-name:var(--font-body)] text-[0.95rem] text-[var(--brand-text-3)]">
                   Choose a strong password you haven&apos;t used before.
                 </p>
               </div>
@@ -274,7 +274,7 @@ export default function ResetPasswordPage() {
                 <div>
                   <Label
                     htmlFor="password"
-                    className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--login-text-2)]"
+                    className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--brand-text-2)]"
                   >
                     New password
                   </Label>
@@ -292,18 +292,18 @@ export default function ResetPasswordPage() {
                       autoComplete="new-password"
                       disabled={loading}
                       className={cn(
-                        'h-12 rounded-xl border-2 border-transparent bg-[var(--login-cream)] px-4 pr-12 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                        'h-12 rounded-xl border-2 border-transparent bg-[var(--brand-cream)] px-4 pr-12 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--brand-text)] placeholder:font-normal placeholder:text-[var(--brand-text-3)]',
                         'transition-all duration-200',
-                        'hover:border-[var(--login-border)]',
-                        'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]',
+                        'hover:border-[var(--brand-border)]',
+                        'focus-visible:border-[var(--brand-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--brand-focus)] dark:focus-visible:bg-[#1A1B2E]',
                         passwordError &&
-                          'border-[var(--login-error)] bg-[var(--login-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
+                          'border-[var(--brand-error)] bg-[var(--brand-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
                       )}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md p-1 text-[var(--login-text-3)] transition-colors hover:text-[var(--login-purple)] focus-visible:outline-2 focus-visible:outline-[var(--login-purple)] focus-visible:outline-offset-2"
+                      className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md p-1 text-[var(--brand-text-3)] transition-colors hover:text-[var(--brand-purple)] focus-visible:outline-2 focus-visible:outline-[var(--brand-purple)] focus-visible:outline-offset-2"
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                       disabled={loading}
                     >
@@ -311,7 +311,7 @@ export default function ResetPasswordPage() {
                     </button>
                   </div>
                   {passwordError && (
-                    <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+                    <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-error)]">
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
                         <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
                       </svg>
@@ -324,7 +324,7 @@ export default function ResetPasswordPage() {
                 <div>
                   <Label
                     htmlFor="confirm-password"
-                    className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--login-text-2)]"
+                    className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--brand-text-2)]"
                   >
                     Confirm password
                   </Label>
@@ -341,16 +341,16 @@ export default function ResetPasswordPage() {
                     autoComplete="new-password"
                     disabled={loading}
                     className={cn(
-                      'h-12 rounded-xl border-2 border-transparent bg-[var(--login-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                      'h-12 rounded-xl border-2 border-transparent bg-[var(--brand-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--brand-text)] placeholder:font-normal placeholder:text-[var(--brand-text-3)]',
                       'transition-all duration-200',
-                      'hover:border-[var(--login-border)]',
-                      'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]',
+                      'hover:border-[var(--brand-border)]',
+                      'focus-visible:border-[var(--brand-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--brand-focus)] dark:focus-visible:bg-[#1A1B2E]',
                       confirmError &&
-                        'border-[var(--login-error)] bg-[var(--login-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
+                        'border-[var(--brand-error)] bg-[var(--brand-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
                     )}
                   />
                   {confirmError && (
-                    <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+                    <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-error)]">
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
                         <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
                       </svg>
@@ -369,16 +369,16 @@ export default function ResetPasswordPage() {
                   'transition-all duration-300',
                   'hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(64,29,108,0.3)]',
                   'active:translate-y-0',
-                  'focus-visible:outline-2 focus-visible:outline-[var(--login-purple)] focus-visible:outline-offset-[3px]',
+                  'focus-visible:outline-2 focus-visible:outline-[var(--brand-purple)] focus-visible:outline-offset-[3px]',
                   'disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none'
                 )}
-                style={{ background: 'var(--login-purple)' }}
+                style={{ background: 'var(--brand-purple)' }}
               >
                 {/* Gradient hover overlay */}
                 <span
                   className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-400 group-hover:opacity-100 group-disabled:opacity-0"
                   style={{
-                    background: 'linear-gradient(135deg, var(--login-pink), var(--login-peach))',
+                    background: 'linear-gradient(135deg, var(--brand-pink), var(--brand-peach))',
                   }}
                 />
                 <span className="relative z-10 flex items-center justify-center gap-2">

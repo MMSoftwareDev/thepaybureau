@@ -398,7 +398,7 @@ function generateCPDReport(
     doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin, pageH - 8, { align: 'right' })
 
     // Thin line above footer
-    doc.setDrawColor(232, 226, 240) // --login-border light
+    doc.setDrawColor(232, 226, 240) // --brand-border light
     doc.setLineWidth(0.3)
     doc.line(margin, pageH - 12, pageWidth - margin, pageH - 12)
   }

@@ -61,7 +61,7 @@ export default function ForgotPasswordPage() {
       {/* ═══ BRAND PANEL (left) ═══ */}
       <aside
         className="relative hidden flex-col justify-between overflow-hidden p-10 lg:p-12 md:flex"
-        style={{ background: 'var(--login-purple-d)' }}
+        style={{ background: 'var(--brand-purple-d)' }}
         aria-hidden="true"
       >
         {/* Animated mesh gradient */}
@@ -72,10 +72,10 @@ export default function ForgotPasswordPage() {
             width: '200%',
             height: '200%',
             background: `
-              radial-gradient(ellipse at 20% 50%, var(--login-purple-l) 0%, transparent 50%),
-              radial-gradient(ellipse at 80% 20%, var(--login-pink) 0%, transparent 40%),
-              radial-gradient(ellipse at 60% 80%, var(--login-peach) 0%, transparent 45%),
-              radial-gradient(ellipse at 40% 30%, var(--login-purple) 0%, transparent 50%)
+              radial-gradient(ellipse at 20% 50%, var(--brand-purple-l) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 20%, var(--brand-pink) 0%, transparent 40%),
+              radial-gradient(ellipse at 60% 80%, var(--brand-peach) 0%, transparent 45%),
+              radial-gradient(ellipse at 40% 30%, var(--brand-purple) 0%, transparent 50%)
             `,
             animation: 'meshShift 20s ease-in-out infinite alternate',
           }}
@@ -104,7 +104,7 @@ export default function ForgotPasswordPage() {
             <em
               className="italic"
               style={{
-                background: 'linear-gradient(135deg, var(--login-peach), var(--login-pink))',
+                background: 'linear-gradient(135deg, var(--brand-peach), var(--brand-pink))',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
@@ -138,7 +138,7 @@ export default function ForgotPasswordPage() {
         <div className="relative z-10 flex items-center gap-3">
           <div
             className="login-pulse-dot h-2 w-2 rounded-full"
-            style={{ background: 'var(--login-peach)', animation: 'loginPulse 3s ease-in-out infinite' }}
+            style={{ background: 'var(--brand-peach)', animation: 'loginPulse 3s ease-in-out infinite' }}
           />
           <span className="font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-white/45">
             Secure password recovery
@@ -147,7 +147,7 @@ export default function ForgotPasswordPage() {
       </aside>
 
       {/* ═══ FORM PANEL (right) ═══ */}
-      <main className="relative flex items-center justify-center bg-[var(--login-surface)] p-6 md:p-12">
+      <main className="relative flex items-center justify-center bg-[var(--brand-surface)] p-6 md:p-12">
         {/* Faint blush gradient */}
         <div
           className="pointer-events-none absolute opacity-100"
@@ -164,7 +164,7 @@ export default function ForgotPasswordPage() {
           {/* Back to login */}
           <Link
             href="/login"
-            className="mb-8 inline-flex items-center gap-2 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-text-3)] transition-colors hover:text-[var(--login-text)]"
+            className="mb-8 inline-flex items-center gap-2 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--brand-text-3)] transition-colors hover:text-[var(--brand-text)]"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to sign in
@@ -175,23 +175,23 @@ export default function ForgotPasswordPage() {
             <div className="text-center">
               <div
                 className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full"
-                style={{ background: 'var(--login-success-bg)' }}
+                style={{ background: 'var(--brand-success-bg)' }}
               >
-                <CheckCircle2 className="h-8 w-8" style={{ color: 'var(--login-success)' }} />
+                <CheckCircle2 className="h-8 w-8" style={{ color: 'var(--brand-success)' }} />
               </div>
-              <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--login-text)]">
+              <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--brand-text)]">
                 Check your inbox
               </h2>
-              <p className="mt-3 font-[family-name:var(--font-body)] text-[0.95rem] leading-relaxed text-[var(--login-text-3)]">
+              <p className="mt-3 font-[family-name:var(--font-body)] text-[0.95rem] leading-relaxed text-[var(--brand-text-3)]">
                 We&apos;ve sent a password reset link to{' '}
-                <strong className="text-[var(--login-text)]">{email}</strong>.
+                <strong className="text-[var(--brand-text)]">{email}</strong>.
                 Click the link in the email to choose a new password.
               </p>
-              <div className="mt-6 rounded-[10px] border border-[var(--login-border)] bg-[var(--login-cream)] p-4 text-left">
-                <p className="font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-text-2)]">
+              <div className="mt-6 rounded-[10px] border border-[var(--brand-border)] bg-[var(--brand-cream)] p-4 text-left">
+                <p className="font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-text-2)]">
                   Didn&apos;t receive it?
                 </p>
-                <ul className="mt-2 space-y-1 font-[family-name:var(--font-body)] text-[0.8rem] text-[var(--login-text-3)]">
+                <ul className="mt-2 space-y-1 font-[family-name:var(--font-body)] text-[0.8rem] text-[var(--brand-text-3)]">
                   <li>Check your spam or junk folder</li>
                   <li>Make sure you entered the correct email</li>
                   <li>The link expires in one hour</li>
@@ -199,7 +199,7 @@ export default function ForgotPasswordPage() {
               </div>
               <button
                 onClick={() => setSent(false)}
-                className="mt-6 font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)]"
+                className="mt-6 font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--brand-purple)] transition-colors hover:text-[var(--brand-pink)]"
               >
                 Try a different email
               </button>
@@ -210,17 +210,17 @@ export default function ForgotPasswordPage() {
               {/* Mobile logo */}
               <div className="mb-8 flex items-center gap-2 md:hidden">
                 <Image src="/logo.png" alt="ThePayBureau" width={36} height={36} className="rounded-lg" />
-                <span className="font-[family-name:var(--font-body)] text-lg font-extrabold tracking-tight text-[var(--login-text)]">
+                <span className="font-[family-name:var(--font-body)] text-lg font-extrabold tracking-tight text-[var(--brand-text)]">
                   ThePayBureau
                 </span>
               </div>
 
               {/* Form header */}
               <div className="mb-8">
-                <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--login-text)]">
+                <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--brand-text)]">
                   Forgot password?
                 </h2>
-                <p className="mt-2 font-[family-name:var(--font-body)] text-[0.95rem] text-[var(--login-text-3)]">
+                <p className="mt-2 font-[family-name:var(--font-body)] text-[0.95rem] text-[var(--brand-text-3)]">
                   Enter the email you signed up with and we&apos;ll send you a reset link.
                 </p>
               </div>
@@ -229,7 +229,7 @@ export default function ForgotPasswordPage() {
               <div>
                 <Label
                   htmlFor="email"
-                  className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--login-text-2)]"
+                  className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--brand-text-2)]"
                 >
                   Email address
                 </Label>
@@ -246,16 +246,16 @@ export default function ForgotPasswordPage() {
                   autoComplete="email"
                   disabled={loading}
                   className={cn(
-                    'h-12 rounded-xl border-2 border-transparent bg-[var(--login-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                    'h-12 rounded-xl border-2 border-transparent bg-[var(--brand-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--brand-text)] placeholder:font-normal placeholder:text-[var(--brand-text-3)]',
                     'transition-all duration-200',
-                    'hover:border-[var(--login-border)]',
-                    'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]',
+                    'hover:border-[var(--brand-border)]',
+                    'focus-visible:border-[var(--brand-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--brand-focus)] dark:focus-visible:bg-[#1A1B2E]',
                     emailError &&
-                      'border-[var(--login-error)] bg-[var(--login-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
+                      'border-[var(--brand-error)] bg-[var(--brand-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
                   )}
                 />
                 {emailError && (
-                  <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+                  <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-error)]">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
                       <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
                     </svg>
@@ -273,16 +273,16 @@ export default function ForgotPasswordPage() {
                   'transition-all duration-300',
                   'hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(64,29,108,0.3)]',
                   'active:translate-y-0',
-                  'focus-visible:outline-2 focus-visible:outline-[var(--login-purple)] focus-visible:outline-offset-[3px]',
+                  'focus-visible:outline-2 focus-visible:outline-[var(--brand-purple)] focus-visible:outline-offset-[3px]',
                   'disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none'
                 )}
-                style={{ background: 'var(--login-purple)' }}
+                style={{ background: 'var(--brand-purple)' }}
               >
                 {/* Gradient hover overlay */}
                 <span
                   className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-400 group-hover:opacity-100 group-disabled:opacity-0"
                   style={{
-                    background: 'linear-gradient(135deg, var(--login-pink), var(--login-peach))',
+                    background: 'linear-gradient(135deg, var(--brand-pink), var(--brand-peach))',
                   }}
                 />
                 <span className="relative z-10 flex items-center justify-center gap-2">
@@ -298,11 +298,11 @@ export default function ForgotPasswordPage() {
               </Button>
 
               {/* Support contact */}
-              <p className="mt-6 text-center font-[family-name:var(--font-body)] text-[0.82rem] text-[var(--login-text-3)]">
+              <p className="mt-6 text-center font-[family-name:var(--font-body)] text-[0.82rem] text-[var(--brand-text-3)]">
                 Can&apos;t remember your email?{' '}
                 <a
                   href="mailto:support@thepaybureau.com"
-                  className="font-medium text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)]"
+                  className="font-medium text-[var(--brand-purple)] transition-colors hover:text-[var(--brand-pink)]"
                 >
                   Contact support
                 </a>

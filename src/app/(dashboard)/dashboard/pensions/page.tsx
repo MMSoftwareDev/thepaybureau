@@ -1054,7 +1054,7 @@ export default function PensionDeclarationsPage() {
               className="flex items-center gap-2 px-3 py-2 rounded-lg mb-1"
               style={{ backgroundColor: `${colors.primary}08` }}
             >
-              <input type="checkbox" checked disabled className="w-4 h-4 accent-[var(--login-purple)] opacity-50" />
+              <input type="checkbox" checked disabled className="w-4 h-4 accent-[var(--brand-purple)] opacity-50" />
               <span className="text-sm font-medium font-[family-name:var(--font-inter)] flex-1" style={{ color: colors.text.muted }}>
                 Client Name
               </span>
@@ -1076,7 +1076,7 @@ export default function PensionDeclarationsPage() {
                     type="checkbox"
                     checked={isVisible}
                     onChange={() => toggleColumn(id)}
-                    className="w-4 h-4 accent-[var(--login-purple)] cursor-pointer"
+                    className="w-4 h-4 accent-[var(--brand-purple)] cursor-pointer"
                   />
                   <span
                     className="text-sm font-medium font-[family-name:var(--font-inter)] flex-1"
@@ -1087,7 +1087,7 @@ export default function PensionDeclarationsPage() {
                   <div className="flex items-center gap-0.5">
                     <button
                       type="button"
-                      className="p-1 rounded transition-colors hover:bg-[var(--login-purple)]/10 disabled:opacity-30"
+                      className="p-1 rounded transition-colors hover:bg-[var(--brand-purple)]/10 disabled:opacity-30"
                       disabled={idx === 0}
                       onClick={() => moveColumn(id, 'up')}
                       title="Move up"
@@ -1096,7 +1096,7 @@ export default function PensionDeclarationsPage() {
                     </button>
                     <button
                       type="button"
-                      className="p-1 rounded transition-colors hover:bg-[var(--login-purple)]/10 disabled:opacity-30"
+                      className="p-1 rounded transition-colors hover:bg-[var(--brand-purple)]/10 disabled:opacity-30"
                       disabled={idx === columnPrefs.order.length - 1}
                       onClick={() => moveColumn(id, 'down')}
                       title="Move down"

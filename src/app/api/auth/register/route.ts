@@ -161,11 +161,13 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
     
-    // Send welcome email (fire-and-forget — don't block registration)
+    // Send welcome email (must await — Vercel terminates after response)
     const welcome = welcomeEmail({ userName: validatedData.adminName })
-    sendEmail({ to: validatedData.email, ...welcome }).catch((err) =>
+    try {
+      await sendEmail({ to: validatedData.email, ...welcome })
+    } catch (err) {
       console.error('Welcome email failed:', err)
-    )
+    }
 
     return NextResponse.json({
       success: true,
