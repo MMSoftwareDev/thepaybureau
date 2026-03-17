@@ -141,9 +141,8 @@ All tables are scoped by `tenant_id` with RLS policies (except `tenants` itself 
 ## Known Issues
 
 - **Remaining domain references**: Email templates, CI config, and Supabase config still reference `app.thepaybureau.com` (see Sessions 11, 25). Marketing pages and middleware now use `www.thepaybureau.com` correctly.
-- **Serverless fire-and-forget caveat**: Never use unawaited promises for critical side effects (emails, webhooks) in Vercel serverless routes — the runtime may terminate before they complete. Always `await` or use `waitUntil()`. Fixed for feedback/feature-request emails in Session 16; audit other routes if adding new email sends.
+- **Serverless fire-and-forget caveat**: Never use unawaited promises for critical side effects (emails, webhooks) in Vercel serverless routes — the runtime may terminate before they complete. Always `await` or use `waitUntil()`. Fixed for feedback/feature-request emails (Session 16) and registration welcome email (Session 35); audit other routes if adding new email sends.
 - **Admin users page not yet verified in production**: Built and passes types/lint/tests locally, but user reported it may not work at `app.thepaybureau.com/dashboard/admin/users`. Migration 022 must be run in Supabase SQL Editor first. Debug if issue persists after migration.
-- **CSS variable naming**: All CSS variables were renamed from `--login-*` to `--brand-*` in Session 35. Completed.
 
 ## Common Pitfalls
 
@@ -209,6 +208,8 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - Password recovery: Resend verification email on verify-email page (Supabase `auth.resend()`, 60s cooldown, email input fallback)
 - Password recovery: "Can't remember your email? Contact support" help text on login and forgot-password pages
 - Training & CPD page redesign: canonical dashboard layout (sortable table, Sheet sidebar, KPIs, pagination, customizable columns), RAG status banner, CPD progress tracking (21 hrs/year CIPP benchmark), Training Plan section with recommended courses, PDF export with branded CPD report
+- Welcome email fire-and-forget fix: `await sendEmail()` in registration route (same pattern as Session 16 feedback/feature-request fix)
+- CSS variable rename: all `--login-*` → `--brand-*` across 15 files (264 occurrences)
 
 ### In Progress / Planned
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
