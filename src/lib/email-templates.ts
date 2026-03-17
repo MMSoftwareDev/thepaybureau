@@ -3,7 +3,9 @@
 
 const BRAND_PINK = '#EC385D'
 const BRAND_DEEP = '#401D6C'
-const LOGO_URL = 'https://app.thepaybureau.com/logo.png'
+const APP_BASE_URL =
+  process.env.NEXT_PUBLIC_APP_URL || 'https://app.thepaybureau.com'
+const LOGO_URL = `${APP_BASE_URL}/logo.png`
 
 function layout(content: string): string {
   return `<!DOCTYPE html>
@@ -108,7 +110,7 @@ export function welcomeEmail({
                 <!-- Button -->
                 <tr>
                   <td style="padding-bottom:40px;">
-                    <a href="https://app.thepaybureau.com/dashboard"
+                    <a href="${APP_BASE_URL}/dashboard"
                        style="display:inline-block;background:${BRAND_PINK};color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:-0.01em;">
                       Go to My Dashboard
                     </a>
@@ -180,7 +182,7 @@ export function complianceDeadlineEmail({
                 <!-- Button -->
                 <tr>
                   <td style="padding-bottom:40px;">
-                    <a href="https://app.thepaybureau.com/dashboard/clients"
+                    <a href="${APP_BASE_URL}/dashboard/clients"
                        style="display:inline-block;background:${BRAND_PINK};color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:-0.01em;">
                       View Clients
                     </a>
@@ -263,7 +265,7 @@ export function payrollIncompleteEmail({
                 <!-- Button -->
                 <tr>
                   <td style="padding-bottom:40px;">
-                    <a href="https://app.thepaybureau.com/dashboard/payrolls"
+                    <a href="${APP_BASE_URL}/dashboard/payrolls"
                        style="display:inline-block;background:${BRAND_PINK};color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:-0.01em;">
                       View Payroll Runs
                     </a>
@@ -331,7 +333,7 @@ export function feedbackNotificationEmail({
                 <!-- Button -->
                 <tr>
                   <td style="padding-bottom:40px;">
-                    <a href="https://app.thepaybureau.com/dashboard"
+                    <a href="${APP_BASE_URL}/dashboard"
                        style="display:inline-block;background:${BRAND_PINK};color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:-0.01em;">
                       Go to Dashboard
                     </a>
@@ -388,7 +390,7 @@ export function featureRequestNotificationEmail({
                 <!-- Button -->
                 <tr>
                   <td style="padding-bottom:40px;">
-                    <a href="https://app.thepaybureau.com/dashboard/feature-requests"
+                    <a href="${APP_BASE_URL}/dashboard/feature-requests"
                        style="display:inline-block;background:${BRAND_PINK};color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:-0.01em;">
                       View Feature Requests
                     </a>
