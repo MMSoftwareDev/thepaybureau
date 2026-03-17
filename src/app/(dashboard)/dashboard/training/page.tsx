@@ -784,7 +784,7 @@ function TrainingPage() {
           style={{
             backgroundColor: colors.surface,
             border: `1px solid ${colors.border}`,
-            borderLeft: `3px solid ${cpdOnTrack ? colors.success : cpdBehind > 5 ? 'var(--login-error)' : '#F59E0B'}`,
+            borderLeft: `3px solid ${cpdOnTrack ? colors.success : cpdBehind > 5 ? 'var(--brand-error)' : '#F59E0B'}`,
           }}
         >
           <div className="flex items-center gap-2 mb-1">
@@ -805,11 +805,11 @@ function TrainingPage() {
                 width: `${cpdPercentage}%`,
                 background: cpdOnTrack
                   ? `linear-gradient(90deg, ${colors.success}, #10B981)`
-                  : cpdBehind > 5 ? `linear-gradient(90deg, var(--login-error), #F87171)` : `linear-gradient(90deg, #F59E0B, #FBBF24)`,
+                  : cpdBehind > 5 ? `linear-gradient(90deg, var(--brand-error), #F87171)` : `linear-gradient(90deg, #F59E0B, #FBBF24)`,
               }}
             />
           </div>
-          <p className="text-[0.7rem] mt-1.5" style={{ color: cpdOnTrack ? colors.success : cpdBehind > 5 ? 'var(--login-error)' : '#D97706' }}>
+          <p className="text-[0.7rem] mt-1.5" style={{ color: cpdOnTrack ? colors.success : cpdBehind > 5 ? 'var(--brand-error)' : '#D97706' }}>
             {cpdOnTrack ? 'On track' : `${cpdBehind.toFixed(1)} hrs behind`}
           </p>
         </div>
@@ -861,18 +861,18 @@ function TrainingPage() {
           className="rounded-xl p-4 transition-all duration-150"
           style={{
             backgroundColor: colors.surface,
-            border: `1px solid ${kpis.expired > 0 ? 'var(--login-error)' : colors.border}`,
-            borderLeft: `3px solid ${kpis.expired > 0 ? 'var(--login-error)' : kpis.expiringSoon > 0 ? '#F59E0B' : colors.success}`,
+            border: `1px solid ${kpis.expired > 0 ? 'var(--brand-error)' : colors.border}`,
+            borderLeft: `3px solid ${kpis.expired > 0 ? 'var(--brand-error)' : kpis.expiringSoon > 0 ? '#F59E0B' : colors.success}`,
           }}
         >
           <div className="flex items-center gap-2 mb-1">
-            <AlertTriangle className="w-4 h-4" style={{ color: kpis.expired > 0 ? 'var(--login-error)' : kpis.expiringSoon > 0 ? '#D97706' : colors.text.muted }} />
+            <AlertTriangle className="w-4 h-4" style={{ color: kpis.expired > 0 ? 'var(--brand-error)' : kpis.expiringSoon > 0 ? '#D97706' : colors.text.muted }} />
             <p className="text-[0.7rem] font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>
               Certifications
             </p>
           </div>
           {kpis.expired > 0 ? (
-            <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: 'var(--login-error)' }}>
+            <p className="text-2xl font-bold font-[family-name:var(--font-inter)]" style={{ color: 'var(--brand-error)' }}>
               {kpis.expired} <span className="text-sm font-normal">expired</span>
             </p>
           ) : kpis.expiringSoon > 0 ? (
@@ -1209,14 +1209,14 @@ function TrainingPage() {
                           <span
                             className="text-sm font-[family-name:var(--font-body)]"
                             style={{
-                              color: expired ? 'var(--login-error)' : expiring ? '#D97706' : colors.text.primary,
+                              color: expired ? 'var(--brand-error)' : expiring ? '#D97706' : colors.text.primary,
                               fontWeight: expired || expiring ? 600 : 400,
                             }}
                           >
                             {formatDate(record.expiry_date)}
                           </span>
                           {expired && (
-                            <Badge className="ml-1.5 text-[0.6rem] px-1 py-0" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--login-error)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                            <Badge className="ml-1.5 text-[0.6rem] px-1 py-0" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--brand-error)', border: '1px solid rgba(239,68,68,0.2)' }}>
                               Expired
                             </Badge>
                           )}
@@ -1384,7 +1384,7 @@ function TrainingPage() {
             <AlertDialogAction
               onClick={() => recordToDelete && handleDelete(recordToDelete)}
               className="text-white"
-              style={{ backgroundColor: 'var(--login-error)' }}
+              style={{ backgroundColor: 'var(--brand-error)' }}
             >
               Delete
             </AlertDialogAction>

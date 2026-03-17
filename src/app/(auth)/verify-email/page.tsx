@@ -76,7 +76,7 @@ function VerifyEmailContent() {
       {/* ═══ BRAND PANEL (left) ═══ */}
       <aside
         className="relative hidden flex-col justify-between overflow-hidden p-10 lg:p-12 md:flex"
-        style={{ background: 'var(--login-purple-d)' }}
+        style={{ background: 'var(--brand-purple-d)' }}
         aria-hidden="true"
       >
         {/* Animated mesh gradient */}
@@ -87,10 +87,10 @@ function VerifyEmailContent() {
             width: '200%',
             height: '200%',
             background: `
-              radial-gradient(ellipse at 20% 50%, var(--login-purple-l) 0%, transparent 50%),
-              radial-gradient(ellipse at 80% 20%, var(--login-pink) 0%, transparent 40%),
-              radial-gradient(ellipse at 60% 80%, var(--login-peach) 0%, transparent 45%),
-              radial-gradient(ellipse at 40% 30%, var(--login-purple) 0%, transparent 50%)
+              radial-gradient(ellipse at 20% 50%, var(--brand-purple-l) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 20%, var(--brand-pink) 0%, transparent 40%),
+              radial-gradient(ellipse at 60% 80%, var(--brand-peach) 0%, transparent 45%),
+              radial-gradient(ellipse at 40% 30%, var(--brand-purple) 0%, transparent 50%)
             `,
             animation: 'meshShift 20s ease-in-out infinite alternate',
           }}
@@ -118,7 +118,7 @@ function VerifyEmailContent() {
             <em
               className="italic"
               style={{
-                background: 'linear-gradient(135deg, var(--login-peach), var(--login-pink))',
+                background: 'linear-gradient(135deg, var(--brand-peach), var(--brand-pink))',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
@@ -154,7 +154,7 @@ function VerifyEmailContent() {
         <div className="relative z-10 flex items-center gap-3">
           <div
             className="login-pulse-dot h-2 w-2 rounded-full"
-            style={{ background: 'var(--login-peach)', animation: 'loginPulse 3s ease-in-out infinite' }}
+            style={{ background: 'var(--brand-peach)', animation: 'loginPulse 3s ease-in-out infinite' }}
           />
           <span className="font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-white/45">
             Secure email verification
@@ -163,7 +163,7 @@ function VerifyEmailContent() {
       </aside>
 
       {/* ═══ CONTENT PANEL (right) ═══ */}
-      <main className="relative flex items-center justify-center bg-[var(--login-surface)] p-6 md:p-12">
+      <main className="relative flex items-center justify-center bg-[var(--brand-surface)] p-6 md:p-12">
         {/* Faint blush gradient */}
         <div
           className="pointer-events-none absolute opacity-100"
@@ -179,26 +179,26 @@ function VerifyEmailContent() {
         <div className="relative z-10 w-full max-w-[420px] text-center">
           <div
             className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full"
-            style={{ background: 'var(--login-success-bg)' }}
+            style={{ background: 'var(--brand-success-bg)' }}
           >
-            <Mail className="h-8 w-8" style={{ color: 'var(--login-success)' }} />
+            <Mail className="h-8 w-8" style={{ color: 'var(--brand-success)' }} />
           </div>
 
-          <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--login-text)]">
+          <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--brand-text)]">
             Check your inbox
           </h2>
 
-          <p className="mt-3 font-[family-name:var(--font-body)] text-[0.95rem] leading-relaxed text-[var(--login-text-3)]">
+          <p className="mt-3 font-[family-name:var(--font-body)] text-[0.95rem] leading-relaxed text-[var(--brand-text-3)]">
             We&apos;ve sent a confirmation link to{' '}
-            <strong className="text-[var(--login-text)]">{email}</strong>.
+            <strong className="text-[var(--brand-text)]">{email}</strong>.
             Click the link in the email to verify your account and get started.
           </p>
 
-          <div className="mt-8 rounded-[10px] border border-[var(--login-border)] bg-[var(--login-cream)] p-4 text-left">
-            <p className="font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-text-2)]">
+          <div className="mt-8 rounded-[10px] border border-[var(--brand-border)] bg-[var(--brand-cream)] p-4 text-left">
+            <p className="font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-text-2)]">
               Didn&apos;t receive the email?
             </p>
-            <ul className="mt-2 space-y-1 font-[family-name:var(--font-body)] text-[0.8rem] text-[var(--login-text-3)]">
+            <ul className="mt-2 space-y-1 font-[family-name:var(--font-body)] text-[0.8rem] text-[var(--brand-text-3)]">
               <li>Check your spam or junk folder</li>
               <li>Make sure you entered the correct email</li>
               <li>The email may take a minute to arrive</li>
@@ -221,10 +221,10 @@ function VerifyEmailContent() {
                   }}
                   placeholder="Enter your email address"
                   className={cn(
-                    'h-10 rounded-lg border-2 border-transparent bg-[var(--login-cream)] px-3 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                    'h-10 rounded-lg border-2 border-transparent bg-[var(--brand-cream)] px-3 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--brand-text)] placeholder:font-normal placeholder:text-[var(--brand-text-3)]',
                     'transition-all duration-200',
-                    'hover:border-[var(--login-border)]',
-                    'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]'
+                    'hover:border-[var(--brand-border)]',
+                    'focus-visible:border-[var(--brand-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--brand-focus)] dark:focus-visible:bg-[#1A1B2E]'
                   )}
                 />
               </div>
@@ -232,7 +232,7 @@ function VerifyEmailContent() {
             <button
               onClick={handleResend}
               disabled={resendLoading || cooldown > 0}
-              className="inline-flex items-center gap-2 font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)] disabled:opacity-50 disabled:hover:text-[var(--login-purple)]"
+              className="inline-flex items-center gap-2 font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--brand-purple)] transition-colors hover:text-[var(--brand-pink)] disabled:opacity-50 disabled:hover:text-[var(--brand-purple)]"
             >
               {resendLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -244,12 +244,12 @@ function VerifyEmailContent() {
                 : 'Resend verification email'}
             </button>
             {resendStatus === 'success' && (
-              <p className="mt-2 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-success)]">
+              <p className="mt-2 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-success)]">
                 {resendMessage}
               </p>
             )}
             {resendStatus === 'error' && (
-              <p className="mt-2 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+              <p className="mt-2 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-error)]">
                 {resendMessage}
               </p>
             )}
@@ -257,7 +257,7 @@ function VerifyEmailContent() {
 
           <Link
             href="/login"
-            className="mt-8 inline-flex items-center gap-2 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-text-3)] transition-colors hover:text-[var(--login-text)]"
+            className="mt-8 inline-flex items-center gap-2 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--brand-text-3)] transition-colors hover:text-[var(--brand-text)]"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to sign in

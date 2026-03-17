@@ -143,7 +143,7 @@ All tables are scoped by `tenant_id` with RLS policies (except `tenants` itself 
 - **Remaining domain references**: Email templates, CI config, and Supabase config still reference `app.thepaybureau.com` (see Sessions 11, 25). Marketing pages and middleware now use `www.thepaybureau.com` correctly.
 - **Serverless fire-and-forget caveat**: Never use unawaited promises for critical side effects (emails, webhooks) in Vercel serverless routes — the runtime may terminate before they complete. Always `await` or use `waitUntil()`. Fixed for feedback/feature-request emails in Session 16; audit other routes if adding new email sends.
 - **Admin users page not yet verified in production**: Built and passes types/lint/tests locally, but user reported it may not work at `app.thepaybureau.com/dashboard/admin/users`. Migration 022 must be run in Supabase SQL Editor first. Debug if issue persists after migration.
-- **CSS variable naming**: All CSS variables use legacy `--login-*` prefix (e.g., `--login-purple`, `--login-surface`) even though they're used app-wide. Historical artifact from when they only existed on the login page. Rename to `--brand-*` or `--app-*` when convenient.
+- **CSS variable naming**: All CSS variables were renamed from `--login-*` to `--brand-*` in Session 35. Completed.
 
 ## Common Pitfalls
 
@@ -261,17 +261,17 @@ Hard-won lessons from previous sessions — check here before making changes in 
 
 | Token | Light Mode | Dark Mode | CSS Variable | Usage |
 |-------|-----------|-----------|--------------|-------|
-| **Primary (Purple)** | `#401D6C` | `#7C5CBF` | `--login-purple` | Navigation, primary buttons, headings, active states, focus rings |
-| **Secondary (Pink)** | `#EC385D` | `#F06082` | `--login-pink` | CTAs, alerts, badges, destructive actions, hover accents |
-| **Accent (Peach)** | `#FF8073` | `#FFA599` | `--login-peach` | Status indicators, progress bars, notifications, decorative elements |
-| Surface | `#FFFFFF` | `#1A1B2E` | `--login-surface` | Card backgrounds, page backgrounds |
-| Light BG | `#FAF7FF` | `#0F0F23` | `--login-cream` | Page-level background (subtle purple tint) |
-| Text Primary | `#1A1225` | `#F1F5F9` | `--login-text` | Headings, body text |
-| Text Secondary | `#5E5470` | `#CBD5E1` | `--login-text-2` | Descriptions, labels, secondary content |
-| Text Muted | `#8E849A` | `#64748B` | `--login-text-3` | Placeholders, timestamps, metadata |
-| Border | `#E8E2F0` | `rgba(255,255,255,0.08)` | `--login-border` | Card borders, dividers |
-| Success | `#188038` | `#10B981` | `--login-success` | Completed states, positive feedback |
-| Error | `#D93025` | `#EF4444` | `--login-error` | Errors, destructive actions, failures |
+| **Primary (Purple)** | `#401D6C` | `#7C5CBF` | `--brand-purple` | Navigation, primary buttons, headings, active states, focus rings |
+| **Secondary (Pink)** | `#EC385D` | `#F06082` | `--brand-pink` | CTAs, alerts, badges, destructive actions, hover accents |
+| **Accent (Peach)** | `#FF8073` | `#FFA599` | `--brand-peach` | Status indicators, progress bars, notifications, decorative elements |
+| Surface | `#FFFFFF` | `#1A1B2E` | `--brand-surface` | Card backgrounds, page backgrounds |
+| Light BG | `#FAF7FF` | `#0F0F23` | `--brand-cream` | Page-level background (subtle purple tint) |
+| Text Primary | `#1A1225` | `#F1F5F9` | `--brand-text` | Headings, body text |
+| Text Secondary | `#5E5470` | `#CBD5E1` | `--brand-text-2` | Descriptions, labels, secondary content |
+| Text Muted | `#8E849A` | `#64748B` | `--brand-text-3` | Placeholders, timestamps, metadata |
+| Border | `#E8E2F0` | `rgba(255,255,255,0.08)` | `--brand-border` | Card borders, dividers |
+| Success | `#188038` | `#10B981` | `--brand-success` | Completed states, positive feedback |
+| Error | `#D93025` | `#EF4444` | `--brand-error` | Errors, destructive actions, failures |
 
 **Color rules:**
 - **Never hardcode hex values in components** — use CSS variables or `getThemeColors(isDark)` from `src/contexts/ThemeContext.tsx`
@@ -279,13 +279,13 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - All grays are purple-tinted (compare `#8E849A` vs generic `#6B7280`) — never use raw Tailwind grays
 - Gradient direction: always purple → pink → peach (left-to-right or top-to-bottom)
 - Brand gradient: `linear-gradient(135deg, primary, secondary)` — used for primary CTAs and hero accents
-- Additional CSS variables: `--login-purple-d` (dark), `--login-purple-l` (light), `--login-border-f` (focus border) — see `src/app/globals.css`
+- Additional CSS variables: `--brand-purple-d` (dark), `--brand-purple-l` (light), `--brand-border-f` (focus border) — see `src/app/globals.css`
 
 **Three styling zones (intentional, follow the correct one):**
 
 | Zone | Pages | Color Source | Reason |
 |------|-------|-------------|--------|
-| **Auth** | `src/app/(auth)/` | CSS variables (`var(--login-*)`) | Server-compatible, no JS needed |
+| **Auth** | `src/app/(auth)/` | CSS variables (`var(--brand-*)`) | Server-compatible, no JS needed |
 | **Dashboard** | `src/app/(dashboard)/` | `getThemeColors(isDark)` inline styles | Dynamic theme, client-side |
 | **Marketing** | `src/app/page.tsx`, `/roadmap` | `brand` const + CVA variants | Server-rendered, no ThemeContext |
 
@@ -328,7 +328,7 @@ Hard-won lessons from previous sessions — check here before making changes in 
 
 **DO:**
 - Use Tailwind classes for layout, spacing, sizing, hover states
-- Use CSS variables (`var(--login-purple)`) for brand colors in Tailwind arbitrary values
+- Use CSS variables (`var(--brand-purple)`) for brand colors in Tailwind arbitrary values
 - Use shadcn/ui Card, Button, Dialog, Select, Badge, Tabs, Sheet, Popover, Calendar, etc.
 - Use `hover:` and `focus:` Tailwind modifiers for interactive states
 - Use SWR hooks from `src/lib/swr.ts` for client-side data — never raw `fetch()` in components
@@ -356,10 +356,10 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - **Border radius:** `rounded-xl` (12px) for cards/panels, `rounded-lg` (8px) for inputs/buttons, `rounded-full` for avatars/badges
 - **Shadows:** `shadow-sm` for cards, `shadow-md` for dropdowns/modals — no inline shadow definitions
 - **Spacing:** 4px grid — use Tailwind scale (`p-1` = 4px, `p-2` = 8px, `p-4` = 16px, `p-6` = 24px, `p-8` = 32px)
-- **Cards:** White bg (light) / `var(--login-surface)` (dark), 1px border via `var(--login-border)`, `rounded-xl`, `shadow-sm`
+- **Cards:** White bg (light) / `var(--brand-surface)` (dark), 1px border via `var(--brand-border)`, `rounded-xl`, `shadow-sm`
 - **Page layout:** Full-width (no `max-w` constraint on dashboard content). `DashboardWrapper.tsx` handles outer padding (`md:px-6 md:py-6`)
 - **Tables:** Flat (no border wrapper), light gray header, thin `border-b` dividers only, no alternating rows, CSS-only hover. Row height ~48px, `px-4 py-3` cell padding. Sortable column headers with purple highlight + arrow indicator. Reference: ChangePen design language
-- **Dividers:** Use `border-b` with `var(--login-border)` — never raw gray values
+- **Dividers:** Use `border-b` with `var(--brand-border)` — never raw gray values
 - **Empty states:** Centered icon (in rounded container with `${colors.primary}12` background) + heading + description + CTA button
 
 ### Animations & Transitions
@@ -396,7 +396,7 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - **Breakpoints:** Mobile = base, Tablet/sidebar appears = `md:` (768px), Full desktop = `lg:` (1024px)
 - **Touch targets:** Minimum 44x44px for interactive elements on mobile
 - **Color contrast:** WCAG AA minimum — 4.5:1 for normal text, 3:1 for large text. Color must not be the only indicator of state — use icons or text alongside color
-- **Focus indicators:** Visible focus rings using `ring-2 ring-[var(--login-purple)]/20` (shadcn handles this via `focus-visible:ring`)
+- **Focus indicators:** Visible focus rings using `ring-2 ring-[var(--brand-purple)]/20` (shadcn handles this via `focus-visible:ring`)
 - **Reduced motion:** Use `motion-safe:` Tailwind modifier for animations
 - **Semantic HTML:** Proper heading hierarchy (`h1` → `h2` → `h3`), landmarks (`main`, `nav`, `aside`), ARIA labels on icon-only buttons
 - **Keyboard navigation:** All interactive elements keyboard-accessible in logical tab order. No `<div onClick>` without `role="button"`, `tabIndex={0}`, and keyboard handler
@@ -494,7 +494,7 @@ _Add notes from each Claude Code session below so context carries forward._
 - Added toast notification component to replace browser `alert()` calls
 - Redesigned all dashboard pages (home, clients, payrolls, settings) to match login page aesthetic — clean cards, brand purple palette, no glassmorphism
 - Restyled Sidebar and Navbar with simplified layout and brand colors
-- Aligned ThemeContext with auth page CSS variables (`--login-purple`, `--login-pink`, `--login-peach`)
+- Aligned ThemeContext with auth page CSS variables (`--brand-purple`, `--brand-pink`, `--brand-peach`)
 - Added Suspense wrapper on clients page for `useSearchParams()` fix
 - Branch `claude/link-domain-lOh9a` has all changes; merged via PR
 
@@ -889,3 +889,12 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Files created (2)**: `src/app/api/training/export-pdf/route.ts`, `supabase/migrations/023_training_cpd_enhancements.sql`
 - **Files modified (3)**: `training/page.tsx` (full rewrite), `api/training/route.ts`, `database.ts`
 - Branch: `claude/design-training-development-page-Erglr`
+
+### Session 35 — Release Prep: Email Fix, CSS Rename, .env.example (2026-03-17)
+- **Welcome email fix**: `src/app/api/auth/register/route.ts` — changed fire-and-forget `sendEmail().catch()` to `await sendEmail()` in try/catch (same fix applied to feedback/feature-requests in Session 16)
+- **CSS variable rename**: Renamed all `--login-*` CSS variables to `--brand-*` across 15 files (264 occurrences) — globals.css definitions, auth pages, dashboard pages, ThemeContext, FeedbackWidget, training PDF export, lessons.md, CLAUDE.md
+- **.env.example**: Added `NEXT_PUBLIC_MARKETING_URL` variable
+- **Build verified**: Clean production build, 157 tests passing, no new lint errors
+- **Migration 022 reminder**: User must run `022_user_titles_and_comments.sql` in Supabase SQL Editor for admin users page to work in production
+- **Files modified (16)**: `register/route.ts`, `.env.example`, `globals.css`, `ThemeContext.tsx`, `FeedbackWidget.tsx`, `training/export-pdf/route.ts`, `training/page.tsx`, `pensions/page.tsx`, `settings/page.tsx`, `clients/page.tsx`, `login/page.tsx`, `signup/page.tsx`, `verify-email/page.tsx`, `forgot-password/page.tsx`, `reset-password/page.tsx`, `CLAUDE.md`
+- Branch: `claude/review-release-prep-brPlR`

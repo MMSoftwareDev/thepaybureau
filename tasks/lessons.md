@@ -34,7 +34,7 @@ _Patterns and corrections captured here to prevent repeated mistakes. Review at 
 - **`logo-full.png` breaks dark mode** — Dark text baked into image; invisible on dark backgrounds. Use `logo.png` icon mark + themed text. (Session 21)
 - **Toast z-index must be `z-[100]`** — Sheet/Dialog overlays use z-50; toasts must be higher. (Session 20)
 - **Recharts cannot be dynamically imported** — Shares internal React context that breaks across chunk boundaries. (Session 8)
-- **CSS variables use `--login-*` prefix** — Historical artifact; used app-wide despite the name. Don't be confused by it. (Session 1)
+- **CSS variables use `--brand-*` prefix** — Historical artifact; used app-wide despite the name. Don't be confused by it. (Session 1)
 
 ## Architecture Decisions
 

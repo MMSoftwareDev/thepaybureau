@@ -109,7 +109,7 @@ export default function LoginPage() {
       {/* ═══ BRAND PANEL (left) ═══ */}
       <aside
         className="relative hidden flex-col justify-between overflow-hidden p-10 lg:p-12 md:flex"
-        style={{ background: 'var(--login-purple-d)' }}
+        style={{ background: 'var(--brand-purple-d)' }}
         aria-hidden="true"
       >
         {/* Animated mesh gradient */}
@@ -120,10 +120,10 @@ export default function LoginPage() {
             width: '200%',
             height: '200%',
             background: `
-              radial-gradient(ellipse at 20% 50%, var(--login-purple-l) 0%, transparent 50%),
-              radial-gradient(ellipse at 80% 20%, var(--login-pink) 0%, transparent 40%),
-              radial-gradient(ellipse at 60% 80%, var(--login-peach) 0%, transparent 45%),
-              radial-gradient(ellipse at 40% 30%, var(--login-purple) 0%, transparent 50%)
+              radial-gradient(ellipse at 20% 50%, var(--brand-purple-l) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 20%, var(--brand-pink) 0%, transparent 40%),
+              radial-gradient(ellipse at 60% 80%, var(--brand-peach) 0%, transparent 45%),
+              radial-gradient(ellipse at 40% 30%, var(--brand-purple) 0%, transparent 50%)
             `,
             animation: 'meshShift 20s ease-in-out infinite alternate',
           }}
@@ -156,7 +156,7 @@ export default function LoginPage() {
             <em
               className="italic"
               style={{
-                background: 'linear-gradient(135deg, var(--login-peach), var(--login-pink))',
+                background: 'linear-gradient(135deg, var(--brand-peach), var(--brand-pink))',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
@@ -191,7 +191,7 @@ export default function LoginPage() {
           <div
             className="login-pulse-dot h-2 w-2 rounded-full"
             style={{
-              background: 'var(--login-peach)',
+              background: 'var(--brand-peach)',
               animation: 'loginPulse 3s ease-in-out infinite',
             }}
           />
@@ -218,14 +218,14 @@ export default function LoginPage() {
         <div className="relative z-10 w-full max-w-[420px]">
           {/* Form header */}
           <div className="mb-10">
-            <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--login-text)]">
+            <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--brand-text)]">
               Welcome back
             </h2>
-            <p className="mt-2 font-[family-name:var(--font-body)] text-[0.95rem] text-[var(--login-text-3)]">
+            <p className="mt-2 font-[family-name:var(--font-body)] text-[0.95rem] text-[var(--brand-text-3)]">
               Don&apos;t have an account?{' '}
               <Link
                 href="/signup"
-                className="font-semibold text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)]"
+                className="font-semibold text-[var(--brand-purple)] transition-colors hover:text-[var(--brand-pink)]"
               >
                 Create one
               </Link>
@@ -235,9 +235,9 @@ export default function LoginPage() {
           {/* Error alert banner */}
           {loginError && (
             <div
-              className="mb-6 flex items-center gap-2 rounded-[10px] border border-[var(--login-error)]/10 px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-error)]"
+              className="mb-6 flex items-center gap-2 rounded-[10px] border border-[var(--brand-error)]/10 px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--brand-error)]"
               style={{
-                background: 'var(--login-error-bg)',
+                background: 'var(--brand-error-bg)',
                 animation: 'loginSlideDown 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
               }}
               role="alert"
@@ -252,9 +252,9 @@ export default function LoginPage() {
           {/* Success alert banner */}
           {loginSuccess && (
             <div
-              className="mb-6 flex items-center gap-2 rounded-[10px] border border-[var(--login-success)]/10 px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-success)]"
+              className="mb-6 flex items-center gap-2 rounded-[10px] border border-[var(--brand-success)]/10 px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--brand-success)]"
               style={{
-                background: 'var(--login-success-bg)',
+                background: 'var(--brand-success-bg)',
                 animation: 'loginSlideDown 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
               }}
               role="status"
@@ -279,7 +279,7 @@ export default function LoginPage() {
             <div>
               <Label
                 htmlFor="email"
-                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--login-text-2)]"
+                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--brand-text-2)]"
               >
                 Email
               </Label>
@@ -293,16 +293,16 @@ export default function LoginPage() {
                 autoComplete="email"
                 disabled={loading}
                 className={cn(
-                  'h-12 rounded-xl border-2 border-transparent bg-[var(--login-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                  'h-12 rounded-xl border-2 border-transparent bg-[var(--brand-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--brand-text)] placeholder:font-normal placeholder:text-[var(--brand-text-3)]',
                   'transition-all duration-200',
-                  'hover:border-[var(--login-border)]',
-                  'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]',
+                  'hover:border-[var(--brand-border)]',
+                  'focus-visible:border-[var(--brand-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--brand-focus)] dark:focus-visible:bg-[#1A1B2E]',
                   emailError &&
-                    'border-[var(--login-error)] bg-[var(--login-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
+                    'border-[var(--brand-error)] bg-[var(--brand-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
                 )}
               />
               {emailError && (
-                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-error)]">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
                     <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
                   </svg>
@@ -315,7 +315,7 @@ export default function LoginPage() {
             <div>
               <Label
                 htmlFor="password"
-                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--login-text-2)]"
+                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--brand-text-2)]"
               >
                 Password
               </Label>
@@ -330,18 +330,18 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   disabled={loading}
                   className={cn(
-                    'h-12 rounded-xl border-2 border-transparent bg-[var(--login-cream)] px-4 pr-12 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                    'h-12 rounded-xl border-2 border-transparent bg-[var(--brand-cream)] px-4 pr-12 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--brand-text)] placeholder:font-normal placeholder:text-[var(--brand-text-3)]',
                     'transition-all duration-200',
-                    'hover:border-[var(--login-border)]',
-                    'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]',
+                    'hover:border-[var(--brand-border)]',
+                    'focus-visible:border-[var(--brand-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--brand-focus)] dark:focus-visible:bg-[#1A1B2E]',
                     passwordError &&
-                      'border-[var(--login-error)] bg-[var(--login-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
+                      'border-[var(--brand-error)] bg-[var(--brand-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
                   )}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md p-1 text-[var(--login-text-3)] transition-colors hover:text-[var(--login-purple)] focus-visible:outline-2 focus-visible:outline-[var(--login-purple)] focus-visible:outline-offset-2"
+                  className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md p-1 text-[var(--brand-text-3)] transition-colors hover:text-[var(--brand-purple)] focus-visible:outline-2 focus-visible:outline-[var(--brand-purple)] focus-visible:outline-offset-2"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                   disabled={loading}
                 >
@@ -353,7 +353,7 @@ export default function LoginPage() {
                 </button>
               </div>
               {passwordError && (
-                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-error)]">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
                     <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
                   </svg>
@@ -370,7 +370,7 @@ export default function LoginPage() {
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                   disabled={loading}
-                  className="h-[18px] w-[18px] shrink-0 cursor-pointer appearance-none rounded-[5px] border-2 border-[var(--login-border)] bg-[var(--login-cream)] transition-all checked:border-[var(--login-purple)] checked:bg-[var(--login-purple)] focus-visible:outline-2 focus-visible:outline-[var(--login-purple)] focus-visible:outline-offset-2"
+                  className="h-[18px] w-[18px] shrink-0 cursor-pointer appearance-none rounded-[5px] border-2 border-[var(--brand-border)] bg-[var(--brand-cream)] transition-all checked:border-[var(--brand-purple)] checked:bg-[var(--brand-purple)] focus-visible:outline-2 focus-visible:outline-[var(--brand-purple)] focus-visible:outline-offset-2"
                   style={{
                     backgroundImage: rememberMe
                       ? `url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2.5-2.5a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E")`
@@ -380,13 +380,13 @@ export default function LoginPage() {
                     backgroundRepeat: 'no-repeat',
                   }}
                 />
-                <span className="select-none font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-text-2)]">
+                <span className="select-none font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--brand-text-2)]">
                   Remember me
                 </span>
               </label>
               <Link
                 href="/forgot-password"
-                className="font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-[var(--login-purple)] focus-visible:outline-offset-2"
+                className="font-[family-name:var(--font-body)] text-[0.88rem] font-semibold text-[var(--brand-purple)] transition-colors hover:text-[var(--brand-pink)] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-[var(--brand-purple)] focus-visible:outline-offset-2"
               >
                 Forgot password?
               </Link>
@@ -401,16 +401,16 @@ export default function LoginPage() {
                 'transition-all duration-300',
                 'hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(64,29,108,0.3)]',
                 'active:translate-y-0',
-                'focus-visible:outline-2 focus-visible:outline-[var(--login-purple)] focus-visible:outline-offset-[3px]',
+                'focus-visible:outline-2 focus-visible:outline-[var(--brand-purple)] focus-visible:outline-offset-[3px]',
                 'disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none'
               )}
-              style={{ background: 'var(--login-purple)' }}
+              style={{ background: 'var(--brand-purple)' }}
             >
               {/* Gradient hover overlay */}
               <span
                 className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-400 group-hover:opacity-100 group-disabled:opacity-0"
                 style={{
-                  background: 'linear-gradient(135deg, var(--login-pink), var(--login-peach))',
+                  background: 'linear-gradient(135deg, var(--brand-pink), var(--brand-peach))',
                 }}
               />
               <span className="relative z-10 flex items-center justify-center gap-2">
@@ -429,25 +429,25 @@ export default function LoginPage() {
           </form>
 
           {/* Support contact */}
-          <p className="mt-6 text-center font-[family-name:var(--font-body)] text-[0.82rem] text-[var(--login-text-3)]">
+          <p className="mt-6 text-center font-[family-name:var(--font-body)] text-[0.82rem] text-[var(--brand-text-3)]">
             Can&apos;t remember your email?{' '}
             <a
               href="mailto:support@thepaybureau.com"
-              className="font-medium text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)]"
+              className="font-medium text-[var(--brand-purple)] transition-colors hover:text-[var(--brand-pink)]"
             >
               Contact support
             </a>
           </p>
 
           {/* Footer */}
-          <div className="mt-6 text-center font-[family-name:var(--font-body)] text-[0.78rem] leading-relaxed text-[var(--login-text-3)]">
+          <div className="mt-6 text-center font-[family-name:var(--font-body)] text-[0.78rem] leading-relaxed text-[var(--brand-text-3)]">
             <p>
               By signing in you agree to our{' '}
-              <Link href="/terms" className="text-[var(--login-text-2)] underline underline-offset-2 hover:text-[var(--login-purple)]">
+              <Link href="/terms" className="text-[var(--brand-text-2)] underline underline-offset-2 hover:text-[var(--brand-purple)]">
                 Terms
               </Link>{' '}
               and{' '}
-              <Link href="/privacy" className="text-[var(--login-text-2)] underline underline-offset-2 hover:text-[var(--login-purple)]">
+              <Link href="/privacy" className="text-[var(--brand-text-2)] underline underline-offset-2 hover:text-[var(--brand-purple)]">
                 Privacy Policy
               </Link>
               .

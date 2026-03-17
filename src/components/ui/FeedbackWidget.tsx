@@ -220,7 +220,7 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
                 style={{
                   background: !message.trim()
                     ? colors.border
-                    : 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
+                    : 'linear-gradient(135deg, var(--brand-purple), var(--brand-pink))',
                   opacity: sending ? 0.7 : 1,
                 }}
               >

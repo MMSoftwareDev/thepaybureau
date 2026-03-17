@@ -605,7 +605,7 @@ export default function SettingsPage() {
               disabled={savingProfile}
               className="text-white font-semibold py-2 px-5 rounded-lg border-0"
               style={{
-                background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
+                background: 'linear-gradient(135deg, var(--brand-purple), var(--brand-pink))',
               }}
             >
               {savingProfile ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Profile</>}
@@ -706,7 +706,7 @@ export default function SettingsPage() {
               disabled={savingPassword}
               className="text-white font-semibold py-2 px-5 rounded-lg border-0"
               style={{
-                background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
+                background: 'linear-gradient(135deg, var(--brand-purple), var(--brand-pink))',
               }}
             >
               {savingPassword ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Updating...</> : <><Lock className="w-4 h-4 mr-2" />Update Password</>}
@@ -852,7 +852,7 @@ export default function SettingsPage() {
               disabled={savingChecklist}
               className="text-white font-semibold py-2 px-5 rounded-lg border-0"
               style={{
-                background: 'linear-gradient(135deg, var(--login-purple), var(--login-pink))',
+                background: 'linear-gradient(135deg, var(--brand-purple), var(--brand-pink))',
               }}
             >
               {savingChecklist ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Templates</>}

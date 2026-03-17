@@ -165,7 +165,7 @@ export default function SignupPage() {
       {/* ═══ BRAND PANEL (left) ═══ */}
       <aside
         className="relative hidden flex-col justify-between overflow-hidden p-10 lg:p-12 md:flex"
-        style={{ background: 'var(--login-purple-d)' }}
+        style={{ background: 'var(--brand-purple-d)' }}
         aria-hidden="true"
       >
         {/* Animated mesh gradient */}
@@ -176,10 +176,10 @@ export default function SignupPage() {
             width: '200%',
             height: '200%',
             background: `
-              radial-gradient(ellipse at 20% 50%, var(--login-purple-l) 0%, transparent 50%),
-              radial-gradient(ellipse at 80% 20%, var(--login-pink) 0%, transparent 40%),
-              radial-gradient(ellipse at 60% 80%, var(--login-peach) 0%, transparent 45%),
-              radial-gradient(ellipse at 40% 30%, var(--login-purple) 0%, transparent 50%)
+              radial-gradient(ellipse at 20% 50%, var(--brand-purple-l) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 20%, var(--brand-pink) 0%, transparent 40%),
+              radial-gradient(ellipse at 60% 80%, var(--brand-peach) 0%, transparent 45%),
+              radial-gradient(ellipse at 40% 30%, var(--brand-purple) 0%, transparent 50%)
             `,
             animation: 'meshShift 20s ease-in-out infinite alternate',
           }}
@@ -208,7 +208,7 @@ export default function SignupPage() {
             <em
               className="italic"
               style={{
-                background: 'linear-gradient(135deg, var(--login-peach), var(--login-pink))',
+                background: 'linear-gradient(135deg, var(--brand-peach), var(--brand-pink))',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
@@ -252,7 +252,7 @@ export default function SignupPage() {
       </aside>
 
       {/* ═══ FORM PANEL (right) ═══ */}
-      <main className="relative flex items-center justify-center bg-[var(--login-surface)] p-6 md:p-12">
+      <main className="relative flex items-center justify-center bg-[var(--brand-surface)] p-6 md:p-12">
         {/* Faint blush gradient */}
         <div
           className="pointer-events-none absolute opacity-100"
@@ -269,21 +269,21 @@ export default function SignupPage() {
           {/* Mobile logo */}
           <div className="mb-8 flex items-center gap-2 md:hidden">
             <Image src="/logo.png" alt="ThePayBureau" width={36} height={36} className="rounded-lg" />
-            <span className="font-[family-name:var(--font-body)] text-lg font-extrabold tracking-tight text-[var(--login-fg)]">
+            <span className="font-[family-name:var(--font-body)] text-lg font-extrabold tracking-tight text-[var(--brand-fg)]">
               ThePayBureau
             </span>
           </div>
 
           {/* Form header */}
           <div className="mb-8">
-            <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--login-text)]">
+            <h2 className="font-[family-name:var(--font-display)] text-[2rem] font-normal tracking-tight text-[var(--brand-text)]">
               Create your account
             </h2>
-            <p className="mt-2 font-[family-name:var(--font-body)] text-[0.95rem] text-[var(--login-text-3)]">
+            <p className="mt-2 font-[family-name:var(--font-body)] text-[0.95rem] text-[var(--brand-text-3)]">
               Already have an account?{' '}
               <Link
                 href="/login"
-                className="font-semibold text-[var(--login-purple)] transition-colors hover:text-[var(--login-pink)]"
+                className="font-semibold text-[var(--brand-purple)] transition-colors hover:text-[var(--brand-pink)]"
               >
                 Sign in
               </Link>
@@ -293,9 +293,9 @@ export default function SignupPage() {
           {/* Submit error banner */}
           {errors.submit && (
             <div
-              className="mb-6 flex items-center gap-2 rounded-[10px] border border-[var(--login-error)]/10 px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--login-error)]"
+              className="mb-6 flex items-center gap-2 rounded-[10px] border border-[var(--brand-error)]/10 px-4 py-3 font-[family-name:var(--font-body)] text-[0.88rem] font-medium text-[var(--brand-error)]"
               style={{
-                background: 'var(--login-error-bg)',
+                background: 'var(--brand-error-bg)',
                 animation: 'loginSlideDown 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
               }}
               role="alert"
@@ -313,7 +313,7 @@ export default function SignupPage() {
             <div>
               <Label
                 htmlFor="email"
-                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--login-text-2)]"
+                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--brand-text-2)]"
               >
                 Business email
               </Label>
@@ -326,26 +326,26 @@ export default function SignupPage() {
                 autoComplete="email"
                 disabled={loading}
                 className={cn(
-                  'h-12 rounded-xl border-2 border-transparent bg-[var(--login-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                  'h-12 rounded-xl border-2 border-transparent bg-[var(--brand-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--brand-text)] placeholder:font-normal placeholder:text-[var(--brand-text-3)]',
                   'transition-all duration-200',
-                  'hover:border-[var(--login-border)]',
-                  'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]',
+                  'hover:border-[var(--brand-border)]',
+                  'focus-visible:border-[var(--brand-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--brand-focus)] dark:focus-visible:bg-[#1A1B2E]',
                   errors.email
-                    ? 'border-[var(--login-error)] bg-[var(--login-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
-                    : emailValidation.isValid === true && 'border-[var(--login-success)]/30'
+                    ? 'border-[var(--brand-error)] bg-[var(--brand-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
+                    : emailValidation.isValid === true && 'border-[var(--brand-success)]/30'
                 )}
               />
               {emailValidation.message && !errors.email && (
                 <div className={cn(
                   'mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium',
-                  emailValidation.isValid ? 'text-[var(--login-success)]' : 'text-amber-600 dark:text-amber-400'
+                  emailValidation.isValid ? 'text-[var(--brand-success)]' : 'text-amber-600 dark:text-amber-400'
                 )}>
                   {emailValidation.isValid ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <AlertCircle className="h-3.5 w-3.5 shrink-0" />}
                   <span>{emailValidation.message}</span>
                 </div>
               )}
               {errors.email && (
-                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-error)]">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
                     <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
                   </svg>
@@ -358,7 +358,7 @@ export default function SignupPage() {
             <div>
               <Label
                 htmlFor="company"
-                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--login-text-2)]"
+                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--brand-text-2)]"
               >
                 Company name
               </Label>
@@ -371,16 +371,16 @@ export default function SignupPage() {
                 autoComplete="organization"
                 disabled={loading}
                 className={cn(
-                  'h-12 rounded-xl border-2 border-transparent bg-[var(--login-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                  'h-12 rounded-xl border-2 border-transparent bg-[var(--brand-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--brand-text)] placeholder:font-normal placeholder:text-[var(--brand-text-3)]',
                   'transition-all duration-200',
-                  'hover:border-[var(--login-border)]',
-                  'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]',
+                  'hover:border-[var(--brand-border)]',
+                  'focus-visible:border-[var(--brand-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--brand-focus)] dark:focus-visible:bg-[#1A1B2E]',
                   errors.companyName &&
-                    'border-[var(--login-error)] bg-[var(--login-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
+                    'border-[var(--brand-error)] bg-[var(--brand-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
                 )}
               />
               {errors.companyName && (
-                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-error)]">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
                     <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
                   </svg>
@@ -393,7 +393,7 @@ export default function SignupPage() {
             <div>
               <Label
                 htmlFor="name"
-                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--login-text-2)]"
+                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--brand-text-2)]"
               >
                 Your name
               </Label>
@@ -406,16 +406,16 @@ export default function SignupPage() {
                 autoComplete="name"
                 disabled={loading}
                 className={cn(
-                  'h-12 rounded-xl border-2 border-transparent bg-[var(--login-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                  'h-12 rounded-xl border-2 border-transparent bg-[var(--brand-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--brand-text)] placeholder:font-normal placeholder:text-[var(--brand-text-3)]',
                   'transition-all duration-200',
-                  'hover:border-[var(--login-border)]',
-                  'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]',
+                  'hover:border-[var(--brand-border)]',
+                  'focus-visible:border-[var(--brand-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--brand-focus)] dark:focus-visible:bg-[#1A1B2E]',
                   errors.adminName &&
-                    'border-[var(--login-error)] bg-[var(--login-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
+                    'border-[var(--brand-error)] bg-[var(--brand-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
                 )}
               />
               {errors.adminName && (
-                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-error)]">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
                     <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
                   </svg>
@@ -428,7 +428,7 @@ export default function SignupPage() {
             <div>
               <Label
                 htmlFor="password"
-                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--login-text-2)]"
+                className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--brand-text-2)]"
               >
                 Password
               </Label>
@@ -441,16 +441,16 @@ export default function SignupPage() {
                 autoComplete="new-password"
                 disabled={loading}
                 className={cn(
-                  'h-12 rounded-xl border-2 border-transparent bg-[var(--login-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--login-text)] placeholder:font-normal placeholder:text-[var(--login-text-3)]',
+                  'h-12 rounded-xl border-2 border-transparent bg-[var(--brand-cream)] px-4 font-[family-name:var(--font-body)] text-[0.95rem] font-medium text-[var(--brand-text)] placeholder:font-normal placeholder:text-[var(--brand-text-3)]',
                   'transition-all duration-200',
-                  'hover:border-[var(--login-border)]',
-                  'focus-visible:border-[var(--login-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--login-focus)] dark:focus-visible:bg-[#1A1B2E]',
+                  'hover:border-[var(--brand-border)]',
+                  'focus-visible:border-[var(--brand-purple)] focus-visible:bg-white focus-visible:shadow-[0_0_0_4px_var(--brand-focus)] dark:focus-visible:bg-[#1A1B2E]',
                   errors.password &&
-                    'border-[var(--login-error)] bg-[var(--login-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
+                    'border-[var(--brand-error)] bg-[var(--brand-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
                 )}
               />
               {errors.password && (
-                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--login-error)]">
+                <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-error)]">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
                     <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0V5zM8 11.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
                   </svg>
@@ -468,16 +468,16 @@ export default function SignupPage() {
                 'transition-all duration-300',
                 'hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(64,29,108,0.3)]',
                 'active:translate-y-0',
-                'focus-visible:outline-2 focus-visible:outline-[var(--login-purple)] focus-visible:outline-offset-[3px]',
+                'focus-visible:outline-2 focus-visible:outline-[var(--brand-purple)] focus-visible:outline-offset-[3px]',
                 'disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none'
               )}
-              style={{ background: 'var(--login-purple)' }}
+              style={{ background: 'var(--brand-purple)' }}
             >
               {/* Gradient hover overlay */}
               <span
                 className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-400 group-hover:opacity-100 group-disabled:opacity-0"
                 style={{
-                  background: 'linear-gradient(135deg, var(--login-pink), var(--login-peach))',
+                  background: 'linear-gradient(135deg, var(--brand-pink), var(--brand-peach))',
                 }}
               />
               <span className="relative z-10 flex items-center justify-center gap-2">
@@ -494,14 +494,14 @@ export default function SignupPage() {
           </form>
 
           {/* Footer */}
-          <div className="mt-8 text-center font-[family-name:var(--font-body)] text-[0.78rem] leading-relaxed text-[var(--login-text-3)]">
+          <div className="mt-8 text-center font-[family-name:var(--font-body)] text-[0.78rem] leading-relaxed text-[var(--brand-text-3)]">
             <p>
               By creating an account you agree to our{' '}
-              <Link href="/terms" className="text-[var(--login-text-2)] underline underline-offset-2 hover:text-[var(--login-purple)]">
+              <Link href="/terms" className="text-[var(--brand-text-2)] underline underline-offset-2 hover:text-[var(--brand-purple)]">
                 Terms
               </Link>{' '}
               and{' '}
-              <Link href="/privacy" className="text-[var(--login-text-2)] underline underline-offset-2 hover:text-[var(--login-purple)]">
+              <Link href="/privacy" className="text-[var(--brand-text-2)] underline underline-offset-2 hover:text-[var(--brand-purple)]">
                 Privacy Policy
               </Link>
               .

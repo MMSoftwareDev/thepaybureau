@@ -112,7 +112,7 @@ export const useTheme = () => {
   return context
 }
 
-// Theme colors — aligned with the login/signup brand palette (--login-* tokens)
+// Theme colors — aligned with the login/signup brand palette (--brand-* tokens)
 export const getThemeColors = (isDark: boolean) => ({
   // Brand colors
   primary: isDark ? '#7C5CBF' : '#401D6C',

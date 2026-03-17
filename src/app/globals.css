@@ -183,55 +183,55 @@
    LOGIN PAGE — Brand tokens & animations
    ═══════════════════════════════════════════ */
 :root {
-  --login-purple: #401D6C;
-  --login-purple-d: #2A1145;
-  --login-purple-l: #5B2D99;
-  --login-pink: #EC385D;
-  --login-peach: #FF8073;
-  --login-cream: #FBF8FF;
-  --login-text: #1A1225;
-  --login-text-2: #5E5470;
-  --login-text-3: #8E849A;
-  --login-border: #E8E2F0;
-  --login-border-f: #C5B8D9;
-  --login-error: #D93025;
-  --login-error-bg: #FEF0EF;
-  --login-success: #188038;
-  --login-success-bg: #E6F9ED;
-  --login-focus: rgba(64, 29, 108, 0.15);
+  --brand-purple: #401D6C;
+  --brand-purple-d: #2A1145;
+  --brand-purple-l: #5B2D99;
+  --brand-pink: #EC385D;
+  --brand-peach: #FF8073;
+  --brand-cream: #FBF8FF;
+  --brand-text: #1A1225;
+  --brand-text-2: #5E5470;
+  --brand-text-3: #8E849A;
+  --brand-border: #E8E2F0;
+  --brand-border-f: #C5B8D9;
+  --brand-error: #D93025;
+  --brand-error-bg: #FEF0EF;
+  --brand-success: #188038;
+  --brand-success-bg: #E6F9ED;
+  --brand-focus: rgba(64, 29, 108, 0.15);
   /* Semantic aliases */
-  --login-surface: #FFFFFF;
-  --login-fg: #1A1225;
-  --login-muted: #8E849A;
-  --login-label: #5E5470;
-  --login-input-bg: #FBF8FF;
-  --login-border-hover: #C5B8D9;
+  --brand-surface: #FFFFFF;
+  --brand-fg: #1A1225;
+  --brand-muted: #8E849A;
+  --brand-label: #5E5470;
+  --brand-input-bg: #FBF8FF;
+  --brand-border-hover: #C5B8D9;
 }
 
 .dark {
-  --login-purple: #7C5CBF;
-  --login-purple-d: #1A1145;
-  --login-purple-l: #9B7ED8;
-  --login-pink: #F06082;
-  --login-peach: #FFA599;
-  --login-cream: #1E1B2E;
-  --login-text: #F1F5F9;
-  --login-text-2: #CBD5E1;
-  --login-text-3: #64748B;
-  --login-border: rgba(255, 255, 255, 0.1);
-  --login-border-f: rgba(255, 255, 255, 0.2);
-  --login-error: #EF4444;
-  --login-error-bg: rgba(239, 68, 68, 0.1);
-  --login-success: #10B981;
-  --login-success-bg: rgba(16, 185, 129, 0.1);
-  --login-focus: rgba(124, 92, 191, 0.2);
+  --brand-purple: #7C5CBF;
+  --brand-purple-d: #1A1145;
+  --brand-purple-l: #9B7ED8;
+  --brand-pink: #F06082;
+  --brand-peach: #FFA599;
+  --brand-cream: #1E1B2E;
+  --brand-text: #F1F5F9;
+  --brand-text-2: #CBD5E1;
+  --brand-text-3: #64748B;
+  --brand-border: rgba(255, 255, 255, 0.1);
+  --brand-border-f: rgba(255, 255, 255, 0.2);
+  --brand-error: #EF4444;
+  --brand-error-bg: rgba(239, 68, 68, 0.1);
+  --brand-success: #10B981;
+  --brand-success-bg: rgba(16, 185, 129, 0.1);
+  --brand-focus: rgba(124, 92, 191, 0.2);
   /* Semantic aliases */
-  --login-surface: #1A1B2E;
-  --login-fg: #F1F5F9;
-  --login-muted: #64748B;
-  --login-label: #CBD5E1;
-  --login-input-bg: #1E1B2E;
-  --login-border-hover: rgba(255, 255, 255, 0.2);
+  --brand-surface: #1A1B2E;
+  --brand-fg: #F1F5F9;
+  --brand-muted: #64748B;
+  --brand-label: #CBD5E1;
+  --brand-input-bg: #1E1B2E;
+  --brand-border-hover: rgba(255, 255, 255, 0.2);
 }
 
 @keyframes meshShift {
