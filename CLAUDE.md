@@ -140,10 +140,9 @@ All tables are scoped by `tenant_id` with RLS policies (except `tenants` itself 
 
 ## Known Issues
 
-- **Remaining domain references (3 locations)**: `supabase/config.toml` lines 153-155 (`site_url` and `additional_redirect_urls`) still hardcode `app.thepaybureau.com` — these are Supabase local dev config and intentionally static. Email templates in `src/lib/email-templates.ts` and CI config `.github/workflows/ci.yml` were fixed in Session 36 to use env vars/constants.
-- **Serverless fire-and-forget caveat**: Never use unawaited promises for critical side effects (emails, webhooks) in Vercel serverless routes — the runtime may terminate before they complete. Always `await` or use `waitUntil()`. Fixed for feedback/feature-request/register emails in Sessions 16, 35; audit other routes if adding new email sends.
+- **Remaining domain references**: Email templates, CI config, and Supabase config still reference `app.thepaybureau.com` (see Sessions 11, 25). Marketing pages and middleware now use `www.thepaybureau.com` correctly.
+- **Serverless fire-and-forget caveat**: Never use unawaited promises for critical side effects (emails, webhooks) in Vercel serverless routes — the runtime may terminate before they complete. Always `await` or use `waitUntil()`. Fixed for feedback/feature-request emails (Session 16) and registration welcome email (Session 35); audit other routes if adding new email sends.
 - **Admin users page not yet verified in production**: Built and passes types/lint/tests locally, but user reported it may not work at `app.thepaybureau.com/dashboard/admin/users`. Migration 022 must be run in Supabase SQL Editor first. Debug if issue persists after migration.
-- **Migrations 022 & 023 may not be applied**: Both must be manually run in Supabase SQL Editor. 022 blocks admin users page, feature request comments, user titles. 023 blocks training CPD enhancements.
 
 ## Common Pitfalls
 
@@ -209,6 +208,8 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - Password recovery: Resend verification email on verify-email page (Supabase `auth.resend()`, 60s cooldown, email input fallback)
 - Password recovery: "Can't remember your email? Contact support" help text on login and forgot-password pages
 - Training & CPD page redesign: canonical dashboard layout (sortable table, Sheet sidebar, KPIs, pagination, customizable columns), RAG status banner, CPD progress tracking (21 hrs/year CIPP benchmark), Training Plan section with recommended courses, PDF export with branded CPD report
+- Welcome email fire-and-forget fix: `await sendEmail()` in registration route (same pattern as Session 16 feedback/feature-request fix)
+- CSS variable rename: all `--login-*` → `--brand-*` across 15 files (264 occurrences)
 
 ### In Progress / Planned
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
