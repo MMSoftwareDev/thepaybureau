@@ -205,19 +205,6 @@ export default function OnboardingTutorial() {
 
   return (
     <>
-      {/* Spotlight overlay — desktop only, only for steps with highlight targets */}
-      {highlightRect && (
-        <div
-          className="fixed inset-0 z-[85] pointer-events-none hidden md:block transition-opacity duration-300"
-          style={{
-            opacity: visible ? 1 : 0,
-            background: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.25)',
-            maskImage: `radial-gradient(ellipse ${highlightRect.width + 40}px ${highlightRect.height + 30}px at ${highlightRect.left + highlightRect.width / 2}px ${highlightRect.top + highlightRect.height / 2}px, transparent 60%, black 100%)`,
-            WebkitMaskImage: `radial-gradient(ellipse ${highlightRect.width + 40}px ${highlightRect.height + 30}px at ${highlightRect.left + highlightRect.width / 2}px ${highlightRect.top + highlightRect.height / 2}px, transparent 60%, black 100%)`,
-          }}
-        />
-      )}
-
       {/* Pulse ring around highlighted element */}
       {highlightRect && (
         <div
