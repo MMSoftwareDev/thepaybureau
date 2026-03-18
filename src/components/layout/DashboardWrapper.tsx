@@ -9,6 +9,7 @@ import Sidebar from '@/components/layout/Sidebar'
 import Navbar from '@/components/layout/Navbar'
 import BadgeToast from '@/components/gamification/BadgeToast'
 import ChatWidget from '@/components/ai/ChatWidget'
+import OnboardingTutorial from '@/components/onboarding/OnboardingTutorial'
 
 interface DashboardWrapperProps {
   children: React.ReactNode
@@ -78,6 +79,7 @@ export default function DashboardWrapper({ children }: DashboardWrapperProps) {
 
       <BadgeToast />
       <ChatWidget />
+      <OnboardingTutorial />
     </div>
   )
 }

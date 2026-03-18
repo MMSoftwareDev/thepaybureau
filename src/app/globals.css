@@ -458,3 +458,17 @@
 .animate-accordion-up {
   animation: accordion-up 0.2s ease-out;
 }
+
+/* Onboarding tutorial — spotlight pulse */
+@keyframes onboarding-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.03); }
+}
+
+.animate-onboarding-pulse {
+  animation: onboarding-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-onboarding-pulse { animation: none !important; }
+}

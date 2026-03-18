@@ -983,7 +983,7 @@ export default function PayrollsPage() {
         <h1 className="text-xl md:text-2xl font-bold tracking-tight font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
           Payrolls
         </h1>
-        <Button onClick={openAdd} className="text-white text-sm" style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}>
+        <Button onClick={openAdd} className="text-white text-sm" style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }} data-onboarding="add-payroll">
           <Plus className="w-4 h-4 mr-1.5" />
           Add Payroll
         </Button>
