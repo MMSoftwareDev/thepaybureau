@@ -5,13 +5,21 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { useClients, usePayrolls } from '@/lib/swr'
 import { Button } from '@/components/ui/button'
-import { X, Check, ChevronRight } from 'lucide-react'
+import { X, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   ONBOARDING_STEPS,
   STORAGE_KEY_STEP,
   STORAGE_KEY_DISMISSED,
 } from './onboarding-steps'
+
+// Helper: convert hex (#RRGGBB) to rgba with opacity
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 export default function OnboardingTutorial() {
   const router = useRouter()
@@ -54,22 +62,9 @@ export default function OnboardingTutorial() {
   const clientCount = Array.isArray(clients) ? clients.length : 0
   const payrollCount = Array.isArray(payrolls) ? payrolls.length : 0
 
-  // Track previous counts for auto-advance detection
-  useEffect(() => {
-    prevClientCount.current = clientCount
-  }, [clientCount])
-
-  useEffect(() => {
-    prevPayrollCount.current = payrollCount
-  }, [payrollCount])
-
-  // Show tutorial for new users who haven't dismissed it
-  // - New users (0 clients): show from step 0
-  // - Mid-tutorial users (already started, step > 0): continue regardless of data
-  const shouldShow =
-    mounted &&
-    !dismissed &&
-    (clientCount === 0 || currentStep > 0)
+  // Show tutorial only if not permanently dismissed
+  // Once dismissed (skip or complete), it never comes back regardless of client count
+  const shouldShow = mounted && !dismissed
 
   // Animate in
   useEffect(() => {
@@ -81,21 +76,23 @@ export default function OnboardingTutorial() {
     }
   }, [shouldShow])
 
-  // Auto-advance: client created
+  // FIX: Auto-advance client created — ref update AFTER check in same effect
   useEffect(() => {
     if (currentStep === 1 && clientCount > 0 && prevClientCount.current === 0) {
       advanceTo(2)
     }
+    prevClientCount.current = clientCount
   }, [clientCount, currentStep])
 
-  // Auto-advance: payroll created
+  // FIX: Auto-advance payroll created — ref update AFTER check in same effect
   useEffect(() => {
     if (currentStep === 2 && payrollCount > 0 && prevPayrollCount.current === 0) {
       advanceTo(3)
     }
+    prevPayrollCount.current = payrollCount
   }, [payrollCount, currentStep])
 
-  // Spotlight: find the target element and track its position
+  // FIX: Spotlight — polling interval + ResizeObserver for accurate positioning
   useEffect(() => {
     const step = ONBOARDING_STEPS[currentStep]
     if (!step?.highlightSelector) {
@@ -103,22 +100,42 @@ export default function OnboardingTutorial() {
       return
     }
 
+    let observer: ResizeObserver | null = null
+    let pollTimer: ReturnType<typeof setInterval> | null = null
+    let foundEl: Element | null = null
+
     const updateRect = () => {
-      const el = document.querySelector(step.highlightSelector!)
+      const el = foundEl || document.querySelector(step.highlightSelector!)
       if (el) {
+        foundEl = el
         setHighlightRect(el.getBoundingClientRect())
       } else {
         setHighlightRect(null)
       }
     }
 
-    // Wait a tick for page to render after navigation
-    const t = setTimeout(updateRect, 400)
+    // Poll every 200ms until element is found, then stop polling
+    pollTimer = setInterval(() => {
+      const el = document.querySelector(step.highlightSelector!)
+      if (el) {
+        foundEl = el
+        updateRect()
+        if (pollTimer) clearInterval(pollTimer)
+        pollTimer = null
+
+        // Watch for layout changes
+        observer = new ResizeObserver(updateRect)
+        observer.observe(el)
+      }
+    }, 200)
+
+    // Also recalc on scroll/resize
     window.addEventListener('resize', updateRect)
     window.addEventListener('scroll', updateRect, true)
 
     return () => {
-      clearTimeout(t)
+      if (pollTimer) clearInterval(pollTimer)
+      if (observer) observer.disconnect()
       window.removeEventListener('resize', updateRect)
       window.removeEventListener('scroll', updateRect, true)
     }
@@ -211,7 +228,7 @@ export default function OnboardingTutorial() {
             className="absolute inset-0 rounded-xl animate-onboarding-pulse"
             style={{
               border: `2px solid ${colors.primary}`,
-              boxShadow: `0 0 0 4px ${colors.primary}20`,
+              boxShadow: `0 0 0 4px ${hexToRgba(colors.primary, 0.25)}`,
             }}
           />
         </div>
@@ -245,7 +262,6 @@ export default function OnboardingTutorial() {
                   key={i}
                   className={cn(
                     'w-2 h-2 rounded-full transition-all duration-300',
-                    i < currentStep && 'scale-100',
                     i === currentStep && 'scale-110'
                   )}
                   style={{
@@ -254,16 +270,9 @@ export default function OnboardingTutorial() {
                         ? colors.success
                         : i === currentStep
                           ? colors.primary
-                          : `${colors.text.muted}30`,
+                          : hexToRgba(colors.text.muted, 0.2),
                   }}
-                >
-                  {i < currentStep && (
-                    <Check
-                      className="w-2 h-2"
-                      style={{ color: colors.surface }}
-                    />
-                  )}
-                </div>
+                />
               ))}
             </div>
             <div className="flex items-center gap-2">
@@ -290,7 +299,7 @@ export default function OnboardingTutorial() {
               <div
                 className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center mt-0.5"
                 style={{
-                  backgroundColor: `${colors.primary}12`,
+                  backgroundColor: hexToRgba(colors.primary, 0.1),
                 }}
               >
                 <StepIcon
@@ -320,7 +329,7 @@ export default function OnboardingTutorial() {
             <div
               className="mx-4 mb-2 px-3 py-2 rounded-lg text-[0.75rem] font-medium font-[family-name:var(--font-inter)]"
               style={{
-                backgroundColor: `${colors.primary}08`,
+                backgroundColor: hexToRgba(colors.primary, 0.06),
                 color: colors.primary,
               }}
             >
