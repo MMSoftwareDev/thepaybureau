@@ -41,6 +41,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request })
   }
 
+  // App domain: redirect root to dashboard (chains to /login if unauthenticated)
+  if (host === APP_HOST && pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard', `https://${APP_HOST}`), 307)
+  }
+
   // --- Below here: app.thepaybureau.com and localhost (existing logic) ---
 
   let supabaseResponse = NextResponse.next({ request })
