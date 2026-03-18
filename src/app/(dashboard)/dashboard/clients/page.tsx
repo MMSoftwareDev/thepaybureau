@@ -965,6 +965,7 @@ export default function ClientsPage() {
           onClick={openAdd}
           className="text-white text-sm"
           style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})` }}
+          data-onboarding="add-client"
         >
           <Plus className="w-4 h-4 mr-1.5" />
           Add Client
