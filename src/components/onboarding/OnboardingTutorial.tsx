@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import {
   ONBOARDING_STEPS,
   STORAGE_KEY_STEP,
-  STORAGE_KEY_DISMISSED,
+  STORAGE_KEY_COMPLETED,
 } from './onboarding-steps'
 
 // Helper: convert hex (#RRGGBB) to rgba with opacity
@@ -31,7 +31,8 @@ export default function OnboardingTutorial() {
   const { data: payrolls } = usePayrolls()
 
   const [currentStep, setCurrentStep] = useState(0)
-  const [dismissed, setDismissed] = useState(true) // default hidden until we check
+  const [completed, setCompleted] = useState(false) // permanently completed
+  const [skipped, setSkipped] = useState(false) // session-only skip
   const [visible, setVisible] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null)
@@ -43,28 +44,25 @@ export default function OnboardingTutorial() {
   useEffect(() => {
     setMounted(true)
     try {
-      const d = localStorage.getItem(STORAGE_KEY_DISMISSED)
+      const d = localStorage.getItem(STORAGE_KEY_COMPLETED)
       if (d === 'true') {
-        setDismissed(true)
+        setCompleted(true)
         return
       }
       const s = localStorage.getItem(STORAGE_KEY_STEP)
       if (s !== null) {
         setCurrentStep(parseInt(s, 10))
       }
-      setDismissed(false)
-    } catch {
-      setDismissed(false)
-    }
+    } catch { /* ignore */ }
   }, [])
 
   // Determine if tutorial should show
   const clientCount = Array.isArray(clients) ? clients.length : 0
   const payrollCount = Array.isArray(payrolls) ? payrolls.length : 0
 
-  // Show tutorial only if not permanently dismissed
-  // Once dismissed (skip or complete), it never comes back regardless of client count
-  const shouldShow = mounted && !dismissed
+  // Show when: user has 0 clients (initial trigger) OR tutorial already in progress (step > 0)
+  // Hide when: fully completed OR skipped this session
+  const shouldShow = mounted && !completed && !skipped && (clientCount === 0 || currentStep > 0)
 
   // Animate in
   useEffect(() => {
@@ -166,17 +164,27 @@ export default function OnboardingTutorial() {
     } else if (step.id === 'pensions-overview') {
       advanceTo(4)
     } else if (step.id === 'complete') {
-      dismiss()
+      complete()
       router.push('/dashboard')
     }
     // create-client and create-payroll auto-advance via SWR watchers
   }, [currentStep, advanceTo, router])
 
-  const dismiss = useCallback(() => {
-    setDismissed(true)
+  // Permanently mark tutorial as completed — never shows again
+  const complete = useCallback(() => {
+    setCompleted(true)
     setVisible(false)
     try {
-      localStorage.setItem(STORAGE_KEY_DISMISSED, 'true')
+      localStorage.setItem(STORAGE_KEY_COMPLETED, 'true')
+      localStorage.removeItem(STORAGE_KEY_STEP)
+    } catch { /* ignore */ }
+  }, [])
+
+  // Session-only skip — comes back next page load if still 0 clients
+  const skip = useCallback(() => {
+    setSkipped(true)
+    setVisible(false)
+    try {
       localStorage.removeItem(STORAGE_KEY_STEP)
     } catch { /* ignore */ }
   }, [])
@@ -283,7 +291,7 @@ export default function OnboardingTutorial() {
                 {currentStep + 1} of {ONBOARDING_STEPS.length}
               </span>
               <button
-                onClick={dismiss}
+                onClick={skip}
                 className="p-1 rounded-md transition-colors duration-150 hover:opacity-80"
                 style={{ color: colors.text.muted }}
                 aria-label="Dismiss tutorial"
@@ -343,7 +351,7 @@ export default function OnboardingTutorial() {
             style={{ borderColor: colors.border }}
           >
             <button
-              onClick={dismiss}
+              onClick={skip}
               className="text-[0.75rem] font-medium font-[family-name:var(--font-inter)] transition-colors duration-150 hover:opacity-80"
               style={{ color: colors.text.muted }}
             >

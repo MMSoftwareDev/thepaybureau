@@ -167,7 +167,7 @@ export default function DashboardPage() {
               Add your first client to get started.
             </p>
             <Button
-              onClick={() => router.push('/dashboard/clients/add')}
+              onClick={() => router.push('/dashboard/clients')}
               className="text-white font-semibold py-2 px-5 rounded-lg border-0 text-[0.85rem]"
               style={{
                 background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
@@ -678,7 +678,7 @@ export default function DashboardPage() {
       {!isEmptyState && (
         <div className="flex flex-col sm:flex-row flex-wrap gap-2.5">
           <Button
-            onClick={() => router.push('/dashboard/clients/add')}
+            onClick={() => router.push('/dashboard/clients')}
             className="text-white font-semibold py-2 px-5 rounded-lg border-0 text-[0.85rem]"
             style={{
               background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,

@@ -17,7 +17,7 @@ interface NavbarProps {
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/dashboard/clients': 'Clients',
-  '/dashboard/clients/add': 'Add Client',
+
   '/dashboard/payrolls': 'Payroll Runs',
   '/dashboard/pensions': 'Pension Declarations',
   '/dashboard/settings': 'Settings',
