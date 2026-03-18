@@ -71,4 +71,4 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
 ]
 
 export const STORAGE_KEY_STEP = 'tpb_onboarding_step'
-export const STORAGE_KEY_DISMISSED = 'tpb_onboarding_dismissed'
+export const STORAGE_KEY_COMPLETED = 'tpb_onboarding_completed'
