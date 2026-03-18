@@ -57,18 +57,21 @@ export default function OnboardingTutorial() {
   }, [])
 
   // Determine if tutorial should show
+  // clients === undefined means SWR still loading — treat as "no clients yet"
+  const clientsLoaded = clients !== undefined
   const clientCount = Array.isArray(clients) ? clients.length : 0
   const payrollCount = Array.isArray(payrolls) ? payrolls.length : 0
 
-  // Show when: user has 0 clients (initial trigger) OR tutorial already in progress (step > 0)
-  // Hide when: fully completed OR skipped this session
-  const shouldShow = mounted && !completed && !skipped && (clientCount === 0 || currentStep > 0)
+  // Show when: not completed AND not skipped this session
+  // AND either: SWR still loading, has 0 clients, or tutorial already in progress
+  const shouldShow = mounted && !completed && !skipped &&
+    (!clientsLoaded || clientCount === 0 || currentStep > 0)
 
-  // Animate in
+  // Animate in immediately (no delay — previous 300ms setTimeout was getting cancelled by re-renders)
   useEffect(() => {
     if (shouldShow) {
-      const t = setTimeout(() => setVisible(true), 300)
-      return () => clearTimeout(t)
+      const raf = requestAnimationFrame(() => setVisible(true))
+      return () => cancelAnimationFrame(raf)
     } else {
       setVisible(false)
     }
