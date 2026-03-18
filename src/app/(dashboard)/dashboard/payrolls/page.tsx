@@ -274,10 +274,10 @@ interface ColumnDef {
 const ALL_COLUMNS: ColumnDef[] = [
   { id: 'client', label: 'Client', sortField: 'client', defaultVisible: true, getValue: (p) => p.clients?.name || '-' },
   { id: 'frequency', label: 'Frequency', sortField: 'frequency', defaultVisible: true, getValue: (p) => formatFrequency(p.pay_frequency) },
+  { id: 'pay_day', label: 'Pay Day', sortField: 'pay_day', defaultVisible: true, getValue: (p) => formatPayDay(p.pay_day) },
+  { id: 'status', label: 'Status', sortField: 'status', defaultVisible: true, getValue: (p) => p.status },
   { id: 'pay_date', label: 'Pay Date', sortField: 'pay_date', defaultVisible: true, getValue: (p) => p.latestRun ? formatDateFull(p.latestRun.pay_date) : '-' },
-  { id: 'pay_day', label: 'Pay Day', sortField: 'pay_day', defaultVisible: false, getValue: (p) => formatPayDay(p.pay_day) },
   { id: 'paye_ref', label: 'PAYE Ref', sortField: 'paye_ref', defaultVisible: false, getValue: (p) => p.paye_reference || '-' },
-  { id: 'status', label: 'Status', sortField: 'status', defaultVisible: false, getValue: (p) => p.status },
   { id: 'pension_provider', label: 'Pension', sortField: 'pension_provider', defaultVisible: false, getValue: (p) => p.pension_provider || '-' },
   { id: 'payroll_software', label: 'Software', sortField: 'payroll_software', defaultVisible: false, getValue: (p) => p.payroll_software || '-' },
 ]
