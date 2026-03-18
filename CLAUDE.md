@@ -920,3 +920,26 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Domain routing rules updated**: `app.thepaybureau.com/` now redirects to `/dashboard` (previously served marketing page)
 - **Files changed (1)**: `src/middleware.ts`
 - Branch: `claude/fix-domain-routing-RDfUd`
+
+### Session 38 — Recurring Payroll Planning: Page Redesign (2026-03-18)
+- **Core UX shift**: Payrolls table flipped from showing payroll configs to showing the current/next payroll run per payroll
+- **Inline task checklist**: New `TaskPopover` component — colourful status badge (e.g., "In Progress 3/7") opens a Popover dropdown with toggleable checklist items + "Mark All Complete" button
+- **Auto-recurring payrolls**: Completing all checklist items triggers celebration overlay, auto-generates next run via `/api/payroll-runs/generate`, and SWR revalidation refreshes the table with the new run
+- **Action-oriented KPI cards**: Replaced frequency counts (Total, Weekly, Monthly, etc.) with Due Today, Overdue, This Week, Completed This Month — all clickable to filter the table
+- **Default sort**: Pay date ascending (soonest due first)
+- **Default columns**: Payroll, Client, Frequency, Pay Day, Status, Pay Date, Tasks, Actions (matched to user screenshot)
+- **Removed**: View mode sidebar, Runs Sheet (entire month-navigation panel), Eye/View Runs button, ProgressDots component, RunChecklistView component, ViewRow component, row click → view behaviour
+- **Kept**: Edit sidebar (config only), Add/Delete payroll, search, filters, columns customizer, CSV export, pagination, celebration overlay
+- **API enriched**: GET `/api/payrolls` now batch-fetches `checklist_items` for each payroll's latest run (single additional query, not N+1)
+- **Key decisions**:
+  - Checklist tasks as dropdown options (not just status levels) — user chose this over popover checklist or simple status dropdown
+  - Action-oriented KPIs over frequency counts
+  - Popover (not expandable row or sidebar) for inline task management
+- **Net code reduction**: 2,172 → 913 lines (-1,259 lines, -58%)
+- **No new patterns**: Reuses existing Popover, SWR mutate, `/api/payroll-runs/actions` toggle_item/mark_all_complete, `/api/payroll-runs/generate`
+- **Build**: Clean production build, 157 tests passing
+- **Files changed (2)**: `src/app/(dashboard)/dashboard/payrolls/page.tsx` (rewrite), `src/app/api/payrolls/route.ts` (enriched GET)
+- **No new migrations required**
+- **Blockers**: None
+- **Next priority**: User testing of inline task workflow; consider removing `/dashboard/payrolls/runs` sub-route if it still exists; update `docs/api-reference.md` with enriched GET `/api/payrolls` response shape
+- Branch: `claude/recurring-payroll-planning-jgJIe`
