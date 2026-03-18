@@ -3,15 +3,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { useClients, usePayrolls } from '@/lib/swr'
 import { Button } from '@/components/ui/button'
 import { X, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import {
-  ONBOARDING_STEPS,
-  STORAGE_KEY_STEP,
-  STORAGE_KEY_COMPLETED,
-} from './onboarding-steps'
+import { ONBOARDING_STEPS } from './onboarding-steps'
 
 // Helper: convert hex (#RRGGBB) to rgba with opacity
 function hexToRgba(hex: string, alpha: number): string {
@@ -21,18 +18,24 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
+// Scope localStorage keys to user ID so different accounts don't share state
+function getStorageKey(userId: string, suffix: string) {
+  return `tpb_onboarding_${suffix}_${userId}`
+}
+
 export default function OnboardingTutorial() {
   const router = useRouter()
   const pathname = usePathname()
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
+  const { user } = useAuth()
 
   const { data: clients } = useClients()
   const { data: payrolls } = usePayrolls()
 
   const [currentStep, setCurrentStep] = useState(0)
-  const [completed, setCompleted] = useState(false) // permanently completed
-  const [skipped, setSkipped] = useState(false) // session-only skip
+  const [completed, setCompleted] = useState(false)
+  const [skipped, setSkipped] = useState(false)
   const [visible, setVisible] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null)
@@ -40,35 +43,43 @@ export default function OnboardingTutorial() {
   const prevClientCount = useRef(0)
   const prevPayrollCount = useRef(0)
 
-  // Load persisted state
+  const userId = user?.id || ''
+
+  // Load persisted state — scoped to user ID
   useEffect(() => {
+    if (!userId) return // wait for auth
     setMounted(true)
+    setCompleted(false) // reset on user change
+    setCurrentStep(0)
     try {
-      const d = localStorage.getItem(STORAGE_KEY_COMPLETED)
+      const d = localStorage.getItem(getStorageKey(userId, 'completed'))
       if (d === 'true') {
         setCompleted(true)
         return
       }
-      const s = localStorage.getItem(STORAGE_KEY_STEP)
+      const s = localStorage.getItem(getStorageKey(userId, 'step'))
       if (s !== null) {
         setCurrentStep(parseInt(s, 10))
       }
     } catch { /* ignore */ }
-  }, [])
+  }, [userId])
 
   // Determine if tutorial should show
+  // clients === undefined means SWR still loading — treat as "no clients yet"
+  const clientsLoaded = clients !== undefined
   const clientCount = Array.isArray(clients) ? clients.length : 0
   const payrollCount = Array.isArray(payrolls) ? payrolls.length : 0
 
-  // Show when: user has 0 clients (initial trigger) OR tutorial already in progress (step > 0)
-  // Hide when: fully completed OR skipped this session
-  const shouldShow = mounted && !completed && !skipped && (clientCount === 0 || currentStep > 0)
+  // Show when: not completed AND not skipped this session
+  // AND either: SWR still loading, has 0 clients, or tutorial already in progress
+  const shouldShow = mounted && !completed && !skipped &&
+    (!clientsLoaded || clientCount === 0 || currentStep > 0)
 
-  // Animate in
+  // Animate in immediately (no delay — previous 300ms setTimeout was getting cancelled by re-renders)
   useEffect(() => {
     if (shouldShow) {
-      const t = setTimeout(() => setVisible(true), 300)
-      return () => clearTimeout(t)
+      const raf = requestAnimationFrame(() => setVisible(true))
+      return () => cancelAnimationFrame(raf)
     } else {
       setVisible(false)
     }
@@ -140,10 +151,11 @@ export default function OnboardingTutorial() {
   }, [currentStep, pathname])
 
   const persistStep = useCallback((step: number) => {
+    if (!userId) return
     try {
-      localStorage.setItem(STORAGE_KEY_STEP, step.toString())
+      localStorage.setItem(getStorageKey(userId, 'step'), step.toString())
     } catch { /* ignore */ }
-  }, [])
+  }, [userId])
 
   const advanceTo = useCallback(
     (step: number) => {
@@ -170,24 +182,26 @@ export default function OnboardingTutorial() {
     // create-client and create-payroll auto-advance via SWR watchers
   }, [currentStep, advanceTo, router])
 
-  // Permanently mark tutorial as completed — never shows again
+  // Permanently mark tutorial as completed — never shows again for this user
   const complete = useCallback(() => {
     setCompleted(true)
     setVisible(false)
+    if (!userId) return
     try {
-      localStorage.setItem(STORAGE_KEY_COMPLETED, 'true')
-      localStorage.removeItem(STORAGE_KEY_STEP)
+      localStorage.setItem(getStorageKey(userId, 'completed'), 'true')
+      localStorage.removeItem(getStorageKey(userId, 'step'))
     } catch { /* ignore */ }
-  }, [])
+  }, [userId])
 
   // Session-only skip — comes back next page load if still 0 clients
   const skip = useCallback(() => {
     setSkipped(true)
     setVisible(false)
+    if (!userId) return
     try {
-      localStorage.removeItem(STORAGE_KEY_STEP)
+      localStorage.removeItem(getStorageKey(userId, 'step'))
     } catch { /* ignore */ }
-  }, [])
+  }, [userId])
 
   // Navigate to step route if not already there
   useEffect(() => {

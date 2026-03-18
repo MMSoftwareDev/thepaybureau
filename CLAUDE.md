@@ -933,3 +933,24 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Files created (1)**: `src/app/api/newsletter/subscribe/route.ts`
 - **Files modified (3)**: `src/components/marketing/Footer.tsx`, `.env.example`, `CLAUDE.md`
 - Branch: `claude/setup-email-marketing-UetrF`
+### Session 38 — Onboarding Guided Tutorial (2026-03-18)
+- **Built**: Floating 5-step onboarding tutorial for new users — guides through first client, first payroll, and pension re-enrolment overview
+- **Tutorial flow**: Welcome → Create Client (`/dashboard/clients`) → Create Payroll (`/dashboard/payrolls`) → Pensions Overview (`/dashboard/pensions`) → Completion celebration
+- **Component architecture**: `src/components/onboarding/OnboardingTutorial.tsx` (main component), `src/components/onboarding/onboarding-steps.ts` (step definitions)
+- **Design**: Floating card (bottom-left, z-[90]), purple pulse ring around target buttons (`data-onboarding` attributes), gradient CTA buttons, progress dots
+- **Auto-advance**: SWR data watchers detect when client/payroll is created and automatically advance to next step (ref update + advance check in single effect to avoid race condition)
+- **Dismissal model**: "Skip" = session-only (reappears on next page load if 0 clients); "Complete" (finish all 5 steps) = permanent via localStorage
+- **localStorage scoped to user ID**: Keys use `tpb_onboarding_${suffix}_${userId}` pattern — different accounts on same browser get independent tutorial state
+- **Deleted `/dashboard/clients/add` page**: Client creation is via Sheet sidebar on `/dashboard/clients` — removed orphan full-page form (1,415 lines), updated dashboard "Add Client" buttons and Navbar breadcrumb
+- **Bug fixes (5 rounds)**:
+  1. Auto-advance race condition — separate effects with same deps had non-deterministic order; merged ref update + check into single effect
+  2. Light mode — hex alpha shorthand (`#401D6C12`) replaced with `hexToRgba()` helper for proper opacity
+  3. Spotlight overlay too aggressive — removed full-screen dark overlay, kept only subtle pulse ring
+  4. SWR loading state — `clients === undefined` while loading now treated as "show tutorial"
+  5. Global localStorage — keys were shared across all accounts; scoped to `user.id` from `useAuth()`
+- **Key decisions**: Bottom-left card position (ChatWidget is bottom-right); no full-screen overlay (too disruptive); session-only skip (tutorial always returns for 0-client users); permanent complete only after all 5 steps
+- **New conventions**: `data-onboarding="<name>"` attributes on spotlight target buttons; `hexToRgba()` helper for theme-safe opacity; user-scoped localStorage keys for per-user UI state
+- **Files created (2)**: `OnboardingTutorial.tsx`, `onboarding-steps.ts`
+- **Files modified (5)**: `DashboardWrapper.tsx`, `clients/page.tsx`, `payrolls/page.tsx`, `dashboard/page.tsx`, `globals.css`
+- **Files deleted (1)**: `clients/add/page.tsx`
+- Branch: `claude/add-onboarding-tutorial-6U43K`
