@@ -81,7 +81,7 @@ npx playwright test  # E2E tests
 - **Admin routes:** Protected by `PLATFORM_ADMIN_EMAILS` env check.
 - **Clients vs Payrolls:** Separate tables — one client can have multiple payrolls. Payroll config fields (frequency, pay day, PAYE ref, pension) live on `payrolls` table, not `clients`. Payroll runs reference `payroll_id`.
 - **Client data model:** 45+ fields across identity, company details, address, 2 contact types (primary, secondary), accountant, tax/compliance (VAT, UTR, CIS, HMRC PAYE Online Auth, AE status), billing/contract (fee, billing frequency, payment method, contract type, notice period), and metadata (tags, assigned_to, referral_source, industry, etc.). Payroll Contact removed (primary contact covers this). Registered Address and TPAS deferred.
-- **Domain routing:** Middleware-based hostname routing — `www.thepaybureau.com` serves marketing pages only (`/`, `/roadmap`, `/terms`, `/privacy`), all other routes 301 redirect to `app.thepaybureau.com`. Marketing routes skip auth/CSRF entirely. Domain constants centralised in `src/lib/domains.ts`.
+- **Domain routing:** Middleware-based hostname routing — `www.thepaybureau.com` serves marketing pages only (`/`, `/roadmap`, `/terms`, `/privacy`), all other routes 301 redirect to `app.thepaybureau.com`. `app.thepaybureau.com/` redirects to `/dashboard` (307). Marketing routes skip auth/CSRF entirely. Domain constants centralised in `src/lib/domains.ts`.
 
 ## Database Tables
 
@@ -910,3 +910,13 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Supabase config**: `supabase/config.toml` left unchanged (local dev config, intentionally static)
 - **Files modified (4)**: `CLAUDE.md`, `tasks/todo.md`, `src/lib/email-templates.ts`, `.github/workflows/ci.yml`
 - Branch: `claude/review-code-tasks-1cQu8`
+
+### Session 37 — Fix App Domain Root Route (2026-03-18)
+- **Bug**: `app.thepaybureau.com/` served the marketing landing page instead of redirecting to the app
+- **Fix**: Added middleware redirect — `app.thepaybureau.com/` → `/dashboard` (307 temporary redirect)
+- **Chain**: `/` → 307 → `/dashboard` → existing auth check → dashboard (logged in) or `/login` (not logged in)
+- **Decision**: 307 (temporary) not 301 (permanent) — avoids browser caching issues if routing logic changes later
+- **Localhost unaffected**: No hostname match on `localhost:3000`, so dev still serves the landing page at `/` for testing
+- **Domain routing rules updated**: `app.thepaybureau.com/` now redirects to `/dashboard` (previously served marketing page)
+- **Files changed (1)**: `src/middleware.ts`
+- Branch: `claude/fix-domain-routing-RDfUd`
