@@ -12,7 +12,7 @@ SaaS platform for UK payroll bureaux to manage clients, payroll runs, pensions, 
 - **Payments:** Stripe (subscriptions)
 - **Styling:** Tailwind CSS 4, Radix UI primitives, shadcn/ui (`components.json`)
 - **AI:** Anthropic SDK (AI assistant feature), VoyageAI (embeddings)
-- **Email:** Resend
+- **Email:** Resend (transactional), Brevo (marketing/newsletter)
 - **Rate limiting:** Upstash Redis
 - **Monitoring:** Sentry, Vercel Analytics + Speed Insights
 - **Testing:** Jest + Testing Library (unit), Playwright (e2e)
@@ -124,6 +124,7 @@ All tables are scoped by `tenant_id` with RLS policies (except `tenants` itself 
 | `RESEND_API_KEY` | Resend email API key |
 | `ANTHROPIC_API_KEY` | Claude AI assistant |
 | `VOYAGE_API_KEY` | VoyageAI embeddings |
+| `BREVO_API_KEY` | Brevo email marketing API key |
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis URL for rate limiting |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis token |
 | `CRON_SECRET` | Bearer token for cron route authentication |
@@ -484,6 +485,7 @@ Every new page or component **must** satisfy all of these before it's considered
 | Training API | `src/app/api/training/route.ts` |
 | Training PDF export API | `src/app/api/training/export-pdf/route.ts` |
 | Training CPD migration | `supabase/migrations/023_training_cpd_enhancements.sql` |
+| Newsletter subscribe API | `src/app/api/newsletter/subscribe/route.ts` |
 
 ## Session Log
 
@@ -920,3 +922,14 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Domain routing rules updated**: `app.thepaybureau.com/` now redirects to `/dashboard` (previously served marketing page)
 - **Files changed (1)**: `src/middleware.ts`
 - Branch: `claude/fix-domain-routing-RDfUd`
+
+### Session 38 — Email Marketing Setup: Brevo + Newsletter Signup (2026-03-18)
+- **Platform analysis**: Compared Brevo, Resend Broadcasts, Loops, MailerLite, Mailchimp — chose **Brevo** (best free tier: 100K contacts with analytics, EU-hosted GDPR, $9/mo at scale vs $40/mo Resend)
+- **Subdomain strategy**: `news.thepaybureau.com` for marketing emails (Brevo), `mail.thepaybureau.com` for transactional (Resend) — domain reputation isolation
+- **Newsletter subscribe API**: New `/api/newsletter/subscribe` POST route — Brevo REST API integration, Zod email validation, rate limited 5/15min, handles duplicates gracefully (`updateEnabled: true`), no auth required (public)
+- **Footer signup form**: Added email input + Subscribe button to marketing site footer — `'use client'` for form state, idle/loading/success/error states, GDPR copy ("Friday payroll tips & product updates. Unsubscribe anytime"), brand pink button
+- **Env var**: Added `BREVO_API_KEY` to `.env.example`
+- **User setup required**: Create Brevo account, get API key, add to Vercel env vars, add `news.thepaybureau.com` DNS records (SPF/DKIM/DMARC) in GoDaddy, verify domain in Brevo
+- **Files created (1)**: `src/app/api/newsletter/subscribe/route.ts`
+- **Files modified (3)**: `src/components/marketing/Footer.tsx`, `.env.example`, `CLAUDE.md`
+- Branch: `claude/setup-email-marketing-UetrF`
