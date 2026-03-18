@@ -47,14 +47,17 @@ export async function GET() {
       return NextResponse.json([])
     }
 
-    // Fetch latest payroll run for each payroll
+    // Fetch latest (most recent) payroll run for each payroll
     const { data: runs } = await supabase
       .from('payroll_runs')
-      .select('id, payroll_id, pay_date, status')
+      .select('id, payroll_id, pay_date, period_start, period_end, status, rti_due_date, eps_due_date')
       .in('payroll_id', payrolls.map((p) => p.id))
       .order('pay_date', { ascending: false })
 
-    const latestRunMap = new Map<string, { id: string; pay_date: string; status: string }>()
+    const latestRunMap = new Map<string, {
+      id: string; payroll_id: string; pay_date: string; period_start: string; period_end: string;
+      status: string; rti_due_date: string | null; eps_due_date: string | null;
+    }>()
     if (runs) {
       for (const run of runs) {
         if (run.payroll_id && !latestRunMap.has(run.payroll_id)) {
@@ -63,10 +66,39 @@ export async function GET() {
       }
     }
 
-    const payrollsWithRuns = payrolls.map((payroll) => ({
-      ...payroll,
-      latestRun: latestRunMap.get(payroll.id) || null,
-    }))
+    // Batch-fetch checklist items for all latest runs
+    const latestRunIds = Array.from(latestRunMap.values()).map((r) => r.id)
+    const checklistMap = new Map<string, Array<{
+      id: string; payroll_run_id: string; name: string; is_completed: boolean;
+      completed_at: string | null; completed_by: string | null; sort_order: number;
+    }>>()
+
+    if (latestRunIds.length > 0) {
+      const { data: checklistItems } = await supabase
+        .from('checklist_items')
+        .select('id, payroll_run_id, name, is_completed, completed_at, completed_by, sort_order')
+        .in('payroll_run_id', latestRunIds)
+        .order('sort_order', { ascending: true })
+
+      if (checklistItems) {
+        for (const item of checklistItems) {
+          const existing = checklistMap.get(item.payroll_run_id) || []
+          existing.push(item)
+          checklistMap.set(item.payroll_run_id, existing)
+        }
+      }
+    }
+
+    const payrollsWithRuns = payrolls.map((payroll) => {
+      const latestRun = latestRunMap.get(payroll.id)
+      return {
+        ...payroll,
+        latestRun: latestRun ? {
+          ...latestRun,
+          checklist_items: checklistMap.get(latestRun.id) || [],
+        } : null,
+      }
+    })
 
     return NextResponse.json(payrollsWithRuns)
   } catch (error) {
