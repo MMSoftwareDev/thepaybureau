@@ -34,7 +34,7 @@ const FAQS = [
   },
   {
     q: 'Is my data secure?',
-    a: 'Absolutely. We use Supabase (built on PostgreSQL) with Row Level Security policies that isolate your data at the database level. All data is encrypted in transit (TLS 1.2+) and at rest. We are UK GDPR compliant and never share your data with third parties.',
+    a: 'Absolutely. Your data is isolated at the database level using row-level security policies — no bureau can ever access another\'s data. All data is encrypted in transit and at rest. We are UK GDPR compliant and never share your data with third parties. Read more on our Security page.',
   },
   {
     q: 'Can my whole bureau use this?',

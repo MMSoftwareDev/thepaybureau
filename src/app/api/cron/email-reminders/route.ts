@@ -1,16 +1,14 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { sendEmail } from '@/lib/resend'
 import { complianceDeadlineEmail, payrollIncompleteEmail } from '@/lib/email-templates'
+import { verifyCronSecret } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const maxDuration = 60
 
 export async function GET(request: NextRequest) {
   // Verify cron secret (Vercel sends this automatically)
-  const authHeader = request.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!verifyCronSecret(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

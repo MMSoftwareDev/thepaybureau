@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { writeAuditLog } from '@/lib/audit'
 import { hasPaidFeature } from '@/lib/stripe'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 const CATEGORIES = ['hmrc_webinar', 'cipp_webinar', 'online_course', 'conference', 'workshop', 'self_study', 'other'] as const
 const STATUSES = ['not_started', 'in_progress', 'completed'] as const
@@ -78,6 +79,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 20 training record creations per 15 minutes
+    const limiter = await rateLimit(`training-create:${getClientIp(request)}`, { limit: 20, windowSeconds: 900 })
+    if (!limiter.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const authUser = await getAuthUser()
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

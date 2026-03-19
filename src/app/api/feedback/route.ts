@@ -8,7 +8,7 @@ import { feedbackNotificationEmail } from '@/lib/email-templates'
 const feedbackSchema = z.object({
   category: z.enum(['bug', 'improvement', 'other']),
   message: z.string().min(1).max(2000),
-  page_url: z.string().max(500).optional(),
+  page_url: z.string().url().max(500).optional(),
 })
 
 export async function POST(request: NextRequest) {
