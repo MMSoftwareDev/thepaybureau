@@ -61,6 +61,7 @@ import {
   Settings,
   Settings2,
   Landmark,
+  Copy,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
@@ -277,16 +278,23 @@ function FormSection({
   title,
   icon: Icon,
   defaultOpen = true,
+  forceOpen,
   colors,
   children,
 }: {
   title: string
   icon: React.ComponentType<{ className?: string }>
   defaultOpen?: boolean
+  forceOpen?: boolean
   colors: ReturnType<typeof getThemeColors>
   children: React.ReactNode
 }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const resolvedDefault = forceOpen !== undefined ? forceOpen : defaultOpen
+  const [open, setOpen] = useState(resolvedDefault)
+  // Re-sync when forceOpen changes (e.g. opening edit for a different client)
+  useEffect(() => {
+    if (forceOpen !== undefined) setOpen(forceOpen)
+  }, [forceOpen])
   return (
     <div style={{ borderBottom: `1px solid ${colors.border}` }}>
       <button
@@ -453,6 +461,17 @@ export default function ClientsPage() {
 
   // Export state
   const [exporting, setExporting] = useState(false)
+
+  // Quick status toggle
+  const [togglingStatusId, setTogglingStatusId] = useState<string | null>(null)
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkActionLoading, setBulkActionLoading] = useState(false)
+
+  // Inline editing
+  const [inlineEditCell, setInlineEditCell] = useState<{ id: string; field: string } | null>(null)
+  const [inlineEditValue, setInlineEditValue] = useState('')
 
   // Tenant users for Assigned To dropdown
   const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([])
@@ -745,6 +764,132 @@ export default function ClientsPage() {
       setExporting(false)
     }
   }
+
+  // ── Quick status toggle ──────────────────────────────────────────────
+
+  const toggleClientStatus = async (client: Client) => {
+    const newStatus = client.status === 'active' ? 'inactive' : 'active'
+    setTogglingStatusId(client.id)
+    try {
+      const res = await fetch(`/api/clients/${client.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: client.name, status: newStatus }),
+      })
+      if (!res.ok) throw new Error('Failed to update status')
+      toast(`Client marked as ${newStatus}`)
+      mutate('/api/clients')
+    } catch {
+      toast('Failed to update status', 'error')
+    } finally {
+      setTogglingStatusId(null)
+    }
+  }
+
+  // ── Duplicate client ──────────────────────────────────────────────────
+
+  const duplicateClient = useCallback((client: Client) => {
+    openEdit({ ...client, id: '' } as Client) // Trick: empty id means it's treated as "add"
+    // Override form to add mode with pre-filled data
+    setEditingClient(null)
+    setFormName(`${client.name} (Copy)`)
+  }, [openEdit])
+
+  // ── Bulk actions ──────────────────────────────────────────────────────
+
+  const toggleSelectAll = useCallback((currentPageClients: Client[]) => {
+    if (selectedIds.size === currentPageClients.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(currentPageClients.map(c => c.id)))
+    }
+  }, [selectedIds])
+
+  const toggleSelectOne = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const bulkUpdateStatus = async (newStatus: string) => {
+    if (selectedIds.size === 0) return
+    setBulkActionLoading(true)
+    try {
+      const promises = Array.from(selectedIds).map(id => {
+        const client = (clients as Client[]).find(c => c.id === id)
+        if (!client) return Promise.resolve()
+        return fetch(`/api/clients/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: client.name, status: newStatus }),
+        })
+      })
+      await Promise.all(promises)
+      toast(`${selectedIds.size} clients marked as ${newStatus}`)
+      mutate('/api/clients')
+      setSelectedIds(new Set())
+    } catch {
+      toast('Failed to update some clients', 'error')
+    } finally {
+      setBulkActionLoading(false)
+    }
+  }
+
+  const bulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    setBulkActionLoading(true)
+    try {
+      const promises = Array.from(selectedIds).map(id =>
+        fetch(`/api/clients/${id}`, { method: 'DELETE' })
+      )
+      await Promise.all(promises)
+      toast(`${selectedIds.size} clients deleted`)
+      mutate('/api/clients')
+      setSelectedIds(new Set())
+    } catch {
+      toast('Failed to delete some clients', 'error')
+    } finally {
+      setBulkActionLoading(false)
+    }
+  }
+
+  // ── Inline editing ────────────────────────────────────────────────────
+
+  const startInlineEdit = (clientId: string, field: string, currentValue: string) => {
+    setInlineEditCell({ id: clientId, field })
+    setInlineEditValue(currentValue === '-' ? '' : currentValue)
+  }
+
+  const saveInlineEdit = async () => {
+    if (!inlineEditCell) return
+    const client = (clients as Client[]).find(c => c.id === inlineEditCell.id)
+    if (!client) { setInlineEditCell(null); return }
+
+    try {
+      const payload: Record<string, unknown> = { name: client.name }
+      const field = inlineEditCell.field
+      if (field === 'contact_name') payload.contact_name = inlineEditValue.trim() || undefined
+      else if (field === 'contact_email') payload.contact_email = inlineEditValue.trim() || undefined
+      else if (field === 'fee') payload.fee = inlineEditValue.trim() || undefined
+
+      const res = await fetch(`/api/clients/${inlineEditCell.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error('Failed to update')
+      mutate('/api/clients')
+    } catch {
+      toast('Failed to save', 'error')
+    } finally {
+      setInlineEditCell(null)
+    }
+  }
+
+  const cancelInlineEdit = () => setInlineEditCell(null)
 
   // ── Sort handler ───────────────────────────────────────────────────────
 
@@ -1205,6 +1350,95 @@ export default function ClientsPage() {
             )}
           </div>
         )}
+
+        {/* Active Filter Chips */}
+        {activeFilterCount > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {statusFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
+                Status: {statusFilter === 'active' ? 'Active' : 'Inactive'}
+                <button onClick={() => setStatusFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            {industryFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
+                Industry: {industryFilter}
+                <button onClick={() => setIndustryFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            {companyTypeFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
+                Type: {COMPANY_TYPE_LABELS[companyTypeFilter] || companyTypeFilter}
+                <button onClick={() => setCompanyTypeFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            {hmrcAuthFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
+                HMRC Auth: {hmrcAuthFilter === 'yes' ? 'Yes' : 'No'}
+                <button onClick={() => setHmrcAuthFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            {aeStatusFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
+                AE: {AUTO_ENROLMENT_OPTIONS.find(o => o.value === aeStatusFilter)?.label || aeStatusFilter}
+                <button onClick={() => setAeStatusFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            {paymentMethodFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
+                Payment: {PAYMENT_METHOD_LABELS[paymentMethodFilter] || paymentMethodFilter}
+                <button onClick={() => setPaymentMethodFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            {contractTypeFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
+                Contract: {contractTypeFilter === 'rolling' ? 'Rolling' : 'Fixed Term'}
+                <button onClick={() => setContractTypeFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            {portalAccessFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
+                Portal: {portalAccessFilter === 'yes' ? 'Enabled' : 'Disabled'}
+                <button onClick={() => setPortalAccessFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+            {(dateFrom || dateTo) && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
+                Date: {dateFrom || '...'} – {dateTo || '...'}
+                <button onClick={() => { setDateFrom(''); setDateTo('') }} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Bulk Action Bar */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: `${colors.primary}08`, border: `1px solid ${colors.primary}25` }}>
+            <span className="text-xs font-semibold font-[family-name:var(--font-inter)]" style={{ color: colors.primary }}>
+              {selectedIds.size} selected
+            </span>
+            <div className="flex items-center gap-1.5 ml-auto">
+              <Button variant="outline" size="sm" className="text-xs h-7" disabled={bulkActionLoading}
+                style={{ borderColor: colors.success, color: colors.success }}
+                onClick={() => bulkUpdateStatus('active')}>
+                Mark Active
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs h-7" disabled={bulkActionLoading}
+                style={{ borderColor: colors.text.muted, color: colors.text.muted }}
+                onClick={() => bulkUpdateStatus('inactive')}>
+                Mark Inactive
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs h-7" disabled={bulkActionLoading}
+                style={{ borderColor: colors.error, color: colors.error }}
+                onClick={bulkDelete}>
+                Delete
+              </Button>
+              <button className="text-xs font-medium ml-2" style={{ color: colors.text.muted }} onClick={() => setSelectedIds(new Set())}>
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Table */}
@@ -1234,6 +1468,14 @@ export default function ClientsPage() {
             <Table>
               <TableHeader className="sticky top-0 z-10">
                 <TableRow style={{ backgroundColor: colors.lightBg, borderBottom: `1px solid ${colors.border}` }}>
+                  <TableHead className="px-2 py-2.5 w-[40px]">
+                    <input
+                      type="checkbox"
+                      checked={paginatedClients.length > 0 && selectedIds.size === paginatedClients.length}
+                      onChange={() => toggleSelectAll(paginatedClients)}
+                      className="w-3.5 h-3.5 accent-[var(--brand-purple)] cursor-pointer"
+                    />
+                  </TableHead>
                   <SortableHeader label="Client Name" field="name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} />
                   {activeColumns.map((col) => (
                     col.sortField ? (
@@ -1248,13 +1490,23 @@ export default function ClientsPage() {
               <TableBody>
                 {paginatedClients.map((client) => {
                   const avatarBg = getAvatarColor(client.name)
+                  const isSelected = selectedIds.has(client.id)
                   return (
                     <TableRow
                       key={client.id}
                       className="cursor-pointer transition-colors group"
-                      style={{ borderBottom: `1px solid ${colors.border}` }}
+                      style={{ borderBottom: `1px solid ${colors.border}`, backgroundColor: isSelected ? `${colors.primary}06` : undefined }}
                       onClick={() => openEdit(client)}
                     >
+                      {/* Checkbox */}
+                      <TableCell className="px-2 py-2.5 w-[40px]" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectOne(client.id)}
+                          className="w-3.5 h-3.5 accent-[var(--brand-purple)] cursor-pointer"
+                        />
+                      </TableCell>
                       <TableCell className="px-4 py-2.5 font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
                         <div className="flex items-center gap-2.5" style={{ borderLeft: '3px solid transparent' }}>
                           <div
@@ -1268,14 +1520,61 @@ export default function ClientsPage() {
                       </TableCell>
                       {activeColumns.map((col) => {
                         const needsTruncate = ['contact_email', 'domain', 'contact_name'].includes(col.id)
+                        const isInlineEditable = ['contact_name', 'contact_email', 'fee'].includes(col.id)
+                        const isInlineEditing = inlineEditCell?.id === client.id && inlineEditCell?.field === col.id
+
+                        // Quick status toggle
+                        if (col.id === 'status') {
+                          return (
+                            <TableCell key={col.id} className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => toggleClientStatus(client)}
+                                disabled={togglingStatusId === client.id}
+                                className="cursor-pointer transition-opacity hover:opacity-80"
+                                title={`Click to mark ${client.status === 'active' ? 'inactive' : 'active'}`}
+                              >
+                                {togglingStatusId === client.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.text.muted }} />
+                                ) : (
+                                  statusBadge(client.status)
+                                )}
+                              </button>
+                            </TableCell>
+                          )
+                        }
+
+                        // Inline editable cell
+                        if (isInlineEditable && isInlineEditing) {
+                          return (
+                            <TableCell key={col.id} className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                              <Input
+                                autoFocus
+                                value={inlineEditValue}
+                                onChange={(e) => setInlineEditValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveInlineEdit()
+                                  if (e.key === 'Escape') cancelInlineEdit()
+                                }}
+                                onBlur={saveInlineEdit}
+                                className="h-7 text-xs px-2"
+                                style={{ backgroundColor: colors.surface, borderColor: colors.primary, color: colors.text.primary }}
+                              />
+                            </TableCell>
+                          )
+                        }
+
                         return (
                           <TableCell
                             key={col.id}
                             className={`px-4 py-2.5 text-sm font-[family-name:var(--font-body)] ${needsTruncate ? 'max-w-[200px] truncate' : ''}`}
                             style={{ color: col.id === 'created_at' ? colors.text.muted : colors.text.secondary }}
                             title={needsTruncate ? col.getValue(client, tenantUsers) : undefined}
+                            onDoubleClick={isInlineEditable ? (e) => {
+                              e.stopPropagation()
+                              startInlineEdit(client.id, col.id, col.getValue(client, tenantUsers))
+                            } : undefined}
                           >
-                            {col.id === 'status' ? statusBadge(client.status) : col.getValue(client, tenantUsers)}
+                            {col.getValue(client, tenantUsers)}
                           </TableCell>
                         )
                       })}
@@ -1289,6 +1588,15 @@ export default function ClientsPage() {
                             onClick={() => openEdit(client)}
                           >
                             <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Duplicate client"
+                            onClick={() => duplicateClient(client)}
+                          >
+                            <Copy className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                           </Button>
                           <Button
                             variant="ghost"
@@ -1496,7 +1804,7 @@ export default function ClientsPage() {
           </SheetHeader>
 
           <div className="divide-y" style={{ borderColor: colors.border }}>
-            <FormSection title="Company Details" icon={Building2} colors={colors}>
+            <FormSection title="Company Details" icon={Building2} colors={colors} forceOpen={true}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
                   Company Name <span style={{ color: colors.error }}>*</span>
@@ -1556,7 +1864,7 @@ export default function ClientsPage() {
               </div>
             </FormSection>
 
-            <FormSection title="Address" icon={MapPin} defaultOpen={false} colors={colors}>
+            <FormSection title="Address" icon={MapPin} defaultOpen={false} forceOpen={editingClient ? !!(formStreet || formCity || formPostcode) : undefined} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Street</Label>
                 <Input value={formStreet} onChange={(e) => setFormStreet(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
@@ -1571,7 +1879,7 @@ export default function ClientsPage() {
               </div>
             </FormSection>
 
-            <FormSection title="Primary Contact" icon={Phone} defaultOpen={false} colors={colors}>
+            <FormSection title="Primary Contact" icon={Phone} defaultOpen={false} forceOpen={editingClient ? !!(formContactName || formContactEmail || formContactPhone || formNotes) : undefined} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Contact Name</Label>
                 <Input value={formContactName} onChange={(e) => setFormContactName(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
@@ -1590,7 +1898,7 @@ export default function ClientsPage() {
               </div>
             </FormSection>
 
-            <FormSection title="Secondary Contact" icon={UserPlus} defaultOpen={false} colors={colors}>
+            <FormSection title="Secondary Contact" icon={UserPlus} defaultOpen={false} forceOpen={editingClient ? !!(formSecondaryContactName || formSecondaryContactEmail || formSecondaryContactPhone) : undefined} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Name</Label>
                 <Input value={formSecondaryContactName} onChange={(e) => setFormSecondaryContactName(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
@@ -1605,7 +1913,7 @@ export default function ClientsPage() {
               </div>
             </FormSection>
 
-            <FormSection title="Accountant Contact" icon={Calculator} defaultOpen={false} colors={colors}>
+            <FormSection title="Accountant Contact" icon={Calculator} defaultOpen={false} forceOpen={editingClient ? !!(formAccountantName || formAccountantEmail || formAccountantPhone) : undefined} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Name</Label>
                 <Input value={formAccountantName} onChange={(e) => setFormAccountantName(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
@@ -1620,7 +1928,7 @@ export default function ClientsPage() {
               </div>
             </FormSection>
 
-            <FormSection title="Tax & Compliance" icon={Shield} defaultOpen={false} colors={colors}>
+            <FormSection title="Tax & Compliance" icon={Shield} defaultOpen={false} forceOpen={editingClient ? !!(formVatNumber || formUtr || formCisRegistered === 'yes' || formHmrcAgentAuthorised === 'yes' || formAutoEnrolmentStatus) : undefined} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>VAT Number</Label>
                 <Input value={formVatNumber} onChange={(e) => setFormVatNumber(e.target.value)} placeholder="e.g. GB123456789" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
@@ -1662,7 +1970,7 @@ export default function ClientsPage() {
               </div>
             </FormSection>
 
-            <FormSection title="Pension" icon={Landmark} defaultOpen={false} colors={colors}>
+            <FormSection title="Pension" icon={Landmark} defaultOpen={false} forceOpen={editingClient ? !!(formPensionProvider || formPensionStagingDate || formPensionReenrolmentDate || formDocDeadline) : undefined} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Pension Provider</Label>
                 <Select value={formPensionProvider} onValueChange={setFormPensionProvider}>
@@ -1688,7 +1996,7 @@ export default function ClientsPage() {
               </div>
             </FormSection>
 
-            <FormSection title="Billing & Contract" icon={CreditCard} defaultOpen={false} colors={colors}>
+            <FormSection title="Billing & Contract" icon={CreditCard} defaultOpen={false} forceOpen={editingClient ? !!(formFee || formBillingFrequency || formPaymentMethod || formStartDate || formContractEndDate) : undefined} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Fee</Label>
                 <Input value={formFee} onChange={(e) => setFormFee(e.target.value)} placeholder="e.g. £150/month or £5 per employee" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
@@ -1762,7 +2070,7 @@ export default function ClientsPage() {
               </div>
             </FormSection>
 
-            <FormSection title="Additional Details" icon={Settings} defaultOpen={false} colors={colors}>
+            <FormSection title="Additional Details" icon={Settings} defaultOpen={false} forceOpen={editingClient ? !!(formAssignedTo || formReferralSource || formBacsBureauNumber || formTags || formDocumentStorageUrl || formPortalAccessEnabled === 'yes' || formIncorporationDate) : undefined} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Incorporation Date</Label>
                 <Input type="date" value={formIncorporationDate} onChange={(e) => setFormIncorporationDate(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
