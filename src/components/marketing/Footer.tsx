@@ -127,6 +127,7 @@ export function Footer() {
               {[
                 { label: 'Terms of Service', href: '/terms' },
                 { label: 'Privacy Policy', href: '/privacy' },
+                { label: 'Security', href: '/security' },
               ].map((link) => (
                 <li key={link.label}>
                   <Link

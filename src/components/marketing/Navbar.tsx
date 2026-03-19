@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { label: 'Pricing', href: '#pricing' },
   { label: 'FAQ', href: '#faq' },
   { label: 'Roadmap', href: '/roadmap' },
+  { label: 'Security', href: '/security' },
 ]
 
 export function Navbar({ showNav = true }: NavbarProps) {
