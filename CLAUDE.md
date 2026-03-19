@@ -211,6 +211,8 @@ Hard-won lessons from previous sessions — check here before making changes in 
 - Training & CPD page redesign: canonical dashboard layout (sortable table, Sheet sidebar, KPIs, pagination, customizable columns), RAG status banner, CPD progress tracking (21 hrs/year CIPP benchmark), Training Plan section with recommended courses, PDF export with branded CPD report
 - Welcome email fire-and-forget fix: `await sendEmail()` in registration route (same pattern as Session 16 feedback/feature-request fix)
 - CSS variable rename: all `--login-*` → `--brand-*` across 15 files (264 occurrences)
+- Public security page (`/security`) on marketing domain with founder commitment, trust badges, feature cards, data handling, practices, FAQ
+- Landing page FAQ "Is my data secure?" answer scrubbed of technology names (Supabase, PostgreSQL removed)
 
 ### In Progress / Planned
 - Replace coded Hero mockup with real software screenshots (user to provide images with dummy data)
@@ -486,6 +488,7 @@ Every new page or component **must** satisfy all of these before it's considered
 | Training PDF export API | `src/app/api/training/export-pdf/route.ts` |
 | Training CPD migration | `supabase/migrations/023_training_cpd_enhancements.sql` |
 | Newsletter subscribe API | `src/app/api/newsletter/subscribe/route.ts` |
+| Security page | `src/app/security/page.tsx` |
 
 ## Session Log
 
@@ -965,3 +968,20 @@ _Add notes from each Claude Code session below so context carries forward._
 - **New pattern**: Marketing-domain API routes need explicit middleware passthrough — add to the `if (host === MARKETING_HOST)` block before the `isMarketingRoute` check
 - **Files changed (1)**: `src/middleware.ts`
 - Branch: `claude/setup-email-marketing-UetrF`
+
+### Session 40 — Security Overview Page (2026-03-19)
+- **New page**: `www.thepaybureau.com/security` — public-facing security page to reassure users and teams
+- **Page structure**: Hero → Trust badges (4) → Feature cards (6) → Data handling principles (4) → Security practices (8 bullets) → Founder commitment quote → FAQ accordion (5 questions) → Contact CTA
+- **Content approach**: Describes *what* is protected and *why it matters* — never names specific technologies (no Supabase, PostgreSQL, Vercel, etc.)
+- **Founder commitment section**: Personal quote from Minhaz Moosa ("I run a payroll bureau myself — my own clients' data runs here") with avatar initial + gradient — strongest trust signal for small SaaS
+- **Trust badges**: UK GDPR Compliant, Encrypted at Rest & In Transit, Data Protection Act 2018, 99.9% Uptime
+- **Decision**: Used "Data Protection Act 2018" instead of "SOC 2 Aligned" — claiming SOC 2 without certification is weak; DPA 2018 is concrete UK law. SOC 2 pursuit mentioned in FAQ only
+- **Feature card copy**: Outcome-focused language added to each card — "If HMRC ever asks who changed what and when, you'll have the answer in seconds", "zero possibility of data crossover", etc.
+- **FAQ updated**: Landing page FAQSection "Is my data secure?" answer rewritten to remove Supabase/PostgreSQL technology names
+- **Email**: Contact CTA uses `support@thepaybureau.com` (not security@)
+- **Navigation**: Security link added to marketing Navbar (`NAV_LINKS`) and Footer (Legal section)
+- **Routing**: `/security` added to `MARKETING_ROUTES` in `domains.ts`, `sitemap.ts` (priority 0.6, monthly), and `robots.ts` allow list
+- **Components**: Server component (`page.tsx`) + client component (`SecurityPageClient.tsx` for FAQ accordion); reuses `Navbar`, `Footer`, `FadeInOnScroll`, `SectionHeader`; Lucide icons throughout (Lock, Building2, KeyRound, FileSearch, Activity, ShieldCheck, Download, Ban, MapPin, Minimize2, Quote, etc.)
+- **Files created (2)**: `src/app/security/page.tsx`, `src/app/security/SecurityPageClient.tsx`
+- **Files modified (5)**: `domains.ts`, `sitemap.ts`, `robots.ts`, `Navbar.tsx`, `Footer.tsx`, `FAQSection.tsx`
+- Branch: `claude/security-overview-aXe40`
