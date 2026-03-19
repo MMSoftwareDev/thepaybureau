@@ -954,3 +954,14 @@ _Add notes from each Claude Code session below so context carries forward._
 - **Files modified (5)**: `DashboardWrapper.tsx`, `clients/page.tsx`, `payrolls/page.tsx`, `dashboard/page.tsx`, `globals.css`
 - **Files deleted (1)**: `clients/add/page.tsx`
 - Branch: `claude/add-onboarding-tutorial-6U43K`
+
+### Session 39 — Fix Newsletter Subscribe on Marketing Domain (2026-03-19)
+- **Bug**: Newsletter subscribe form on `www.thepaybureau.com` showed "Something went wrong" — API call failed silently
+- **Root cause**: Middleware 301 redirected `/api/newsletter/subscribe` from `www.` to `app.thepaybureau.com` (not a marketing route); browsers change POST → GET on 301, breaking the request. Secondary issue: CSRF check would also reject cross-origin POST (`www.` origin vs `app.` host)
+- **Fix**: Added early return in middleware marketing domain block — `if (pathname === '/api/newsletter/subscribe') return NextResponse.next()` — POST stays on `www.`, no redirect, no CSRF mismatch
+- **Brevo sender address**: `hello@news.thepaybureau.com` chosen as marketing email sender
+- **DNS setup required**: `news.thepaybureau.com` SPF/DKIM/DMARC records in GoDaddy for Brevo domain verification
+- **Key decision**: Allow specific API routes through marketing domain middleware rather than changing form to POST cross-origin (simpler, no CORS needed)
+- **New pattern**: Marketing-domain API routes need explicit middleware passthrough — add to the `if (host === MARKETING_HOST)` block before the `isMarketingRoute` check
+- **Files changed (1)**: `src/middleware.ts`
+- Branch: `claude/setup-email-marketing-UetrF`
