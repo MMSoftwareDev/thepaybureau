@@ -50,6 +50,7 @@ import {
   HelpCircle,
   ClipboardCheck,
   CheckCircle2,
+  X,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
@@ -244,16 +245,22 @@ function FormSection({
   title,
   icon: Icon,
   defaultOpen = true,
+  forceOpen,
   colors,
   children,
 }: {
   title: string
   icon: React.ComponentType<{ className?: string }>
   defaultOpen?: boolean
+  forceOpen?: boolean
   colors: ReturnType<typeof getThemeColors>
   children: React.ReactNode
 }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const resolvedDefault = forceOpen !== undefined ? forceOpen : defaultOpen
+  const [open, setOpen] = useState(resolvedDefault)
+  useEffect(() => {
+    if (forceOpen !== undefined) setOpen(forceOpen)
+  }, [forceOpen])
   return (
     <div style={{ borderBottom: `1px solid ${colors.border}` }}>
       <button
@@ -834,6 +841,39 @@ export default function PensionDeclarationsPage() {
         )}
       </div>
 
+      {/* Active Filter Chips */}
+      {(pensionFilter !== 'all' || aeFilter !== 'all' || debouncedSearch) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {pensionFilter !== 'all' && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+              style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
+            >
+              Status: {pensionFilter === 'overdue' ? 'Overdue' : pensionFilter === 'due_soon' ? 'Due Soon' : pensionFilter === 'ready' ? 'Ready' : 'Exempt'}
+              <button onClick={() => setPensionFilter('all')} className="hover:opacity-70"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          {aeFilter !== 'all' && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+              style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
+            >
+              AE Status: {AE_LABELS[aeFilter] || aeFilter}
+              <button onClick={() => setAeFilter('all')} className="hover:opacity-70"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          {debouncedSearch && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+              style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
+            >
+              Search: {debouncedSearch}
+              <button onClick={() => setSearchQuery('')} className="hover:opacity-70"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Legend */}
       <div
         className="flex flex-wrap items-center gap-4 px-4 py-2.5 rounded-lg text-[0.7rem] font-medium font-[family-name:var(--font-inter)]"
@@ -1142,7 +1182,7 @@ export default function PensionDeclarationsPage() {
           </SheetHeader>
 
           <div className="divide-y" style={{ borderColor: colors.border }}>
-            <FormSection title="Auto Enrolment" icon={Shield} colors={colors}>
+            <FormSection title="Auto Enrolment" icon={Shield} forceOpen={!!formAutoEnrolmentStatus} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
                   AE Status
@@ -1160,7 +1200,7 @@ export default function PensionDeclarationsPage() {
               </div>
             </FormSection>
 
-            <FormSection title="TPR Dashboard" icon={ClipboardCheck} colors={colors}>
+            <FormSection title="TPR Dashboard" icon={ClipboardCheck} forceOpen={!!(formTprDashboardStatus && formTprDashboardStatus !== 'not_added')} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
                   Status
@@ -1181,7 +1221,7 @@ export default function PensionDeclarationsPage() {
               </div>
             </FormSection>
 
-            <FormSection title="Pension Dates" icon={CalendarDays} colors={colors}>
+            <FormSection title="Pension Dates" icon={CalendarDays} forceOpen={!!(formStagingDate || formReenrolmentDate || formDeclarationDeadline)} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
                   Staging Date
@@ -1265,7 +1305,7 @@ export default function PensionDeclarationsPage() {
               </div>
             </FormSection>
 
-            <FormSection title="Pension Providers" icon={HelpCircle} defaultOpen={true} colors={colors}>
+            <FormSection title="Pension Providers" icon={HelpCircle} forceOpen={true} colors={colors}>
               {editingClient && editingClient.pension_providers.length > 0 ? (
                 <div className="space-y-2">
                   {editingClient.pension_providers.map((p) => (

@@ -119,6 +119,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const { isDark, toggleTheme } = useTheme()
   const colors = getThemeColors(isDark)
+  const searchInputRef = React.useRef<HTMLInputElement>(null)
   useEffect(() => { setMounted(true) }, [])
 
   // Auto-expand section containing the active route
@@ -152,20 +153,30 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     })
   }
 
-  // Keyboard shortcut: Cmd/Ctrl + K to toggle search
+  // Keyboard shortcut: Cmd/Ctrl + K to focus search, Escape to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        setSearchOpen(prev => !prev)
+        setSearchOpen(true)
+        // Focus after state update renders the input
+        setTimeout(() => searchInputRef.current?.focus(), 0)
       }
       if (e.key === 'Escape') {
         setSearchOpen(false)
         setSearchQuery('')
       }
     }
+    const handleFocusSearch = () => {
+      setSearchOpen(true)
+      setTimeout(() => searchInputRef.current?.focus(), 0)
+    }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('focus-sidebar-search', handleFocusSearch)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('focus-sidebar-search', handleFocusSearch)
+    }
   }, [])
 
   const isActiveRoute = (href: string) => {
@@ -291,6 +302,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
               style={{ color: colors.primary }}
             />
             <input
+              ref={searchInputRef}
               autoFocus
               type="text"
               placeholder="Search or jump to..."
@@ -300,7 +312,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                 // Delay to allow click on results
                 setTimeout(() => { if (!searchQuery) setSearchOpen(false) }, 200)
               }}
-              className="w-full h-8 pl-8 pr-3 text-[0.8rem] rounded-md outline-none transition-all duration-150"
+              className="w-full h-8 pl-8 pr-12 text-[0.8rem] rounded-md outline-none transition-all duration-150"
               style={{
                 background: isDark ? 'rgba(255,255,255,0.06)' : '#F3EEFF',
                 color: colors.text.primary,
@@ -308,6 +320,12 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                 boxShadow: `0 0 0 3px ${colors.primary}12`,
               }}
             />
+            <span
+              className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[0.6rem] font-medium pointer-events-none"
+              style={{ backgroundColor: `${colors.border}60`, color: colors.text.muted }}
+            >
+              &#x2318;K
+            </span>
             {/* Quick-jump results dropdown */}
             {searchQuery.trim() && searchResults.length > 0 && (
               <div

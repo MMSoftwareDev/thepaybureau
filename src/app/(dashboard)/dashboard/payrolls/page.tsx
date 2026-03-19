@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { usePayrolls, useClients } from '@/lib/swr'
 import { useDebounce } from '@/hooks/useDebounce'
 import { Card, CardContent } from '@/components/ui/card'
@@ -350,12 +351,17 @@ function CelebrationOverlay({ clientName, onDone }: { clientName: string; onDone
 // ── Collapsible Section ────────────────────────────────────────────────────────
 
 function FormSection({
-  title, icon: Icon, defaultOpen = true, colors, children,
+  title, icon: Icon, defaultOpen = true, forceOpen, colors, children,
 }: {
   title: string; icon: React.ComponentType<{ className?: string }>; defaultOpen?: boolean
-  colors: ReturnType<typeof getThemeColors>; children: React.ReactNode
+  forceOpen?: boolean; colors: ReturnType<typeof getThemeColors>; children: React.ReactNode
 }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const resolvedDefault = forceOpen !== undefined ? forceOpen : defaultOpen
+  const [open, setOpen] = useState(resolvedDefault)
+  // Re-sync when forceOpen changes (e.g. opening edit for a different payroll)
+  useEffect(() => {
+    if (forceOpen !== undefined) setOpen(forceOpen)
+  }, [forceOpen])
   return (
     <div style={{ borderBottom: `1px solid ${colors.border}` }}>
       <button type="button" className="flex w-full items-center gap-2 px-5 py-3 text-left text-sm font-semibold font-[family-name:var(--font-inter)] transition-colors" style={{ color: colors.text.primary }} onClick={() => setOpen(!open)}>
@@ -597,13 +603,17 @@ export default function PayrollsPage() {
     return (clientsData as ClientOption[]).map((c) => ({ id: c.id, name: c.name }))
   }, [clientsData])
 
+  // Read KPI filter from URL (dashboard click-through)
+  const searchParams = useSearchParams()
+  const initialKpi = searchParams.get('kpi') || 'all'
+
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedSearch = useDebounce(searchQuery, 300)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [clientFilter, setClientFilter] = useState<string>('all')
   const [showFilters, setShowFilters] = useState(false)
-  const [kpiFilter, setKpiFilter] = useState<string>('all')
+  const [kpiFilter, setKpiFilter] = useState<string>(initialKpi)
 
   // Sort — default to pay_date ascending (soonest first)
   const [sortField, setSortField] = useState<SortField>('pay_date')
@@ -628,6 +638,14 @@ export default function PayrollsPage() {
 
   // Celebration
   const [celebration, setCelebration] = useState<string | null>(null)
+
+  // Bulk actions
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkActionLoading, setBulkActionLoading] = useState(false)
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
+
+  // Quick status toggle
+  const [togglingStatusId, setTogglingStatusId] = useState<string | null>(null)
 
   // Form fields
   const [formName, setFormName] = useState('')
@@ -819,6 +837,73 @@ export default function PayrollsPage() {
     setFormChecklist(formChecklist.filter((_, i) => i !== index).map((item, i) => ({ ...item, sort_order: i })))
   }
 
+  // ── Bulk action handlers ─────────────────────────────────────────────────
+  const toggleSelectAll = useCallback((currentPageItems: Payroll[]) => {
+    const allSelected = currentPageItems.every(p => selectedIds.has(p.id))
+    if (allSelected) {
+      const next = new Set(selectedIds)
+      currentPageItems.forEach(p => next.delete(p.id))
+      setSelectedIds(next)
+    } else {
+      const next = new Set(selectedIds)
+      currentPageItems.forEach(p => next.add(p.id))
+      setSelectedIds(next)
+    }
+  }, [selectedIds])
+
+  const toggleSelectOne = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const bulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    setBulkActionLoading(true)
+    try {
+      const ids = Array.from(selectedIds)
+      const results = await Promise.allSettled(
+        ids.map(id => fetch(`/api/payrolls/${id}`, { method: 'DELETE' }))
+      )
+      const failedCount = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok)).length
+      if (failedCount > 0) {
+        toast(`Deleted ${ids.length - failedCount} payrolls. ${failedCount} failed.`, 'error')
+      } else {
+        toast(`Deleted ${ids.length} payroll${ids.length > 1 ? 's' : ''}`)
+      }
+      setSelectedIds(new Set())
+      setBulkDeleteDialogOpen(false)
+      mutate('/api/payrolls')
+    } catch {
+      toast('Failed to delete payrolls', 'error')
+    } finally {
+      setBulkActionLoading(false)
+    }
+  }
+
+  // ── Quick status toggle ───────────────────────────────────────────────────
+  const togglePayrollStatus = async (payroll: Payroll) => {
+    const newStatus = payroll.status === 'active' ? 'inactive' : 'active'
+    setTogglingStatusId(payroll.id)
+    try {
+      const res = await fetch(`/api/payrolls/${payroll.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: payroll.name, pay_frequency: payroll.pay_frequency, pay_day: payroll.pay_day, status: newStatus }),
+      })
+      if (!res.ok) throw new Error('Failed to update status')
+      toast(`Payroll ${newStatus === 'active' ? 'activated' : 'deactivated'}`)
+      mutate('/api/payrolls')
+    } catch {
+      toast('Failed to update status', 'error')
+    } finally {
+      setTogglingStatusId(null)
+    }
+  }
+
   // ── KPI Counts ────────────────────────────────────────────────────────────
 
   const kpiCounts = useMemo(() => {
@@ -943,9 +1028,10 @@ export default function PayrollsPage() {
     return filtered
   }, [payrolls, statusFilter, clientFilter, kpiFilter, debouncedSearch, sortField, sortDirection])
 
-  // Reset page when filters change
+  // Reset page and selection when filters change
   useEffect(() => {
     setCurrentPage(1)
+    setSelectedIds(new Set())
   }, [statusFilter, clientFilter, kpiFilter, debouncedSearch, sortField, sortDirection])
 
   const totalPages = Math.max(1, Math.ceil(filteredSorted.length / PAGE_SIZE))
@@ -1103,6 +1189,77 @@ export default function PayrollsPage() {
         )}
       </div>
 
+      {/* Active Filter Chips */}
+      {(statusFilter !== 'all' || clientFilter !== 'all' || kpiFilter !== 'all' || debouncedSearch) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {debouncedSearch && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium font-[family-name:var(--font-inter)]"
+              style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
+            >
+              Search: {debouncedSearch}
+              <button onClick={() => setSearchQuery('')} className="ml-0.5 hover:opacity-70 transition-opacity"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          {statusFilter !== 'all' && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium font-[family-name:var(--font-inter)]"
+              style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
+            >
+              Status: {statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
+              <button onClick={() => setStatusFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          {clientFilter !== 'all' && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium font-[family-name:var(--font-inter)]"
+              style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
+            >
+              Client: {clientOptions.find(c => c.id === clientFilter)?.name || clientFilter}
+              <button onClick={() => setClientFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          {kpiFilter !== 'all' && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium font-[family-name:var(--font-inter)]"
+              style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
+            >
+              {kpiFilter === 'due_today' ? 'Due Today' : kpiFilter === 'this_week' ? 'This Week' : kpiFilter.charAt(0).toUpperCase() + kpiFilter.slice(1).replace('_', ' ')}
+              <button onClick={() => setKpiFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div
+          className="flex items-center gap-3 px-4 py-2 rounded-lg"
+          style={{ backgroundColor: `${colors.primary}08`, border: `1px solid ${colors.primary}30` }}
+        >
+          <span className="text-xs font-semibold font-[family-name:var(--font-inter)]" style={{ color: colors.primary }}>
+            {selectedIds.size} selected
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs gap-1.5"
+            style={{ borderColor: colors.error, color: colors.error }}
+            onClick={() => setBulkDeleteDialogOpen(true)}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete Selected
+          </Button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs font-medium transition-colors ml-auto"
+            style={{ color: colors.text.muted }}
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       {filteredSorted.length === 0 ? (
         <Card className="rounded-xl shadow-sm" style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}>
@@ -1130,6 +1287,14 @@ export default function PayrollsPage() {
           <Table>
             <TableHeader>
               <TableRow style={{ borderColor: colors.border }}>
+                <TableHead className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={paginatedPayrolls.length > 0 && paginatedPayrolls.every(p => selectedIds.has(p.id))}
+                    onChange={() => toggleSelectAll(paginatedPayrolls)}
+                  />
+                </TableHead>
                 <SortableHeader label="Payroll" field="name" currentField={sortField} currentDirection={sortDirection} onSort={handleSort} colors={colors} />
                 {activeColumns.map((col) => (
                   col.sortField ? (
@@ -1147,6 +1312,14 @@ export default function PayrollsPage() {
             <TableBody>
               {paginatedPayrolls.map((payroll) => (
                 <TableRow key={payroll.id} className="transition-colors group" style={{ borderColor: colors.border }}>
+                  <TableCell className="px-4 py-2.5 w-10">
+                    <input
+                      type="checkbox"
+                      className="rounded"
+                      checked={selectedIds.has(payroll.id)}
+                      onChange={() => toggleSelectOne(payroll.id)}
+                    />
+                  </TableCell>
                   <TableCell className="px-4 py-2.5 font-medium text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${colors.primary}12` }}>
@@ -1167,13 +1340,24 @@ export default function PayrollsPage() {
                           )
                         })()
                       ) : col.id === 'status' ? (
-                        <Badge className="text-xs" style={{
-                          backgroundColor: payroll.status === 'active' ? isDark ? 'rgba(34, 197, 94, 0.15)' : '#F0FDF4' : isDark ? 'rgba(156, 163, 175, 0.15)' : '#F9FAFB',
-                          color: payroll.status === 'active' ? isDark ? '#4ADE80' : '#16A34A' : isDark ? '#9CA3AF' : '#6B7280',
-                          border: `1px solid ${payroll.status === 'active' ? isDark ? 'rgba(34, 197, 94, 0.3)' : '#BBF7D0' : isDark ? 'rgba(156, 163, 175, 0.3)' : '#E5E7EB'}`,
-                        }}>
-                          {payroll.status === 'active' ? 'Active' : 'Inactive'}
-                        </Badge>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); togglePayrollStatus(payroll) }}
+                          disabled={togglingStatusId === payroll.id}
+                          className="cursor-pointer transition-opacity hover:opacity-80 disabled:opacity-50"
+                          title={`Click to ${payroll.status === 'active' ? 'deactivate' : 'activate'}`}
+                        >
+                          {togglingStatusId === payroll.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: colors.text.muted }} />
+                          ) : (
+                            <Badge className="text-xs" style={{
+                              backgroundColor: payroll.status === 'active' ? isDark ? 'rgba(34, 197, 94, 0.15)' : '#F0FDF4' : isDark ? 'rgba(156, 163, 175, 0.15)' : '#F9FAFB',
+                              color: payroll.status === 'active' ? isDark ? '#4ADE80' : '#16A34A' : isDark ? '#9CA3AF' : '#6B7280',
+                              border: `1px solid ${payroll.status === 'active' ? isDark ? 'rgba(34, 197, 94, 0.3)' : '#BBF7D0' : isDark ? 'rgba(156, 163, 175, 0.3)' : '#E5E7EB'}`,
+                            }}>
+                              {payroll.status === 'active' ? 'Active' : 'Inactive'}
+                            </Badge>
+                          )}
+                        </button>
                       ) : (
                         <span className="truncate block max-w-[150px]">{col.getValue(payroll)}</span>
                       )}
@@ -1240,6 +1424,25 @@ export default function PayrollsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={bulkDeleteDialogOpen} onOpenChange={(open) => { if (!open) setBulkDeleteDialogOpen(false) }}>
+        <DialogContent style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+          <DialogHeader>
+            <DialogTitle className="font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>Delete Selected Payrolls</DialogTitle>
+            <DialogDescription className="font-[family-name:var(--font-body)]" style={{ color: colors.text.secondary }}>
+              Are you sure you want to delete {selectedIds.size} payroll{selectedIds.size > 1 ? 's' : ''}? This will also delete all associated payroll runs. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDeleteDialogOpen(false)} style={{ borderColor: colors.border }}>Cancel</Button>
+            <Button className="text-white" style={{ backgroundColor: colors.error }} onClick={bulkDelete} disabled={bulkActionLoading}>
+              {bulkActionLoading ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1.5" />}
+              Delete {selectedIds.size} Payroll{selectedIds.size > 1 ? 's' : ''}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Column Customizer Dialog */}
       <Dialog open={columnsDialogOpen} onOpenChange={setColumnsDialogOpen}>
         <DialogContent style={{ backgroundColor: colors.surface, borderColor: colors.border }} className="max-w-[400px]">
@@ -1296,7 +1499,7 @@ export default function PayrollsPage() {
 
           <div className="divide-y" style={{ borderColor: colors.border }}>
             {/* Payroll Details */}
-            <FormSection title="Payroll Details" icon={FileText} colors={colors}>
+            <FormSection title="Payroll Details" icon={FileText} colors={colors} forceOpen={true}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
                   Payroll Name <span style={{ color: colors.error }}>*</span>
@@ -1324,7 +1527,7 @@ export default function PayrollsPage() {
             </FormSection>
 
             {/* Pay Schedule */}
-            <FormSection title="Pay Schedule" icon={CalendarDays} colors={colors}>
+            <FormSection title="Pay Schedule" icon={CalendarDays} colors={colors} forceOpen={true}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
                   Pay Frequency <span style={{ color: colors.error }}>*</span>
@@ -1367,7 +1570,7 @@ export default function PayrollsPage() {
             </FormSection>
 
             {/* HMRC */}
-            <FormSection title="HMRC" icon={Landmark} defaultOpen={false} colors={colors}>
+            <FormSection title="HMRC" icon={Landmark} defaultOpen={false} forceOpen={editingPayroll ? !!(formPayeReference || formAccountsOfficeRef || formPayrollSoftware || formEmploymentAllowance) : undefined} colors={colors}>
               <div>
                 <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>PAYE Reference</Label>
                 <Input value={formPayeReference} onChange={(e) => setFormPayeReference(e.target.value)} placeholder="e.g. 123/AB45678" className="mt-1 text-sm"

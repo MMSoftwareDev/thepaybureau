@@ -71,6 +71,7 @@ import {
   ShieldAlert,
   ShieldX,
   TrendingUp,
+  X,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -316,15 +317,20 @@ function SortableHeader({
 // ── FormSection ──────────────────────────────────────────────────────────────
 
 function FormSection({
-  title, icon: Icon, defaultOpen = true, colors, children,
+  title, icon: Icon, defaultOpen = true, forceOpen, colors, children,
 }: {
   title: string
   icon: React.ComponentType<{ className?: string }>
   defaultOpen?: boolean
+  forceOpen?: boolean
   colors: ReturnType<typeof getThemeColors>
   children: React.ReactNode
 }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const resolvedDefault = forceOpen !== undefined ? forceOpen : defaultOpen
+  const [open, setOpen] = useState(resolvedDefault)
+  useEffect(() => {
+    if (forceOpen !== undefined) setOpen(forceOpen)
+  }, [forceOpen])
   return (
     <div style={{ borderBottom: `1px solid ${colors.border}` }}>
       <button
@@ -406,6 +412,13 @@ function TrainingPage() {
 
   // Training plan expanded
   const [showTrainingPlan, setShowTrainingPlan] = useState(true)
+
+  // Quick status toggle
+  const [togglingStatusId, setTogglingStatusId] = useState<string | null>(null)
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkActionLoading, setBulkActionLoading] = useState(false)
 
   // Form fields
   const [formTitle, setFormTitle] = useState('')
@@ -600,6 +613,125 @@ function TrainingPage() {
       toast('Failed to export PDF', 'error')
     } finally {
       setExporting(false)
+    }
+  }
+
+  // ── Quick status toggle ──────────────────────────────────────────────────────
+
+  const nextStatus = (s: string) => s === 'not_started' ? 'in_progress' : s === 'in_progress' ? 'completed' : 'not_started'
+
+  const toggleStatus = async (record: TrainingRecord) => {
+    const newStatus = nextStatus(record.status)
+    setTogglingStatusId(record.id)
+    // Optimistic update
+    mutate('/api/training', (current: TrainingRecord[] | undefined) => {
+      if (!current) return current
+      return current.map(r => r.id === record.id ? { ...r, status: newStatus as TrainingRecord['status'], completed: newStatus === 'completed', completed_date: newStatus === 'completed' ? (r.completed_date || new Date().toISOString().split('T')[0]) : r.completed_date } : r)
+    }, false)
+    try {
+      const res = await fetch('/api/training', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: record.id,
+          title: record.title,
+          status: newStatus,
+          completed_date: newStatus === 'completed' ? (record.completed_date || new Date().toISOString().split('T')[0]) : record.completed_date,
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to update status')
+      mutate('/api/training')
+    } catch {
+      mutate('/api/training') // Revert on error
+      toast('Failed to update status', 'error')
+    } finally {
+      setTogglingStatusId(null)
+    }
+  }
+
+  // ── Bulk actions ────────────────────────────────────────────────────────────
+
+  const toggleSelectAll = useCallback((currentItems: TrainingRecord[]) => {
+    setSelectedIds(prev => {
+      const allSelected = currentItems.every(r => prev.has(r.id))
+      if (allSelected) return new Set()
+      return new Set(currentItems.map(r => r.id))
+    })
+  }, [])
+
+  const toggleSelectOne = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const bulkMarkComplete = async () => {
+    if (selectedIds.size === 0) return
+    setBulkActionLoading(true)
+    try {
+      const ids = Array.from(selectedIds)
+      const today = new Date().toISOString().split('T')[0]
+      // Optimistic update
+      mutate('/api/training', (current: TrainingRecord[] | undefined) => {
+        if (!current) return current
+        return current.map(r => ids.includes(r.id) ? { ...r, status: 'completed' as const, completed: true, completed_date: r.completed_date || today } : r)
+      }, false)
+      // Send individual PUT requests
+      const results = await Promise.allSettled(
+        ids.map(id => {
+          const record = allRecords.find(r => r.id === id)
+          if (!record) return Promise.resolve()
+          return fetch('/api/training', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id,
+              title: record.title,
+              status: 'completed',
+              completed_date: record.completed_date || today,
+            }),
+          })
+        })
+      )
+      const failures = results.filter(r => r.status === 'rejected').length
+      if (failures > 0) toast(`${failures} record(s) failed to update`, 'error')
+      else toast(`${ids.length} record(s) marked complete`, 'success')
+      mutate('/api/training')
+      setSelectedIds(new Set())
+    } catch {
+      mutate('/api/training')
+      toast('Failed to update records', 'error')
+    } finally {
+      setBulkActionLoading(false)
+    }
+  }
+
+  const bulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    setBulkActionLoading(true)
+    try {
+      const ids = Array.from(selectedIds)
+      // Optimistic update
+      mutate('/api/training', (current: TrainingRecord[] | undefined) => {
+        if (!current) return current
+        return current.filter(r => !ids.includes(r.id))
+      }, false)
+      const results = await Promise.allSettled(
+        ids.map(id => fetch(`/api/training?id=${id}`, { method: 'DELETE' }))
+      )
+      const failures = results.filter(r => r.status === 'rejected').length
+      if (failures > 0) toast(`${failures} record(s) failed to delete`, 'error')
+      else toast(`${ids.length} record(s) deleted`, 'success')
+      mutate('/api/training')
+      setSelectedIds(new Set())
+    } catch {
+      mutate('/api/training')
+      toast('Failed to delete records', 'error')
+    } finally {
+      setBulkActionLoading(false)
     }
   }
 
@@ -1096,7 +1228,89 @@ function TrainingPage() {
             )}
           </div>
         )}
+
+        {/* Active Filter Chips */}
+        {(statusFilter !== 'all' || categoryFilter !== 'all' || debouncedSearch) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {debouncedSearch && (
+              <span
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full font-[family-name:var(--font-inter)]"
+                style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
+              >
+                Search: &ldquo;{debouncedSearch}&rdquo;
+                <button onClick={() => setSearchQuery('')} className="ml-0.5 hover:opacity-70 transition-opacity">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {statusFilter !== 'all' && (
+              <span
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full font-[family-name:var(--font-inter)]"
+                style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
+              >
+                Status: {statusFilter === 'expiring' ? 'Expiring / Expired' : STATUS_LABELS[statusFilter] || statusFilter}
+                <button onClick={() => setStatusFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {categoryFilter !== 'all' && (
+              <span
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full font-[family-name:var(--font-inter)]"
+                style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
+              >
+                Category: {CATEGORY_LABELS[categoryFilter] || categoryFilter}
+                <button onClick={() => setCategoryFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div
+          className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
+          style={{ backgroundColor: `${colors.primary}08`, border: `1px solid ${colors.primary}30` }}
+        >
+          <span className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.primary }}>
+            {selectedIds.size} selected
+          </span>
+          <div className="flex items-center gap-2 ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-7 gap-1.5"
+              style={{ borderColor: colors.primary, color: colors.primary }}
+              disabled={bulkActionLoading}
+              onClick={bulkMarkComplete}
+            >
+              {bulkActionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+              Mark Complete
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-7 gap-1.5"
+              style={{ borderColor: 'var(--brand-error)', color: 'var(--brand-error)' }}
+              disabled={bulkActionLoading}
+              onClick={bulkDelete}
+            >
+              {bulkActionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+              Delete
+            </Button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs font-medium ml-1"
+              style={{ color: colors.text.muted }}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       {allRecords.length === 0 ? (
@@ -1137,6 +1351,14 @@ function TrainingPage() {
           <Table>
             <TableHeader>
               <TableRow style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#FAFAFA' }}>
+                <TableHead className="px-4 py-3 w-[40px]">
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={paginated.length > 0 && paginated.every(r => selectedIds.has(r.id))}
+                    onChange={() => toggleSelectAll(paginated)}
+                  />
+                </TableHead>
                 {activeColumns.map((col) => (
                   col.sortField ? (
                     <SortableHeader
@@ -1164,9 +1386,18 @@ function TrainingPage() {
                 <TableRow
                   key={record.id}
                   className="transition-colors duration-150 cursor-pointer group"
-                  style={{ borderColor: colors.border }}
+                  style={{ borderColor: colors.border, backgroundColor: selectedIds.has(record.id) ? `${colors.primary}06` : undefined }}
                   onClick={() => openEdit(record)}
                 >
+                  <TableCell className="px-4 py-2.5 w-[40px]">
+                    <input
+                      type="checkbox"
+                      className="rounded"
+                      checked={selectedIds.has(record.id)}
+                      onChange={(e) => { e.stopPropagation(); toggleSelectOne(record.id) }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </TableCell>
                   {activeColumns.map((col) => {
                     if (col.id === 'category') {
                       const catColor = getCategoryColor(record.category, isDark)
@@ -1190,13 +1421,24 @@ function TrainingPage() {
                       const sc = getStatusColor(record.status, isDark)
                       return (
                         <TableCell key={col.id} className="px-4 py-2.5">
-                          <Badge
-                            className="text-[0.7rem] font-medium px-2 py-0.5"
-                            style={{ backgroundColor: sc.bg, color: sc.text, border: `1px solid ${sc.border}` }}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleStatus(record) }}
+                            disabled={togglingStatusId === record.id}
+                            className="cursor-pointer transition-opacity hover:opacity-80"
+                            title={`Click to change to ${STATUS_LABELS[nextStatus(record.status)]}`}
                           >
-                            <span className="w-1.5 h-1.5 rounded-full mr-1.5 inline-block" style={{ backgroundColor: sc.dot }} />
-                            {STATUS_LABELS[record.status]}
-                          </Badge>
+                            <Badge
+                              className="text-[0.7rem] font-medium px-2 py-0.5"
+                              style={{ backgroundColor: sc.bg, color: sc.text, border: `1px solid ${sc.border}` }}
+                            >
+                              {togglingStatusId === record.id ? (
+                                <Loader2 className="w-3 h-3 mr-1.5 inline-block animate-spin" />
+                              ) : (
+                                <span className="w-1.5 h-1.5 rounded-full mr-1.5 inline-block" style={{ backgroundColor: sc.dot }} />
+                              )}
+                              {STATUS_LABELS[record.status]}
+                            </Badge>
+                          </button>
                         </TableCell>
                       )
                     }
@@ -1408,7 +1650,7 @@ function TrainingPage() {
           </SheetHeader>
 
           {/* Details Section */}
-          <FormSection title="Details" icon={FileText} defaultOpen={true} colors={colors}>
+          <FormSection title="Details" icon={FileText} defaultOpen={true} forceOpen={true} colors={colors}>
             <div className="space-y-3">
               <div>
                 <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>Title *</Label>
@@ -1471,7 +1713,7 @@ function TrainingPage() {
           </FormSection>
 
           {/* Progress Section */}
-          <FormSection title="Progress" icon={Clock} defaultOpen={true} colors={colors}>
+          <FormSection title="Progress" icon={Clock} defaultOpen={true} forceOpen={true} colors={colors}>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1523,7 +1765,7 @@ function TrainingPage() {
           </FormSection>
 
           {/* Certification Section */}
-          <FormSection title="Certification" icon={Award} defaultOpen={false} colors={colors}>
+          <FormSection title="Certification" icon={Award} defaultOpen={false} forceOpen={!!(formCertificateUrl || formExpiryDate)} colors={colors}>
             <div className="space-y-3">
               <div>
                 <Label className="text-xs font-medium" style={{ color: colors.text.secondary }}>Certificate URL</Label>
