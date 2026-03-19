@@ -175,8 +175,11 @@ export async function GET() {
         periodComplete++
       }
 
+      // Treat runs with all steps done as effectively complete (catches stale status)
+      const effectivelyComplete = run.status === 'complete' || (completedSteps === totalSteps && totalSteps > 0)
+
       // TODAY: pay date is today and not complete
-      if (daysUntilPay === 0 && run.status !== 'complete') {
+      if (daysUntilPay === 0 && !effectivelyComplete) {
         todayRuns.push({
           id: run.id,
           clientName,
@@ -190,7 +193,7 @@ export async function GET() {
       }
 
       // OVERDUE: pay date before today and not complete
-      if (isBefore(payDateNorm, today) && run.status !== 'complete') {
+      if (isBefore(payDateNorm, today) && !effectivelyComplete) {
         overdueRuns.push({
           id: run.id,
           clientName,
@@ -213,7 +216,7 @@ export async function GET() {
       }
 
       // THIS WEEK: pay date within next 7 days (including today) and not complete
-      if (daysUntilPay >= 0 && daysUntilPay <= 7 && run.status !== 'complete') {
+      if (daysUntilPay >= 0 && daysUntilPay <= 7 && !effectivelyComplete) {
         thisWeekRuns.push({
           id: run.id,
           clientName,

@@ -118,25 +118,39 @@ export async function POST(request: NextRequest) {
           request,
         })
 
+        // Auto-complete/revert run status based on checklist state
+        const { data: allItems } = await supabase
+          .from('checklist_items')
+          .select('id, is_completed')
+          .eq('payroll_run_id', item.payroll_run_id)
+
+        const allComplete = allItems && allItems.length > 0 && allItems.every(
+          (ci) => ci.id === data.item_id ? data.is_completed : ci.is_completed
+        )
+
+        if (allComplete) {
+          await supabase
+            .from('payroll_runs')
+            .update({ status: 'complete', updated_at: new Date().toISOString() })
+            .eq('id', item.payroll_run_id)
+        } else if (!data.is_completed) {
+          // Unchecking an item — revert run to in_progress if it was complete
+          await supabase
+            .from('payroll_runs')
+            .update({ status: 'in_progress', updated_at: new Date().toISOString() })
+            .eq('id', item.payroll_run_id)
+            .eq('status', 'complete')
+        }
+
         // Fire-and-forget badge tracking — don't block the response
         if (data.is_completed) {
           const badgeUserId = authUser.id
           const badgeTenantId = user.tenant_id!
           const badgePayrollRunId = item.payroll_run_id
-          const badgeItemId = data.item_id
 
           Promise.resolve().then(async () => {
             try {
               const isEarlyMorning = new Date().getHours() < 9
-
-              const { data: allItems } = await supabase
-                .from('checklist_items')
-                .select('id, is_completed')
-                .eq('payroll_run_id', badgePayrollRunId)
-
-              const allComplete = allItems && allItems.every(
-                (ci) => ci.id === badgeItemId ? true : ci.is_completed
-              )
 
               await updateUserStats(supabase, badgeUserId, badgeTenantId, { type: 'step_completed', isEarlyMorning })
 
@@ -200,6 +214,12 @@ export async function POST(request: NextRequest) {
         if (updateError) {
           return NextResponse.json({ error: 'Failed to update' }, { status: 400 })
         }
+
+        // Auto-complete the run since all items are now done
+        await supabase
+          .from('payroll_runs')
+          .update({ status: 'complete', updated_at: new Date().toISOString() })
+          .eq('id', data.payroll_run_id)
 
         const clientName = (run as unknown as { clients: { name: string } }).clients?.name || 'Unknown'
         writeAuditLog({
