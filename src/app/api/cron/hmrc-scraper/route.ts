@@ -1,3 +1,4 @@
+import { verifyCronSecret } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const maxDuration = 300 // 5 minutes
@@ -11,12 +12,11 @@ export const maxDuration = 300 // 5 minutes
  * Schedule: Every day at midnight UTC (configured in vercel.json)
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!verifyCronSecret(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const cronSecret = process.env.CRON_SECRET
 
   try {
     // Get the base URL from the request

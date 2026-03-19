@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 
@@ -97,4 +98,25 @@ export function getClientIp(request: Request): string {
     request.headers.get('x-real-ip') ||
     'unknown'
   )
+}
+
+/**
+ * Timing-safe verification of the CRON_SECRET bearer token.
+ * Uses crypto.timingSafeEqual to prevent timing attacks on secret comparison.
+ * Returns true if the Authorization header matches `Bearer ${CRON_SECRET}`.
+ */
+export function verifyCronSecret(request: Request): boolean {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) return false
+
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader) return false
+
+  const prefix = 'Bearer '
+  if (!authHeader.startsWith(prefix)) return false
+
+  const token = authHeader.slice(prefix.length)
+  if (token.length !== cronSecret.length) return false
+
+  return timingSafeEqual(Buffer.from(token), Buffer.from(cronSecret))
 }

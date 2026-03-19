@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['jspdf'],
   images: {
     remotePatterns: [
       {
@@ -29,7 +30,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' https://js.stripe.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https:",
+              "img-src 'self' data: blob: https://*.supabase.co https://fonts.gstatic.com",
               "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://api.uptimerobot.com https://vitals.vercel-insights.com https://*.sentry.io https://va.vercel-scripts.com https://api.anthropic.com https://api.voyageai.com",
               "frame-src https://js.stripe.com",
               "object-src 'none'",

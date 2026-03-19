@@ -1,4 +1,5 @@
 import { createServerSupabaseClient, getAuthUser } from '@/lib/supabase-server'
+import { verifyCronSecret } from '@/lib/rate-limit'
 import { NextRequest, NextResponse } from 'next/server'
 import { scrapeAllGuidance, HMRC_GUIDANCE_URLS, hashContent } from '@/lib/ai/hmrc-scraper'
 import { chunkDocument } from '@/lib/ai/chunking'
@@ -25,10 +26,8 @@ function isAdmin(email: string): boolean {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Auth: either admin user or cron secret
-    const cronSecret = process.env.CRON_SECRET
-    const authHeader = request.headers.get('authorization')
-    const isCronCall = cronSecret && authHeader === `Bearer ${cronSecret}`
+    // Auth: either admin user or cron secret (timing-safe comparison)
+    const isCronCall = verifyCronSecret(request)
 
     let authUserId: string | null = null
     let authUserEmail: string | null = null
