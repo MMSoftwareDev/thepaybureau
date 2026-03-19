@@ -1,7 +1,7 @@
 // src/components/layout/Sidebar.tsx
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Image from 'next/image'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
@@ -174,10 +174,38 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     return pathname.startsWith(href)
   }
 
+  // Quick-jump destinations for global search
+  const searchTargets = useMemo(() => [
+    { label: 'Clients', href: '/dashboard/clients', keywords: ['client', 'company', 'crm'] },
+    { label: 'Payrolls', href: '/dashboard/payrolls', keywords: ['payroll', 'paye', 'pay run', 'checklist'] },
+    { label: 'Pensions', href: '/dashboard/pensions', keywords: ['pension', 'declaration', 'tpr', 'auto enrolment', 'staging'] },
+    { label: 'Training & CPD', href: '/dashboard/training', keywords: ['training', 'cpd', 'cipp', 'hmrc', 'course', 'certificate'] },
+    { label: 'Audit Log', href: '/dashboard/audit-log', keywords: ['audit', 'log', 'history', 'changes'] },
+    { label: 'Settings', href: '/dashboard/settings', keywords: ['settings', 'password', 'profile', 'theme', 'template'] },
+    { label: 'AI Assistant', href: '/dashboard/ai-assistant', keywords: ['ai', 'assistant', 'chat', 'help'] },
+    { label: 'Feature Requests', href: '/dashboard/feature-requests', keywords: ['feature', 'request', 'idea', 'feedback'] },
+    { label: 'Subscription', href: '/dashboard/subscription', keywords: ['subscription', 'billing', 'plan', 'upgrade', 'pricing'] },
+  ], [])
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return []
+    const q = searchQuery.trim().toLowerCase()
+    return searchTargets.filter(t =>
+      t.label.toLowerCase().includes(q) ||
+      t.keywords.some(k => k.includes(q))
+    )
+  }, [searchQuery, searchTargets])
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      router.push(`/dashboard/clients?search=${encodeURIComponent(searchQuery.trim())}`)
+      // If there are matching quick-jump results, navigate to the first one
+      if (searchResults.length > 0 && !searchResults.some(r => r.href === '/dashboard/clients')) {
+        router.push(searchResults[0].href)
+      } else {
+        // Default: search clients
+        router.push(`/dashboard/clients?search=${encodeURIComponent(searchQuery.trim())}`)
+      }
       setSearchQuery('')
       setSearchOpen(false)
       onMobileClose?.()
@@ -265,11 +293,12 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             <input
               autoFocus
               type="text"
-              placeholder="Search clients..."
+              placeholder="Search or jump to..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onBlur={() => {
-                if (!searchQuery) setSearchOpen(false)
+                // Delay to allow click on results
+                setTimeout(() => { if (!searchQuery) setSearchOpen(false) }, 200)
               }}
               className="w-full h-8 pl-8 pr-3 text-[0.8rem] rounded-md outline-none transition-all duration-150"
               style={{
@@ -279,6 +308,49 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                 boxShadow: `0 0 0 3px ${colors.primary}12`,
               }}
             />
+            {/* Quick-jump results dropdown */}
+            {searchQuery.trim() && searchResults.length > 0 && (
+              <div
+                className="absolute top-full left-0 right-0 mt-1 rounded-lg overflow-hidden shadow-lg z-50"
+                style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}
+              >
+                {searchResults.map((result) => (
+                  <button
+                    key={result.href}
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-[0.8rem] font-medium transition-colors"
+                    style={{ color: colors.text.primary }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.06)' : `${colors.primary}08` }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                    onClick={() => {
+                      router.push(result.href)
+                      setSearchQuery('')
+                      setSearchOpen(false)
+                      onMobileClose?.()
+                    }}
+                  >
+                    <span style={{ color: colors.primary }}>→</span> {result.label}
+                  </button>
+                ))}
+                {!searchResults.some(r => r.href === '/dashboard/clients') && (
+                  <button
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-[0.75rem] transition-colors"
+                    style={{ color: colors.text.muted, borderTop: `1px solid ${colors.border}` }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : '#FAFAFA' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                    onClick={() => {
+                      router.push(`/dashboard/clients?search=${encodeURIComponent(searchQuery.trim())}`)
+                      setSearchQuery('')
+                      setSearchOpen(false)
+                      onMobileClose?.()
+                    }}
+                  >
+                    Search clients for &ldquo;{searchQuery.trim()}&rdquo;
+                  </button>
+                )}
+              </div>
+            )}
           </form>
         )}
       </div>
