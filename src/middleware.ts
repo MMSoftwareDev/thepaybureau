@@ -27,6 +27,11 @@ export async function middleware(request: NextRequest) {
 
   // Marketing domain — only serve marketing routes, redirect everything else to app
   if (host === MARKETING_HOST) {
+    // Allow newsletter subscribe API on marketing domain (form is in the footer)
+    if (pathname === '/api/newsletter/subscribe') {
+      return NextResponse.next({ request })
+    }
+
     const isMarketingRoute = MARKETING_ROUTES.some((route) =>
       route === '/' ? pathname === '/' : pathname === route || pathname.startsWith(route + '/')
     )
