@@ -122,6 +122,22 @@ export default function DashboardPage() {
     setMounted(true)
   }, [])
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+K or Ctrl+K to focus sidebar search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('focus-sidebar-search'))
+      }
+      // N key to navigate to add client (only when not in an input)
+      if (e.key === 'n' && !['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) {
+        router.push('/dashboard/clients')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [router])
+
   const isEmptyState =
     stats &&
     stats.totalClients === 0 &&
@@ -201,7 +217,7 @@ export default function DashboardPage() {
               ...cardStyle,
               borderLeft: `3px solid ${(stats?.todayRuns?.length ?? 0) > 0 ? colors.warning : colors.success}`,
             }}
-            onClick={() => router.push('/dashboard/payrolls')}
+            onClick={() => router.push('/dashboard/payrolls?kpi=due_today')}
           >
             <CardContent className="p-4 md:p-5">
               <div className="flex items-center justify-between mb-2">
@@ -235,7 +251,7 @@ export default function DashboardPage() {
               ...cardStyle,
               borderLeft: `3px solid ${colors.primary}`,
             }}
-            onClick={() => router.push('/dashboard/payrolls')}
+            onClick={() => router.push('/dashboard/payrolls?kpi=this_week')}
           >
             <CardContent className="p-4 md:p-5">
               <div className="flex items-center justify-between mb-2">
@@ -319,7 +335,7 @@ export default function DashboardPage() {
               ...cardStyle,
               borderLeft: `3px solid ${colors.success}`,
             }}
-            onClick={() => router.push('/dashboard/payrolls')}
+            onClick={() => router.push('/dashboard/payrolls?kpi=completed')}
           >
             <CardContent className="p-4 md:p-5">
               <div className="flex items-center justify-between mb-2">
