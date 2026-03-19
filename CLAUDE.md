@@ -965,3 +965,53 @@ _Add notes from each Claude Code session below so context carries forward._
 - **New pattern**: Marketing-domain API routes need explicit middleware passthrough — add to the `if (host === MARKETING_HOST)` block before the `isMarketingRoute` check
 - **Files changed (1)**: `src/middleware.ts`
 - Branch: `claude/setup-email-marketing-UetrF`
+
+### Session 40 — UX Improvements Across All Dashboard Pages (2026-03-19)
+- **Scope**: Reduce clicks and improve workflow efficiency across clients, payrolls, training, pensions, dashboard, and sidebar
+- **Clients page** (Session 40a — first half):
+  - Smart section auto-expand (`forceOpen` prop on `FormSection`) — sections with data auto-open on edit, empty sections collapse
+  - Quick status toggle — clickable badge on table rows to toggle active/inactive via PUT
+  - Active filter chips — removable pill badges below toolbar for all 11 filter types
+  - Bulk actions — checkbox selection, Mark Active/Inactive/Delete bulk operations
+  - Inline cell editing — double-click contact_name, contact_email, fee to edit in-place (Enter/Escape/blur)
+  - Duplicate client action — Copy icon on each row pre-fills form with "(Copy)" suffix
+  - Global sidebar search — keyword-based quick-jump to 9 destinations (Clients, Payrolls, Pensions, Training, etc.)
+- **Payrolls page**:
+  - Smart section auto-expand on FormSection (HMRC section opens when it has data)
+  - Active filter chips for search, status, client, KPI filters
+  - Bulk selection with checkboxes + bulk delete with confirmation dialog
+  - Quick status toggle (active/inactive) on table rows
+  - URL `?kpi=` query param support for dashboard KPI click-through
+- **Training page**:
+  - Smart section auto-expand (Certification section opens when data present)
+  - Active filter chips for status, category, search
+  - Bulk selection + bulk mark complete and bulk delete
+  - Quick status cycle toggle (not_started → in_progress → completed) on table rows
+- **Pensions page**:
+  - Smart section auto-expand on all 4 sidebar form sections
+  - Active filter chips for pension status, AE status, search
+- **Dashboard page**:
+  - KPI cards click-through with query params (`?kpi=due_today`, `?kpi=this_week`, `?kpi=completed`)
+  - `Cmd+K` / `Ctrl+K` keyboard shortcut dispatches `focus-sidebar-search` custom event
+  - `N` key shortcut navigates to `/dashboard/clients` (when not in input)
+- **Sidebar**:
+  - `Cmd+K` / `Ctrl+K` global shortcut focuses search input via ref + custom event listener
+  - `⌘K` hint badge displayed next to search input (hidden on mobile)
+  - `onBlur` uses 200ms `setTimeout` to allow clicking dropdown results
+- **New patterns/conventions**:
+  - `forceOpen` prop on `FormSection` — use `useEffect` to sync when prop changes; apply to all sidebar forms across all pages
+  - Filter chips pattern — removable pills below toolbar with `${colors.primary}12` bg, `${colors.primary}30` border
+  - Quick status toggle — clickable badge + `togglingStatusId` state + optimistic PUT + SWR mutate
+  - Bulk actions — `selectedIds: Set<string>`, `toggleSelectAll(currentPageItems)` (pass items as param to avoid forward reference), bulk action bar appears when selection > 0
+  - `window.dispatchEvent(new CustomEvent('focus-sidebar-search'))` — cross-component communication for Cmd+K
+  - `searchInputRef` on Sidebar search input — direct focus via ref for keyboard shortcuts
+  - `useSearchParams().get('kpi')` — URL param initialization for filter state on payrolls page
+- **Key decisions**:
+  - No bulk actions on pensions page (edit-only, no create/delete)
+  - Status cycle on training is 3-way (not_started → in_progress → completed → not_started)
+  - Payrolls quick status toggle is 2-way (active ↔ inactive) unlike training's 3-way cycle
+  - Cmd+K dispatches custom event rather than using React context (simpler, works across component boundaries)
+  - `N` shortcut only fires when not focused on input/textarea/select elements
+- **Files changed (5)**: `clients/page.tsx`, `payrolls/page.tsx`, `training/page.tsx`, `pensions/page.tsx`, `dashboard/page.tsx`, `Sidebar.tsx`
+- **Build**: Clean production build, 157 tests passing
+- Branch: `claude/fix-outdated-payroll-display-dRQq7`
