@@ -480,7 +480,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => router.push(`/dashboard/payrolls/${run.id}`)}
+                            onClick={() => router.push('/dashboard/payrolls')}
                             className="rounded-lg text-[0.78rem] px-2"
                             style={{ color: colors.primary }}
                           >

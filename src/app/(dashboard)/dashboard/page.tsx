@@ -23,6 +23,8 @@ import {
   ExternalLink,
   AlertCircle,
   Shield,
+  FileText,
+  BarChart3,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { format, parseISO, formatDistanceToNow } from 'date-fns'
@@ -51,10 +53,18 @@ interface RunSummary {
   currentStep?: string | null
 }
 
-interface CompletionTrendItem {
-  month: string
-  completed: number
+interface UpcomingDeadline {
+  clientName: string
+  type: 'FPS' | 'EPS'
+  date: string
+  payrollRunId: string
+}
+
+interface PeriodProgress {
   total: number
+  complete: number
+  inProgress: number
+  notStarted: number
 }
 
 interface ActivityItem {
@@ -69,7 +79,8 @@ interface DashboardStats {
   overdueRuns: RunSummary[]
   thisWeekRuns: RunSummary[]
   actionRequired: ActionItem[]
-  completionTrend: CompletionTrendItem[]
+  upcomingDeadlines: UpcomingDeadline[]
+  periodProgress: PeriodProgress
   totalClients: number
   totalEmployees: number
   dueThisWeek: number
@@ -391,7 +402,7 @@ export default function DashboardPage() {
                     style={{
                       backgroundColor: bgColor,
                     }}
-                    onClick={() => router.push(item.id.startsWith('pension-') ? '/dashboard/pensions' : `/dashboard/payrolls/${item.id}`)}
+                    onClick={() => router.push(item.id.startsWith('pension-') ? '/dashboard/pensions' : '/dashboard/payrolls')}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = item.severity === 'red'
                         ? `${colors.error}14`
@@ -497,7 +508,7 @@ export default function DashboardPage() {
                         key={run.id}
                         className="flex items-center gap-3 py-2.5 px-3 rounded-lg cursor-pointer transition-colors duration-150"
                         style={{ backgroundColor: `${colors.border}40` }}
-                        onClick={() => router.push(`/dashboard/payrolls/${run.id}`)}
+                        onClick={() => router.push('/dashboard/payrolls')}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = `${colors.border}80`
                         }}
@@ -631,47 +642,168 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Completion Trend ── */}
-      {!loading && !isEmptyState && (stats?.completionTrend?.length ?? 0) > 0 && (
-        <Card className="border-0" style={cardStyle}>
-          <CardContent className="p-4 md:p-5">
-            <h2
-              className="flex items-center gap-2 text-[0.9rem] font-bold mb-4"
-              style={{ color: colors.text.primary }}
-            >
-              <Activity className="w-4 h-4" style={{ color: colors.primary }} />
-              6-Month Trend
-            </h2>
-            <div className="flex items-end gap-2 h-28">
-              {stats?.completionTrend?.map((month) => {
-                const pct = month.total > 0 ? (month.completed / month.total) * 100 : 0
-                const barHeight = month.total > 0 ? Math.max(pct, 8) : 8
-                return (
-                  <div key={month.month} className="flex-1 flex flex-col items-center gap-1.5">
-                    <span className="text-[0.68rem] font-semibold" style={{ color: colors.text.muted }}>
-                      {month.total > 0 ? `${month.completed}/${month.total}` : '-'}
-                    </span>
-                    <div
-                      className="w-full rounded-t-md transition-all duration-500"
-                      style={{
-                        height: `${barHeight}%`,
-                        background: month.total === 0
-                          ? colors.border
-                          : pct === 100
-                            ? colors.success
-                            : `linear-gradient(180deg, ${colors.primary}, ${colors.secondary})`,
-                        opacity: month.total === 0 ? 0.3 : 1,
-                      }}
-                    />
-                    <span className="text-[0.68rem] font-medium" style={{ color: colors.text.muted }}>
-                      {month.month}
-                    </span>
+      {/* ── HMRC Deadlines + Period Progress ── */}
+      {!loading && !isEmptyState && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
+          {/* Upcoming HMRC Deadlines */}
+          <Card className="border-0" style={cardStyle}>
+            <CardContent className="p-4 md:p-5">
+              <h2
+                className="flex items-center gap-2 text-[0.9rem] font-bold mb-3"
+                style={{ color: colors.text.primary }}
+              >
+                <FileText className="w-4 h-4" style={{ color: colors.primary }} />
+                HMRC Deadlines
+              </h2>
+
+              {(stats?.upcomingDeadlines?.length ?? 0) > 0 ? (
+                <div className="space-y-0.5">
+                  {stats?.upcomingDeadlines?.slice(0, 5).map((deadline, index) => {
+                    const deadlineDate = parseISO(deadline.date)
+                    const daysUntil = Math.ceil((deadlineDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                    const isUrgent = daysUntil <= 3
+
+                    return (
+                      <div
+                        key={`${deadline.payrollRunId}-${deadline.type}-${index}`}
+                        className="flex items-center gap-3 py-2.5 px-3 rounded-lg cursor-pointer transition-colors duration-150"
+                        style={{ backgroundColor: `${colors.border}40` }}
+                        onClick={() => router.push('/dashboard/payrolls')}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = `${colors.border}80`
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = `${colors.border}40`
+                        }}
+                      >
+                        <Badge
+                          className="text-[0.65rem] font-bold border-0 px-2 py-0.5 flex-shrink-0"
+                          style={{
+                            backgroundColor: deadline.type === 'FPS' ? `${colors.primary}15` : `${colors.secondary}15`,
+                            color: deadline.type === 'FPS' ? colors.primary : colors.secondary,
+                          }}
+                        >
+                          {deadline.type}
+                        </Badge>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className="text-[0.82rem] font-medium truncate"
+                            style={{ color: colors.text.primary }}
+                          >
+                            {deadline.clientName}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-[0.72rem]" style={{ color: colors.text.muted }}>
+                            {format(deadlineDate, 'd MMM')}
+                          </span>
+                          <Badge
+                            className="text-[0.62rem] font-bold border-0 px-1.5 py-0.5"
+                            style={{
+                              backgroundColor: isUrgent ? `${colors.warning}18` : `${colors.text.muted}10`,
+                              color: isUrgent ? colors.warning : colors.text.secondary,
+                            }}
+                          >
+                            {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil}d`}
+                          </Badge>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="py-6 text-center">
+                  <CheckCircle2 className="w-7 h-7 mx-auto mb-2" style={{ color: colors.success }} />
+                  <p className="text-[0.82rem] font-medium" style={{ color: colors.text.secondary }}>
+                    No upcoming deadlines
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Period Progress */}
+          <Card className="border-0" style={cardStyle}>
+            <CardContent className="p-4 md:p-5">
+              <h2
+                className="flex items-center gap-2 text-[0.9rem] font-bold mb-3"
+                style={{ color: colors.text.primary }}
+              >
+                <BarChart3 className="w-4 h-4" style={{ color: colors.primary }} />
+                Current Period
+              </h2>
+
+              {(stats?.periodProgress?.total ?? 0) > 0 ? (
+                <>
+                  {/* Progress bar */}
+                  <div className="h-3 rounded-full overflow-hidden flex" style={{ backgroundColor: colors.border }}>
+                    {(stats?.periodProgress?.complete ?? 0) > 0 && (
+                      <div
+                        className="h-full transition-all duration-500"
+                        style={{
+                          width: `${((stats?.periodProgress?.complete ?? 0) / (stats?.periodProgress?.total ?? 1)) * 100}%`,
+                          backgroundColor: colors.success,
+                        }}
+                      />
+                    )}
+                    {(stats?.periodProgress?.inProgress ?? 0) > 0 && (
+                      <div
+                        className="h-full transition-all duration-500"
+                        style={{
+                          width: `${((stats?.periodProgress?.inProgress ?? 0) / (stats?.periodProgress?.total ?? 1)) * 100}%`,
+                          backgroundColor: colors.warning,
+                        }}
+                      />
+                    )}
                   </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
+
+                  {/* Legend */}
+                  <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors.success }} />
+                      <span className="text-[0.78rem] font-medium" style={{ color: colors.text.secondary }}>
+                        Complete
+                      </span>
+                      <span className="text-[0.82rem] font-bold" style={{ color: colors.text.primary }}>
+                        {stats?.periodProgress?.complete ?? 0}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors.warning }} />
+                      <span className="text-[0.78rem] font-medium" style={{ color: colors.text.secondary }}>
+                        In Progress
+                      </span>
+                      <span className="text-[0.82rem] font-bold" style={{ color: colors.text.primary }}>
+                        {stats?.periodProgress?.inProgress ?? 0}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors.border }} />
+                      <span className="text-[0.78rem] font-medium" style={{ color: colors.text.secondary }}>
+                        Not Started
+                      </span>
+                      <span className="text-[0.82rem] font-bold" style={{ color: colors.text.primary }}>
+                        {stats?.periodProgress?.notStarted ?? 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Summary */}
+                  <p className="text-[0.75rem] mt-3" style={{ color: colors.text.muted }}>
+                    {stats?.periodProgress?.complete ?? 0} of {stats?.periodProgress?.total ?? 0} payrolls completed this period
+                  </p>
+                </>
+              ) : (
+                <div className="py-6 text-center">
+                  <BarChart3 className="w-7 h-7 mx-auto mb-2" style={{ color: colors.text.muted }} />
+                  <p className="text-[0.82rem] font-medium" style={{ color: colors.text.secondary }}>
+                    No payroll runs in current period
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* ── Quick Actions ── */}
