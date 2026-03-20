@@ -1,36 +1,119 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ThePayBureau Pro
+
+SaaS platform for UK payroll bureaux to manage clients, payroll runs, pensions, HMRC compliance, and training records. Currently in **v1.0.0-alpha** (pre-launch).
+
+## Tech Stack
+
+- **Framework:** Next.js 16 (App Router, Turbopack dev)
+- **Language:** TypeScript 5.9
+- **Auth & DB:** Supabase (auth, PostgreSQL with RLS, SSR helpers)
+- **Payments:** Stripe (subscriptions)
+- **Styling:** Tailwind CSS 4, Radix UI primitives, shadcn/ui
+- **AI:** Anthropic SDK (AI assistant feature), VoyageAI (embeddings)
+- **Email:** Resend (transactional), Brevo (marketing/newsletter)
+- **Rate limiting:** Upstash Redis
+- **Monitoring:** Sentry, Vercel Analytics + Speed Insights
+- **Testing:** Jest + Testing Library (unit), Playwright (e2e)
+- **Linting:** ESLint 9, Prettier with Tailwind plugin
+
+## Project Structure
+
+```
+src/
+  app/
+    (auth)/           # Login/signup (route group)
+    (dashboard)/      # Authenticated dashboard (route group)
+      dashboard/
+        admin/        # Platform admin panel
+        ai-assistant/ # AI chat assistant
+        audit-log/    # Audit trail viewer
+        clients/      # Client management
+        feature-requests/
+        payrolls/     # Payroll configs, runs & checklists
+        pensions/     # Pension management
+        settings/     # User/tenant settings
+        subscription/ # Stripe subscription management
+        training/     # Training records
+    api/              # API routes (REST)
+    auth/             # Supabase auth callbacks
+  components/         # Reusable UI components
+  config/             # App configuration
+  contexts/           # React contexts
+  hooks/              # Custom React hooks
+  lib/                # Core utilities
+    ai/               # AI/RAG logic
+    anthropic.ts      # Claude API client
+    supabase.ts       # Client-side Supabase
+    supabase-server.ts # Server-side Supabase (service role)
+    stripe.ts         # Stripe helpers
+    validations.ts    # Zod schemas
+  types/              # TypeScript type definitions
+  middleware.ts       # Auth redirect, CSRF protection
+supabase/
+  migrations/         # SQL migration files (RLS, tables)
+  templates/          # Email templates
+```
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- npm
+- Supabase project (auth + PostgreSQL)
+- Stripe account (subscriptions)
+
+### Environment Variables
+
+Copy `.env.example` to `.env.local` and fill in the required values:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Key variables include: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `ANTHROPIC_API_KEY`, and others. See `.env.example` for the full list.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Development
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev          # Start dev server (Turbopack)
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-To learn more about Next.js, take a look at the following resources:
+### Commands
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run dev          # Start dev server (Turbopack)
+npm run build        # Production build
+npm run lint         # ESLint
+npm test             # Unit tests (Jest)
+npm run test:watch   # Unit tests in watch mode
+npm run test:coverage # Unit tests with coverage report
+npx playwright test  # E2E tests
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Database Migrations
 
-## Deploy on Vercel
+Migrations in `supabase/migrations/` must be run manually in the Supabase SQL Editor. They are **not** auto-applied.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Architecture
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Multi-tenant:** Every table scoped by `tenant_id` with RLS policies enforcing isolation.
+- **Auth flow:** Supabase Auth → middleware redirects unauthenticated users → API routes use `getAuthUser()`.
+- **CSRF:** Middleware validates Origin header for mutating requests (webhooks exempted).
+- **Domain routing:** `www.thepaybureau.com` serves marketing pages; `app.thepaybureau.com` serves the application. Middleware-based hostname routing in a single Vercel deployment.
+- **Clients vs Payrolls:** Separate tables — one client can have multiple payrolls. Payroll config fields live on the `payrolls` table.
+
+## Deployment
+
+Deployed on [Vercel](https://vercel.com). Production builds run via `npm run build`.
+
+Domains:
+- `app.thepaybureau.com` — Application
+- `www.thepaybureau.com` — Marketing pages
+
+## License
+
+Proprietary. All rights reserved.
