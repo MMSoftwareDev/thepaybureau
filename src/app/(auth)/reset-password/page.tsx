@@ -200,6 +200,14 @@ export default function ResetPasswordPage() {
         />
 
         <div className="relative z-10 w-full max-w-[420px]">
+          {/* Mobile logo */}
+          <div className="mb-8 flex items-center gap-2 md:hidden">
+            <Image src="/logo.png" alt="ThePayBureau" width={36} height={36} className="rounded-lg" />
+            <span className="font-[family-name:var(--font-body)] text-lg font-extrabold tracking-tight text-[var(--brand-fg)]">
+              ThePayBureau
+            </span>
+          </div>
+
           {success ? (
             /* ── Success state ── */
             <div className="text-center">

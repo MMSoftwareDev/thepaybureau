@@ -74,14 +74,16 @@ type SortOption = 'newest' | 'oldest' | 'most_votes'
 
 // ─── Constants ───────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<FeatureStatus, { label: string; color: string; bg: string }> = {
-  submitted: { label: 'Submitted', color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
-  planned: { label: 'Planned', color: '#2563eb', bg: 'rgba(37,99,235,0.1)' },
-  considering: { label: 'Considering', color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
-  working_on: { label: 'Working On', color: '#059669', bg: 'rgba(5,150,105,0.1)' },
-  shipped: { label: 'Shipped', color: '#0891b2', bg: 'rgba(8,145,178,0.1)' },
-  future: { label: 'Future', color: '#7c3aed', bg: 'rgba(124,58,237,0.1)' },
-  will_not_implement: { label: 'Won\'t Do', color: '#dc2626', bg: 'rgba(220,38,38,0.1)' },
+function getStatusConfig(isDark: boolean): Record<FeatureStatus, { label: string; color: string; bg: string }> {
+  return {
+    submitted: { label: 'Submitted', color: isDark ? '#94a3b8' : '#64748b', bg: isDark ? 'rgba(148,163,184,0.12)' : 'rgba(100,116,139,0.1)' },
+    planned: { label: 'Planned', color: isDark ? '#60a5fa' : '#2563eb', bg: isDark ? 'rgba(96,165,250,0.12)' : 'rgba(37,99,235,0.1)' },
+    considering: { label: 'Considering', color: isDark ? '#fbbf24' : '#d97706', bg: isDark ? 'rgba(251,191,36,0.12)' : 'rgba(217,119,6,0.1)' },
+    working_on: { label: 'Working On', color: isDark ? '#34d399' : '#059669', bg: isDark ? 'rgba(52,211,153,0.12)' : 'rgba(5,150,105,0.1)' },
+    shipped: { label: 'Shipped', color: isDark ? '#22d3ee' : '#0891b2', bg: isDark ? 'rgba(34,211,238,0.12)' : 'rgba(8,145,178,0.1)' },
+    future: { label: 'Future', color: isDark ? '#a78bfa' : '#7c3aed', bg: isDark ? 'rgba(167,139,250,0.12)' : 'rgba(124,58,237,0.1)' },
+    will_not_implement: { label: 'Won\'t Do', color: isDark ? '#f87171' : '#dc2626', bg: isDark ? 'rgba(248,113,113,0.12)' : 'rgba(220,38,38,0.1)' },
+  }
 }
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -430,6 +432,7 @@ function CommentThread({ featureRequestId, colors, isDark, isAdmin, currentUserI
 export default function FeatureRequestsPage() {
   const { isDark } = useTheme()
   const colors = getThemeColors(isDark)
+  const statusConfig = getStatusConfig(isDark)
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -662,7 +665,7 @@ export default function FeatureRequestsPage() {
                     color: colors.text.primary,
                   }}
                 >
-                  {Object.entries(STATUS_CONFIG).map(([value, { label }]) => (
+                  {Object.entries(statusConfig).map(([value, { label }]) => (
                     <option key={value} value={value} style={{ background: colors.surface, color: colors.text.primary }}>{label}</option>
                   ))}
                 </select>
@@ -800,11 +803,11 @@ export default function FeatureRequestsPage() {
                         <span
                           className="px-2 py-0.5 rounded-full text-[0.65rem] font-medium whitespace-nowrap"
                           style={{
-                            background: STATUS_CONFIG[req.status].bg,
-                            color: STATUS_CONFIG[req.status].color,
+                            background: statusConfig[req.status].bg,
+                            color: statusConfig[req.status].color,
                           }}
                         >
-                          {STATUS_CONFIG[req.status].label}
+                          {statusConfig[req.status].label}
                         </span>
                       </div>
                       {req.description && (
