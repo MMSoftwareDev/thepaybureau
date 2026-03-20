@@ -965,3 +965,22 @@ _Add notes from each Claude Code session below so context carries forward._
 - **New pattern**: Marketing-domain API routes need explicit middleware passthrough — add to the `if (host === MARKETING_HOST)` block before the `isMarketingRoute` check
 - **Files changed (1)**: `src/middleware.ts`
 - Branch: `claude/setup-email-marketing-UetrF`
+
+### Session 40 — Launch Email Finalization & Signup Conversion Optimization (2026-03-20)
+- **Launch email template**: Created branded HTML + plain-text email for Brevo campaign (`supabase/templates/launch-email.html`, `launch-email.txt`) — purple gradient header, DM Serif headline, pink CTA buttons, two early-bird offer cards, GDPR footer with Brevo `{{ unsubscribe }}` merge tag
+- **Personal email block removed**: Removed `BLOCKED_DOMAINS` from `validations.ts` and `personalDomains` check from `signup/page.tsx` — allows Gmail, Outlook, Yahoo etc. Disposable email block remains. Decision: many freelance payroll consultants use personal email, blocking them kills conversions
+- **UTM tracking added**: Signup page reads `utm_source`, `utm_medium`, `utm_campaign` from URL via `useSearchParams()` and sends to registration API; stored in `tenants.settings.signup_utm` (JSONB) and Supabase auth user metadata — no migration needed
+- **Email CTA links**: Both launch email CTAs updated with `?utm_source=launch_email&utm_medium=email&utm_campaign=beta_launch`
+- **Beta-aware welcome email**: `welcomeEmail()` now accepts optional `signupSource` param; when `beta_launch`, sends different subject ("Welcome to the Beta — you're one of the first"), early-user acknowledgment, tutorial mention, Unlimited/Founding Member offer callout. Non-beta signups unchanged
+- **Follow-up email template**: Created shorter resend for Brevo non-opener campaign (`launch-followup-email.html`, `.txt`) — different subject ("Quick question about your payroll bureau"), `utm_content=followup` for tracking, "one-time follow-up" footer copy
+- **Signup page Suspense wrapper**: Added `<Suspense>` boundary around `SignupForm` for `useSearchParams()` (required by Next.js App Router)
+- **Label/placeholder updated**: "Business email" → "Email", `you@yourcompany.co.uk` → `you@example.com`; email validation shows "Email verified" for personal domains, "Business email verified" for company domains; company name auto-suggest only for non-personal domains
+- **Test updated**: Changed "rejects personal email providers" → "accepts personal email providers"; added "accepts optional UTM data" test case — 158 tests passing
+- **Build verified**: Clean production build + all tests pass
+- **Key decisions**: Remove email block entirely (not UTM bypass) — simpler, no maintenance; Brevo for marketing emails, Resend for transactional (separate domains)
+- **New convention**: UTM params stored in `tenants.settings.signup_utm` for attribution tracking — query with `settings->'signup_utm'->>'campaign'`
+- **Files created (4)**: `launch-email.html`, `launch-email.txt`, `launch-followup-email.html`, `launch-followup-email.txt`
+- **Files modified (5)**: `signup/page.tsx`, `validations.ts`, `register/route.ts`, `email-templates.ts`, `validations.test.ts`
+- **Brevo campaign checklist**: Upload 79 contacts, paste HTML, set reply-to to personal inbox, schedule follow-up for non-openers 3-4 days later
+- **Post-launch TODOs**: Founding Member tracking (set `founding_status` in `tenants.settings` via SQL), referral nudge after onboarding, Brevo contact enrichment on signup
+- Branch: `claude/finalize-launch-email-zkYTb`
