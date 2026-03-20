@@ -167,8 +167,25 @@ export function Footer() {
           </div>
         </div>
 
+        {/* Final CTA */}
+        <div className="mt-12 pt-8 border-t border-white/10 text-center">
+          <p className="text-lg font-semibold text-white/90 mb-2" style={{ fontFamily: 'var(--font-body)' }}>
+            Ready to simplify your payroll bureau?
+          </p>
+          <p className="text-sm text-white/40 mb-5" style={{ fontFamily: 'var(--font-inter)' }}>
+            Free forever for individuals. No credit card required.
+          </p>
+          <a
+            href={`${APP_DOMAIN}/signup`}
+            className="inline-flex items-center px-6 py-2.5 text-sm font-semibold text-white rounded-lg transition-opacity duration-150 hover:opacity-90"
+            style={{ background: 'linear-gradient(135deg, #401D6C, #EC385D)', fontFamily: 'var(--font-inter)' }}
+          >
+            Get started free
+          </a>
+        </div>
+
         {/* Copyright */}
-        <div className="mt-12 pt-6 border-t border-white/10">
+        <div className="mt-8 pt-6 border-t border-white/10">
           <p className="text-xs text-white/30" style={{ fontFamily: 'var(--font-inter)' }}>
             &copy; {new Date().getFullYear()} Intelligent Payroll Limited T/A The Pay Bureau. Registered in England and Wales.
           </p>

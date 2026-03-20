@@ -48,6 +48,39 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
+const TOAST_STYLES: Record<ToastType, { bg: string; bgDark: string; border: string; borderDark: string; text: string; textDark: string; icon: string; iconDark: string }> = {
+  success: {
+    bg: 'var(--brand-success-bg)',
+    bgDark: 'rgba(16, 185, 129, 0.12)',
+    border: 'rgba(24, 128, 56, 0.2)',
+    borderDark: 'rgba(16, 185, 129, 0.25)',
+    text: 'var(--brand-success)',
+    textDark: '#10B981',
+    icon: 'var(--brand-success)',
+    iconDark: '#34d399',
+  },
+  error: {
+    bg: 'var(--brand-error-bg)',
+    bgDark: 'rgba(239, 68, 68, 0.12)',
+    border: 'rgba(217, 48, 37, 0.2)',
+    borderDark: 'rgba(239, 68, 68, 0.25)',
+    text: 'var(--brand-error)',
+    textDark: '#EF4444',
+    icon: 'var(--brand-error)',
+    iconDark: '#f87171',
+  },
+  info: {
+    bg: 'rgba(64, 29, 108, 0.06)',
+    bgDark: 'rgba(124, 92, 191, 0.12)',
+    border: 'rgba(64, 29, 108, 0.15)',
+    borderDark: 'rgba(124, 92, 191, 0.25)',
+    text: 'var(--brand-purple)',
+    textDark: '#7C5CBF',
+    icon: 'var(--brand-purple)',
+    iconDark: '#a78bfa',
+  },
+}
+
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
   const [visible, setVisible] = useState(false)
 
@@ -61,33 +94,30 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
   }, [toast.id, onDismiss])
 
   const Icon = toast.type === 'success' ? CheckCircle2 : toast.type === 'error' ? AlertTriangle : Info
-  const colors = {
-    success: 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/80 dark:border-emerald-800 dark:text-emerald-200',
-    error: 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950/80 dark:border-red-800 dark:text-red-200',
-    info: 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950/80 dark:border-blue-800 dark:text-blue-200',
-  }
-  const iconColors = {
-    success: 'text-emerald-600 dark:text-emerald-400',
-    error: 'text-red-600 dark:text-red-400',
-    info: 'text-blue-600 dark:text-blue-400',
-  }
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  const styles = TOAST_STYLES[toast.type]
 
   return (
     <div
       className={cn(
         'flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg backdrop-blur-sm transition-all duration-200',
-        colors[toast.type],
         visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
       )}
+      style={{
+        background: isDark ? styles.bgDark : styles.bg,
+        borderColor: isDark ? styles.borderDark : styles.border,
+        color: isDark ? styles.textDark : styles.text,
+      }}
     >
-      <Icon className={cn('w-5 h-5 flex-shrink-0', iconColors[toast.type])} />
-      <p className="text-sm font-medium flex-1">{toast.message}</p>
+      <Icon className="w-5 h-5 flex-shrink-0" style={{ color: isDark ? styles.iconDark : styles.icon }} />
+      <p className="text-sm font-medium flex-1 font-[family-name:var(--font-inter)]">{toast.message}</p>
       <button
         onClick={() => {
           setVisible(false)
           setTimeout(() => onDismiss(toast.id), 200)
         }}
         className="flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+        aria-label="Dismiss notification"
       >
         <X className="w-4 h-4" />
       </button>

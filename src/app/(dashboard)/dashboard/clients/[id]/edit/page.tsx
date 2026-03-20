@@ -998,6 +998,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
               type="button"
               variant="ghost"
               size="icon"
+              aria-label="Move item up"
               disabled={index === 0}
               onClick={() => moveChecklistItem(index, 'up')}
               className="h-8 w-8 rounded-lg"
@@ -1009,6 +1010,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
               type="button"
               variant="ghost"
               size="icon"
+              aria-label="Move item down"
               disabled={index === checklistItems.length - 1}
               onClick={() => moveChecklistItem(index, 'down')}
               className="h-8 w-8 rounded-lg"
@@ -1020,6 +1022,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
               type="button"
               variant="ghost"
               size="icon"
+              aria-label="Remove checklist item"
               onClick={() => removeChecklistItem(index)}
               className="h-8 w-8 rounded-lg hover:text-red-500"
               style={{ color: colors.text.muted }}

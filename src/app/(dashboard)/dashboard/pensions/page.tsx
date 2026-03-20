@@ -639,19 +639,21 @@ export default function PensionDeclarationsPage() {
   // Status badge renderer
   const statusBadge = (client: PensionClient) => {
     const status = getOverallStatus(client)
+    const amberColor = isDark ? '#FBBF24' : '#F59E0B'
+    const blueColor = isDark ? '#60A5FA' : '#3B82F6'
     switch (status) {
       case 'overdue':
-        return <Badge className="text-xs" style={{ backgroundColor: `${colors.error}20`, color: colors.error, border: `1px solid ${colors.error}40` }}>Overdue</Badge>
+        return <Badge className="text-xs cursor-help" title="One or more compliance dates are past due" style={{ backgroundColor: `${colors.error}20`, color: colors.error, border: `1px solid ${colors.error}40` }}>Overdue</Badge>
       case 'due_soon':
-        return <Badge className="text-xs" style={{ backgroundColor: '#F59E0B20', color: '#F59E0B', border: '1px solid #F59E0B40' }}>Due Soon</Badge>
+        return <Badge className="text-xs cursor-help" title="A compliance deadline is due within 30 days" style={{ backgroundColor: `${amberColor}20`, color: amberColor, border: `1px solid ${amberColor}40` }}>Due Soon</Badge>
       case 'ready':
-        return <Badge className="text-xs" style={{ backgroundColor: `${colors.primary}20`, color: colors.primary, border: `1px solid ${colors.primary}40` }}>Ready</Badge>
+        return <Badge className="text-xs cursor-help" title="All compliance dates are up to date" style={{ backgroundColor: `${colors.primary}20`, color: colors.primary, border: `1px solid ${colors.primary}40` }}>Ready</Badge>
       case 'waiting':
-        return <Badge className="text-xs" style={{ backgroundColor: '#3B82F620', color: '#3B82F6', border: '1px solid #3B82F640' }}>Waiting</Badge>
+        return <Badge className="text-xs cursor-help" title="Awaiting staging date or compliance setup" style={{ backgroundColor: `${blueColor}20`, color: blueColor, border: `1px solid ${blueColor}40` }}>Waiting</Badge>
       case 'exempt':
-        return <Badge className="text-xs" style={{ backgroundColor: `${colors.text.muted}20`, color: colors.text.muted, border: `1px solid ${colors.text.muted}40` }}>Exempt</Badge>
+        return <Badge className="text-xs cursor-help" title="Client is exempt from auto-enrolment" style={{ backgroundColor: `${colors.text.muted}20`, color: colors.text.muted, border: `1px solid ${colors.text.muted}40` }}>Exempt</Badge>
       default:
-        return <Badge className="text-xs" style={{ backgroundColor: `${colors.text.muted}20`, color: colors.text.muted, border: `1px solid ${colors.text.muted}40` }}>Missing Info</Badge>
+        return <Badge className="text-xs cursor-help" title="Pension staging date or AE status not set" style={{ backgroundColor: `${colors.text.muted}20`, color: colors.text.muted, border: `1px solid ${colors.text.muted}40` }}>Missing Info</Badge>
     }
   }
 
@@ -993,6 +995,7 @@ export default function PensionDeclarationsPage() {
                             size="icon"
                             className="h-8 w-8"
                             title="Edit pension details"
+                            aria-label="Edit pension details"
                             onClick={() => openEdit(client)}
                           >
                             <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
@@ -1016,6 +1019,7 @@ export default function PensionDeclarationsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  aria-label="Previous page"
                   disabled={currentPage <= 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   className="h-7 text-xs"
@@ -1029,6 +1033,7 @@ export default function PensionDeclarationsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  aria-label="Next page"
                   disabled={currentPage >= totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   className="h-7 text-xs"

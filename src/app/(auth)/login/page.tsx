@@ -30,6 +30,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     setMounted(true)
+    const savedEmail = localStorage.getItem('tpb_remember_email')
+    if (savedEmail) {
+      setEmail(savedEmail)
+      setRememberMe(true)
+    }
   }, [])
 
   const validateEmail = (value: string) => {
@@ -86,6 +91,11 @@ export default function LoginPage() {
       if (result.error) {
         setLoginError(result.error.message)
       } else {
+        if (rememberMe) {
+          localStorage.setItem('tpb_remember_email', email.trim())
+        } else {
+          localStorage.removeItem('tpb_remember_email')
+        }
         setLoginSuccess(true)
         setTimeout(() => {
           router.push('/dashboard')

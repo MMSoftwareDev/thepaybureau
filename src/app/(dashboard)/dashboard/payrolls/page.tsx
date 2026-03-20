@@ -1369,10 +1369,10 @@ export default function PayrollsPage() {
                   {/* Actions — Edit + Delete only */}
                   <TableCell className="px-4 py-2.5">
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit" onClick={() => openEdit(payroll)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Edit payroll" aria-label="Edit payroll" onClick={() => openEdit(payroll)}>
                         <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Delete" onClick={() => setPayrollToDelete(payroll)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Delete payroll" aria-label="Delete payroll" onClick={() => setPayrollToDelete(payroll)}>
                         <Trash2 className="w-3.5 h-3.5" style={{ color: colors.error }} />
                       </Button>
                     </div>
@@ -1389,13 +1389,13 @@ export default function PayrollsPage() {
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} className="h-7 text-xs" style={{ borderColor: colors.border }}>
+                <Button variant="outline" size="sm" aria-label="Previous page" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} className="h-7 text-xs" style={{ borderColor: colors.border }}>
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </Button>
                 <span className="text-xs font-medium px-2 font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>
                   {currentPage} / {totalPages}
                 </span>
-                <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} className="h-7 text-xs" style={{ borderColor: colors.border }}>
+                <Button variant="outline" size="sm" aria-label="Next page" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} className="h-7 text-xs" style={{ borderColor: colors.border }}>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </Button>
               </div>

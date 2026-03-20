@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useTheme, getThemeColors } from '@/contexts/ThemeContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { useToast } from '@/components/ui/toast'
 import { createClientSupabaseClient } from '@/lib/supabase'
 import { processAvatarImage } from '@/lib/image-utils'
 import {
@@ -50,6 +51,7 @@ interface TenantSettings {
 }
 
 export default function SettingsPage() {
+  const { toast } = useToast()
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -339,7 +341,7 @@ export default function SettingsPage() {
       URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Error exporting data:', err)
-      alert('Failed to export data. Please try again.')
+      toast('Failed to export data. Please try again.', 'error')
     } finally {
       setExportingData(false)
     }
