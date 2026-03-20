@@ -60,4 +60,14 @@ export function useSubscription() {
   return useSWR('/api/stripe/subscription', fetcher, defaultConfig)
 }
 
+export function useAuditLogs(params: { page?: number; search?: string; action?: string; resource_type?: string } = {}) {
+  const searchParams = new URLSearchParams()
+  searchParams.set('page', String(params.page || 1))
+  searchParams.set('limit', '30')
+  if (params.search) searchParams.set('search', params.search)
+  if (params.action) searchParams.set('action', params.action)
+  if (params.resource_type) searchParams.set('resource_type', params.resource_type)
+  return useSWR(`/api/audit-logs?${searchParams}`, fetcher, defaultConfig)
+}
+
 export { fetcher, defaultConfig }

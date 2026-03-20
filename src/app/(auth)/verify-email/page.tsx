@@ -177,6 +177,14 @@ function VerifyEmailContent() {
         />
 
         <div className="relative z-10 w-full max-w-[420px] text-center">
+          {/* Mobile logo */}
+          <div className="mb-8 flex items-center justify-center gap-2 md:hidden">
+            <Image src="/logo.png" alt="ThePayBureau" width={36} height={36} className="rounded-lg" />
+            <span className="font-[family-name:var(--font-body)] text-lg font-extrabold tracking-tight text-[var(--brand-fg)]">
+              ThePayBureau
+            </span>
+          </div>
+
           <div
             className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full"
             style={{ background: 'var(--brand-success-bg)' }}

@@ -63,8 +63,8 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: 99999, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div

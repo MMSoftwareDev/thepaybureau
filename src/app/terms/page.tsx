@@ -6,66 +6,111 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: 'var(--mkt-bg)' }}>
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-8 md:py-16">
         <div className="mb-8">
           <Link
             href="/"
-            className="text-sm font-medium text-[#401D6C] hover:underline"
+            className="text-sm font-medium font-[family-name:var(--font-inter)] hover:underline"
+            style={{ color: 'var(--mkt-purple)' }}
           >
             &larr; Back to Home
           </Link>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 md:p-12">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Terms of Service</h1>
-          <p className="text-sm text-gray-500 mb-8">Last updated: 5 March 2026</p>
+        <div
+          className="rounded-2xl shadow-sm p-8 md:p-12"
+          style={{
+            background: 'var(--mkt-surface)',
+            border: '1px solid var(--mkt-border)',
+          }}
+        >
+          <h1
+            className="text-3xl font-bold font-[family-name:var(--font-display)] mb-2"
+            style={{ color: 'var(--mkt-text)' }}
+          >
+            Terms of Service
+          </h1>
+          <p
+            className="text-sm font-[family-name:var(--font-inter)] mb-8"
+            style={{ color: 'var(--mkt-text-3)' }}
+          >
+            Last updated: 5 March 2026
+          </p>
 
-          <div className="prose prose-gray max-w-none space-y-6 text-[0.92rem] leading-relaxed text-gray-700">
+          <div
+            className="max-w-none space-y-6 text-[0.92rem] leading-relaxed font-[family-name:var(--font-body)]"
+            style={{ color: 'var(--mkt-text-2)' }}
+          >
             <section>
-              <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">1. Acceptance of Terms</h2>
+              <h2
+                className="text-lg font-bold font-[family-name:var(--font-inter)] mt-8 mb-3"
+                style={{ color: 'var(--mkt-text)' }}
+              >
+                1. Acceptance of Terms
+              </h2>
               <p>
                 By accessing or using ThePayBureau (&ldquo;the Service&rdquo;), operated by Intelligent Payroll Limited T/A The Pay Bureau (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;), you agree to be bound by these Terms of Service. If you do not agree to these terms, you must not use the Service.
               </p>
-              <p>
+              <p className="mt-3">
                 These terms apply to all users of the Service, including individual payroll consultants using our free tier and bureau organisations using our paid tier.
               </p>
             </section>
 
             <section>
-              <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">2. Description of Service</h2>
+              <h2
+                className="text-lg font-bold font-[family-name:var(--font-inter)] mt-8 mb-3"
+                style={{ color: 'var(--mkt-text)' }}
+              >
+                2. Description of Service
+              </h2>
               <p>
                 ThePayBureau is a payroll bureau management platform that helps payroll professionals manage client payrolls, track HMRC deadlines, and organise payroll workflows. The Service is provided as a Software-as-a-Service (SaaS) application accessible via web browser.
               </p>
-              <p>
+              <p className="mt-3">
                 The Service is designed to assist with payroll administration and organisation. It does not calculate payroll, file tax returns, or submit data to HMRC on your behalf. You remain solely responsible for the accuracy and timeliness of all payroll processing and HMRC submissions.
               </p>
             </section>
 
             <section>
-              <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">3. Account Registration and Security</h2>
+              <h2
+                className="text-lg font-bold font-[family-name:var(--font-inter)] mt-8 mb-3"
+                style={{ color: 'var(--mkt-text)' }}
+              >
+                3. Account Registration and Security
+              </h2>
               <p>
                 To use the Service, you must create an account using a valid professional email address. You are responsible for maintaining the confidentiality of your login credentials and for all activities that occur under your account.
               </p>
-              <p>
+              <p className="mt-3">
                 You must notify us immediately of any unauthorised use of your account. We reserve the right to suspend or terminate accounts that we believe have been compromised or are being used in violation of these terms.
               </p>
             </section>
 
             <section>
-              <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">4. Service Tiers</h2>
+              <h2
+                className="text-lg font-bold font-[family-name:var(--font-inter)] mt-8 mb-3"
+                style={{ color: 'var(--mkt-text)' }}
+              >
+                4. Service Tiers
+              </h2>
               <p>
-                <strong>Free Tier:</strong> Available to individual payroll consultants at no cost. Includes core features for managing personal client payrolls. We reserve the right to modify the features available in the free tier at any time with reasonable notice.
+                <strong style={{ color: 'var(--mkt-text)' }}>Free Tier:</strong> Available to individual payroll consultants at no cost. Includes core features for managing personal client payrolls. We reserve the right to modify the features available in the free tier at any time with reasonable notice.
               </p>
-              <p>
-                <strong>Paid Tier:</strong> Available to payroll bureaus and organisations managing multiple consultants. Pricing is as published on our website and is subject to change with 30 days&apos; notice. Paid subscriptions are billed monthly and may be cancelled at any time, taking effect at the end of the current billing period.
+              <p className="mt-3">
+                <strong style={{ color: 'var(--mkt-text)' }}>Paid Tier:</strong> Available to payroll bureaus and organisations managing multiple consultants. Pricing is as published on our website and is subject to change with 30 days&apos; notice. Paid subscriptions are billed monthly and may be cancelled at any time, taking effect at the end of the current billing period.
               </p>
             </section>
 
             <section>
-              <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">5. Acceptable Use</h2>
+              <h2
+                className="text-lg font-bold font-[family-name:var(--font-inter)] mt-8 mb-3"
+                style={{ color: 'var(--mkt-text)' }}
+              >
+                5. Acceptable Use
+              </h2>
               <p>You agree not to:</p>
-              <ul className="list-disc pl-6 space-y-1">
+              <ul className="list-disc pl-6 space-y-1 mt-2">
                 <li>Use the Service for any unlawful purpose or in violation of any applicable laws or regulations</li>
                 <li>Attempt to gain unauthorised access to any part of the Service or its related systems</li>
                 <li>Interfere with or disrupt the integrity or performance of the Service</li>
@@ -77,66 +122,114 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">6. Intellectual Property</h2>
+              <h2
+                className="text-lg font-bold font-[family-name:var(--font-inter)] mt-8 mb-3"
+                style={{ color: 'var(--mkt-text)' }}
+              >
+                6. Intellectual Property
+              </h2>
               <p>
                 The Service, including its design, features, code, and content, is the intellectual property of Intelligent Payroll Limited T/A The Pay Bureau and is protected by copyright, trademark, and other intellectual property laws.
               </p>
-              <p>
+              <p className="mt-3">
                 You retain ownership of all data you input into the Service. By using the Service, you grant us a limited licence to store, process, and display your data solely for the purpose of providing the Service to you.
               </p>
             </section>
 
             <section>
-              <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">7. Data Handling</h2>
+              <h2
+                className="text-lg font-bold font-[family-name:var(--font-inter)] mt-8 mb-3"
+                style={{ color: 'var(--mkt-text)' }}
+              >
+                7. Data Handling
+              </h2>
               <p>
-                Your use of the Service is also governed by our <Link href="/privacy" className="text-[#401D6C] font-semibold hover:underline">Privacy Policy</Link>, which describes how we collect, use, and protect your personal data. By using the Service, you consent to the data practices described in our Privacy Policy.
+                Your use of the Service is also governed by our{' '}
+                <Link
+                  href="/privacy"
+                  className="font-semibold hover:underline"
+                  style={{ color: 'var(--mkt-purple)' }}
+                >
+                  Privacy Policy
+                </Link>
+                , which describes how we collect, use, and protect your personal data. By using the Service, you consent to the data practices described in our Privacy Policy.
               </p>
-              <p>
+              <p className="mt-3">
                 You are responsible for ensuring that you have all necessary rights and consents to input any personal data into the Service, including payroll data relating to your clients and their employees.
               </p>
             </section>
 
             <section>
-              <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">8. Limitation of Liability</h2>
+              <h2
+                className="text-lg font-bold font-[family-name:var(--font-inter)] mt-8 mb-3"
+                style={{ color: 'var(--mkt-text)' }}
+              >
+                8. Limitation of Liability
+              </h2>
               <p>
                 To the maximum extent permitted by law, Intelligent Payroll Limited T/A The Pay Bureau shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or business opportunities, arising from your use of the Service.
               </p>
-              <p>
+              <p className="mt-3">
                 The Service is provided on an &ldquo;as is&rdquo; and &ldquo;as available&rdquo; basis. We do not warrant that the Service will be uninterrupted, error-free, or secure. HMRC deadline calculations and reminders are provided as a convenience only and should not be relied upon as your sole means of compliance tracking.
               </p>
-              <p>
+              <p className="mt-3">
                 Our total liability under these terms shall not exceed the amount paid by you to us in the twelve months preceding the claim.
               </p>
             </section>
 
             <section>
-              <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">9. Termination</h2>
+              <h2
+                className="text-lg font-bold font-[family-name:var(--font-inter)] mt-8 mb-3"
+                style={{ color: 'var(--mkt-text)' }}
+              >
+                9. Termination
+              </h2>
               <p>
                 You may terminate your account at any time by contacting us. We may suspend or terminate your access to the Service at any time for violation of these terms, with or without notice.
               </p>
-              <p>
+              <p className="mt-3">
                 Upon termination, your right to access the Service will cease immediately. We will retain your data for a reasonable period (up to 90 days) to allow you to export it, after which it will be permanently deleted.
               </p>
             </section>
 
             <section>
-              <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">10. Changes to Terms</h2>
+              <h2
+                className="text-lg font-bold font-[family-name:var(--font-inter)] mt-8 mb-3"
+                style={{ color: 'var(--mkt-text)' }}
+              >
+                10. Changes to Terms
+              </h2>
               <p>
                 We may update these Terms of Service from time to time. We will notify you of any material changes by email or through the Service. Your continued use of the Service after such changes constitutes acceptance of the updated terms.
               </p>
             </section>
 
             <section>
-              <h2 className="text-lg font-bold text-gray-900 mt-8 mb-3">11. Governing Law</h2>
+              <h2
+                className="text-lg font-bold font-[family-name:var(--font-inter)] mt-8 mb-3"
+                style={{ color: 'var(--mkt-text)' }}
+              >
+                11. Governing Law
+              </h2>
               <p>
                 These terms shall be governed by and construed in accordance with the laws of England and Wales. Any disputes arising under or in connection with these terms shall be subject to the exclusive jurisdiction of the courts of England and Wales.
               </p>
             </section>
 
-            <section className="mt-10 pt-6 border-t border-gray-200">
-              <p className="text-sm text-gray-500">
+            <section
+              className="mt-10 pt-6"
+              style={{ borderTop: '1px solid var(--mkt-border)' }}
+            >
+              <p
+                className="text-sm font-[family-name:var(--font-inter)]"
+                style={{ color: 'var(--mkt-text-3)' }}
+              >
                 If you have any questions about these Terms of Service, please contact us at{' '}
-                <a href="mailto:support@thepaybureau.com" className="text-[#401D6C] font-semibold hover:underline">
+                <a
+                  href="mailto:support@thepaybureau.com"
+                  className="font-semibold hover:underline"
+                  style={{ color: 'var(--mkt-purple)' }}
+                >
                   support@thepaybureau.com
                 </a>
               </p>
