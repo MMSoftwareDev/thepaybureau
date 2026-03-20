@@ -62,6 +62,7 @@ import {
   Settings2,
   Landmark,
   Copy,
+  HelpCircle,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { mutate } from 'swr'
@@ -1357,55 +1358,55 @@ export default function ClientsPage() {
             {statusFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Status: {statusFilter === 'active' ? 'Active' : 'Inactive'}
-                <button onClick={() => setStatusFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setStatusFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear status filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {industryFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Industry: {industryFilter}
-                <button onClick={() => setIndustryFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setIndustryFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear industry filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {companyTypeFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Type: {COMPANY_TYPE_LABELS[companyTypeFilter] || companyTypeFilter}
-                <button onClick={() => setCompanyTypeFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setCompanyTypeFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear company type filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {hmrcAuthFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 HMRC Auth: {hmrcAuthFilter === 'yes' ? 'Yes' : 'No'}
-                <button onClick={() => setHmrcAuthFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setHmrcAuthFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear HMRC filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {aeStatusFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 AE: {AUTO_ENROLMENT_OPTIONS.find(o => o.value === aeStatusFilter)?.label || aeStatusFilter}
-                <button onClick={() => setAeStatusFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setAeStatusFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear AE status filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {paymentMethodFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Payment: {PAYMENT_METHOD_LABELS[paymentMethodFilter] || paymentMethodFilter}
-                <button onClick={() => setPaymentMethodFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setPaymentMethodFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear payment method filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {contractTypeFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Contract: {contractTypeFilter === 'rolling' ? 'Rolling' : 'Fixed Term'}
-                <button onClick={() => setContractTypeFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setContractTypeFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear contract type filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {portalAccessFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Portal: {portalAccessFilter === 'yes' ? 'Enabled' : 'Disabled'}
-                <button onClick={() => setPortalAccessFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setPortalAccessFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear portal access filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {(dateFrom || dateTo) && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Date: {dateFrom || '...'} – {dateTo || '...'}
-                <button onClick={() => { setDateFrom(''); setDateTo('') }} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => { setDateFrom(''); setDateTo('') }} className="ml-0.5 hover:opacity-70" aria-label="Clear date filter"><X className="w-3 h-3" /></button>
               </span>
             )}
           </div>
@@ -1585,6 +1586,7 @@ export default function ClientsPage() {
                             size="icon"
                             className="h-8 w-8"
                             title="Edit client"
+                            aria-label="Edit client"
                             onClick={() => openEdit(client)}
                           >
                             <Edit className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
@@ -1594,6 +1596,7 @@ export default function ClientsPage() {
                             size="icon"
                             className="h-8 w-8"
                             title="Duplicate client"
+                            aria-label="Duplicate client"
                             onClick={() => duplicateClient(client)}
                           >
                             <Copy className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
@@ -1602,6 +1605,8 @@ export default function ClientsPage() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
+                            title="Delete client"
+                            aria-label="Delete client"
                             disabled={deletingId === client.id}
                             onClick={() => setClientToDelete(client)}
                           >
@@ -1630,6 +1635,7 @@ export default function ClientsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  aria-label="Previous page"
                   disabled={currentPage <= 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   className="h-7 text-xs"
@@ -1643,6 +1649,7 @@ export default function ClientsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  aria-label="Next page"
                   disabled={currentPage >= totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   className="h-7 text-xs"
@@ -1753,6 +1760,7 @@ export default function ClientsPage() {
                       disabled={idx === 0}
                       onClick={() => moveColumn(id, 'up')}
                       title="Move up"
+                      aria-label="Move column up"
                     >
                       <ArrowUp className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                     </button>
@@ -1762,6 +1770,7 @@ export default function ClientsPage() {
                       disabled={idx === columnPrefs.order.length - 1}
                       onClick={() => moveColumn(id, 'down')}
                       title="Move down"
+                      aria-label="Move column down"
                     >
                       <ArrowDown className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                     </button>
@@ -1841,7 +1850,10 @@ export default function ClientsPage() {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>SIC Code</Label>
+                <div className="flex items-center gap-1">
+                  <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>SIC Code</Label>
+                  <span title="Standard Industrial Classification code — a 5-digit code identifying the company's business activity (e.g. 62020 for IT consultancy). Found on Companies House."><HelpCircle className="w-3.5 h-3.5 cursor-help" style={{ color: colors.text.muted }} /></span>
+                </div>
                 <Input value={formSicCode} onChange={(e) => setFormSicCode(e.target.value)} placeholder="e.g. 62020" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
@@ -1934,11 +1946,17 @@ export default function ClientsPage() {
                 <Input value={formVatNumber} onChange={(e) => setFormVatNumber(e.target.value)} placeholder="e.g. GB123456789" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>UTR (Unique Taxpayer Reference)</Label>
+                <div className="flex items-center gap-1">
+                  <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>UTR (Unique Taxpayer Reference)</Label>
+                  <span title="A 10-digit number issued by HMRC to identify a business or individual for self-assessment tax purposes."><HelpCircle className="w-3.5 h-3.5 cursor-help" style={{ color: colors.text.muted }} /></span>
+                </div>
                 <Input value={formUtr} onChange={(e) => setFormUtr(e.target.value)} placeholder="e.g. 1234567890" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>CIS Registered</Label>
+                <div className="flex items-center gap-1">
+                  <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>CIS Registered</Label>
+                  <span title="Construction Industry Scheme — HMRC scheme requiring contractors in construction to deduct tax from subcontractor payments."><HelpCircle className="w-3.5 h-3.5 cursor-help" style={{ color: colors.text.muted }} /></span>
+                </div>
                 <Select value={formCisRegistered} onValueChange={setFormCisRegistered}>
                   <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -1958,7 +1976,10 @@ export default function ClientsPage() {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Auto Enrolment Status</Label>
+                <div className="flex items-center gap-1">
+                  <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>Auto Enrolment Status</Label>
+                  <span title="Workplace pension auto enrolment status — whether the employer has enrolled eligible workers into a qualifying pension scheme, as required by The Pensions Regulator."><HelpCircle className="w-3.5 h-3.5 cursor-help" style={{ color: colors.text.muted }} /></span>
+                </div>
                 <Select value={formAutoEnrolmentStatus} onValueChange={setFormAutoEnrolmentStatus}>
                   <SelectTrigger className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }}><SelectValue placeholder="Select..." /></SelectTrigger>
                   <SelectContent>
@@ -2091,7 +2112,10 @@ export default function ClientsPage() {
                 <Input value={formReferralSource} onChange={(e) => setFormReferralSource(e.target.value)} placeholder="e.g. Website, Referral, Accountant" className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>
-                <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>BACS Bureau Number</Label>
+                <div className="flex items-center gap-1">
+                  <Label className="text-xs font-medium font-[family-name:var(--font-inter)]" style={{ color: colors.text.secondary }}>BACS Bureau Number</Label>
+                  <span title="A unique number assigned by BACS to approved bureaux for processing direct credit and direct debit payments on behalf of clients."><HelpCircle className="w-3.5 h-3.5 cursor-help" style={{ color: colors.text.muted }} /></span>
+                </div>
                 <Input value={formBacsBureauNumber} onChange={(e) => setFormBacsBureauNumber(e.target.value)} className="mt-1 text-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text.primary }} />
               </div>
               <div>

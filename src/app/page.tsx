@@ -20,6 +20,28 @@ export const metadata: Metadata = {
   alternates: {
     canonical: MARKETING_DOMAIN,
   },
+  openGraph: {
+    type: 'website',
+    locale: 'en_GB',
+    url: MARKETING_DOMAIN,
+    siteName: 'ThePayBureau',
+    title: 'ThePayBureau — The Payroll CRM That Runs Your Bureau For You',
+    description: 'Professional payroll bureau management for UK specialists. Track HMRC deadlines, manage client checklists, auto-enrolment tracking, and pension compliance.',
+    images: [
+      {
+        url: `${MARKETING_DOMAIN}/logo-full.png`,
+        width: 1200,
+        height: 630,
+        alt: 'ThePayBureau - Professional Payroll Management',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ThePayBureau — The Payroll CRM That Runs Your Bureau For You',
+    description: 'Professional payroll bureau management for UK specialists. Track HMRC deadlines, manage client checklists, auto-enrolment tracking, and pension compliance.',
+    images: [`${MARKETING_DOMAIN}/logo-full.png`],
+  },
 }
 
 export default function LandingPage() {

@@ -1238,7 +1238,7 @@ function TrainingPage() {
                 style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
               >
                 Search: &ldquo;{debouncedSearch}&rdquo;
-                <button onClick={() => setSearchQuery('')} className="ml-0.5 hover:opacity-70 transition-opacity">
+                <button onClick={() => setSearchQuery('')} className="ml-0.5 hover:opacity-70 transition-opacity" aria-label="Clear search filter">
                   <X className="w-3 h-3" />
                 </button>
               </span>
@@ -1249,7 +1249,7 @@ function TrainingPage() {
                 style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
               >
                 Status: {statusFilter === 'expiring' ? 'Expiring / Expired' : STATUS_LABELS[statusFilter] || statusFilter}
-                <button onClick={() => setStatusFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity">
+                <button onClick={() => setStatusFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity" aria-label="Clear status filter">
                   <X className="w-3 h-3" />
                 </button>
               </span>
@@ -1260,7 +1260,7 @@ function TrainingPage() {
                 style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
               >
                 Category: {CATEGORY_LABELS[categoryFilter] || categoryFilter}
-                <button onClick={() => setCategoryFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity">
+                <button onClick={() => setCategoryFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity" aria-label="Clear category filter">
                   <X className="w-3 h-3" />
                 </button>
               </span>
@@ -1510,6 +1510,7 @@ function TrainingPage() {
                         className="p-1.5 rounded-lg transition-colors"
                         style={{ color: colors.text.muted }}
                         title="Edit"
+                        aria-label="Edit training record"
                       >
                         <Edit className="w-3.5 h-3.5" />
                       </button>
@@ -1518,6 +1519,7 @@ function TrainingPage() {
                         className="p-1.5 rounded-lg transition-colors"
                         style={{ color: colors.text.muted }}
                         title="Delete"
+                        aria-label="Delete training record"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1544,6 +1546,7 @@ function TrainingPage() {
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(p => p - 1)}
               style={{ borderColor: colors.border, color: colors.text.secondary }}
+              aria-label="Previous page"
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -1557,6 +1560,7 @@ function TrainingPage() {
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage(p => p + 1)}
               style={{ borderColor: colors.border, color: colors.text.secondary }}
+              aria-label="Next page"
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
@@ -1591,10 +1595,10 @@ function TrainingPage() {
                   <span className="flex-1 text-sm font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>
                     {col.label}
                   </span>
-                  <button onClick={() => moveColumn(id, 'up')} className="p-0.5" style={{ color: colors.text.muted }}>
+                  <button onClick={() => moveColumn(id, 'up')} className="p-0.5" style={{ color: colors.text.muted }} aria-label="Move column up">
                     <ArrowUp className="w-3 h-3" />
                   </button>
-                  <button onClick={() => moveColumn(id, 'down')} className="p-0.5" style={{ color: colors.text.muted }}>
+                  <button onClick={() => moveColumn(id, 'down')} className="p-0.5" style={{ color: colors.text.muted }} aria-label="Move column down">
                     <ArrowDown className="w-3 h-3" />
                   </button>
                 </div>

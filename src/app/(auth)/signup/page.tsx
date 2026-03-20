@@ -449,6 +449,40 @@ export default function SignupPage() {
                     'border-[var(--brand-error)] bg-[var(--brand-error-bg)] focus-visible:shadow-[0_0_0_4px_rgba(217,48,37,0.1)]'
                 )}
               />
+              {/* Password requirements checklist */}
+              {formData.password.length > 0 && (
+                <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+                  {[
+                    { met: formData.password.length >= 8, label: '8+ characters' },
+                    { met: /[A-Z]/.test(formData.password), label: 'Uppercase letter' },
+                    { met: /[a-z]/.test(formData.password), label: 'Lowercase letter' },
+                    { met: /(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?])/.test(formData.password), label: 'Number & special' },
+                  ].map((req) => (
+                    <div key={req.label} className="flex items-center gap-1.5">
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 16 16"
+                        fill="currentColor"
+                        style={{ color: req.met ? 'var(--brand-success)' : 'var(--brand-text-3)' }}
+                        className="shrink-0 transition-colors duration-150"
+                      >
+                        {req.met ? (
+                          <path d="M8 1a7 7 0 110 14A7 7 0 018 1zm3.22 4.72a.75.75 0 00-1.06 0L7.25 8.63 5.84 7.22a.75.75 0 00-1.06 1.06l2 2a.75.75 0 001.06 0l3.38-3.5a.75.75 0 000-1.06z" />
+                        ) : (
+                          <circle cx="8" cy="8" r="3" />
+                        )}
+                      </svg>
+                      <span
+                        className="text-[0.75rem] font-[family-name:var(--font-inter)] font-medium transition-colors duration-150"
+                        style={{ color: req.met ? 'var(--brand-success)' : 'var(--brand-text-3)' }}
+                      >
+                        {req.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {errors.password && (
                 <div className="mt-1.5 flex items-center gap-1.5 font-[family-name:var(--font-body)] text-[0.82rem] font-medium text-[var(--brand-error)]">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">

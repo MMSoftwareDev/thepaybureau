@@ -491,6 +491,7 @@ function ConversationGroup({
               }}
               className="opacity-0 group-hover:opacity-100 p-0.5 rounded transition-opacity"
               style={{ color: colors.text.muted }}
+              aria-label="Delete conversation"
             >
               <Trash2 className="w-3 h-3" />
             </button>

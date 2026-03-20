@@ -68,10 +68,11 @@ export default function DashboardWrapper({ children }: DashboardWrapperProps) {
         />
 
         <main
+          id="main-content"
           className="flex-1 overflow-x-hidden overflow-y-auto transition-colors duration-200"
           style={{ background: colors.lightBg }}
         >
-          <div className="px-4 py-6 md:px-6 md:py-6">
+          <div className="px-4 py-6 md:px-6 md:py-6 animate-fadeIn">
             {children}
           </div>
         </main>

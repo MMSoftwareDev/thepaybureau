@@ -137,14 +137,8 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
         <button
           aria-label="Toggle navigation menu"
           onClick={onMenuToggle}
-          className="md:hidden flex items-center justify-center h-8 w-8 rounded-md transition-colors duration-150"
-          style={{ color: colors.text.secondary }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent'
-          }}
+          className="md:hidden flex items-center justify-center h-8 w-8 rounded-md transition-colors duration-150 hover:bg-[var(--nav-hover)]"
+          style={{ color: colors.text.secondary, '--nav-hover': isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg } as React.CSSProperties}
         >
           <Menu className="w-[18px] h-[18px]" />
         </button>
@@ -184,14 +178,8 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
       <div className="relative flex-shrink-0" ref={dropdownRef}>
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors duration-150"
-          style={{ color: colors.text.secondary }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
-          }}
-          onMouseLeave={(e) => {
-            if (!dropdownOpen) e.currentTarget.style.background = 'transparent'
-          }}
+          className="flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors duration-150 hover:bg-[var(--nav-hover)]"
+          style={{ color: colors.text.secondary, '--nav-hover': isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg } as React.CSSProperties}
         >
           {avatarUrl ? (
             <Image
@@ -246,14 +234,8 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
             {/* View Badges */}
             <button
               onClick={() => { setDropdownOpen(false); setBadgeSheetOpen(true) }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150"
-              style={{ color: colors.text.secondary }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent'
-              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150 hover:bg-[var(--nav-hover)]"
+              style={{ color: colors.text.secondary, '--nav-hover': isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg } as React.CSSProperties}
             >
               <Trophy className="w-3.5 h-3.5" />
               <span className="text-[0.78rem] font-medium">View Badges</span>
@@ -262,14 +244,8 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
             {/* Settings */}
             <button
               onClick={() => { setDropdownOpen(false); router.push('/dashboard/settings') }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150"
-              style={{ color: colors.text.secondary }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent'
-              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150 hover:bg-[var(--nav-hover)]"
+              style={{ color: colors.text.secondary, '--nav-hover': isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg } as React.CSSProperties}
             >
               <SettingsIcon className="w-3.5 h-3.5" />
               <span className="text-[0.78rem] font-medium">Settings</span>
@@ -278,14 +254,8 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
             {/* Subscription */}
             <button
               onClick={() => { setDropdownOpen(false); router.push('/dashboard/subscription') }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150"
-              style={{ color: colors.text.secondary }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent'
-              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150 hover:bg-[var(--nav-hover)]"
+              style={{ color: colors.text.secondary, '--nav-hover': isDark ? 'rgba(255,255,255,0.05)' : colors.lightBg } as React.CSSProperties}
             >
               <CreditCard className="w-3.5 h-3.5" />
               <span className="text-[0.78rem] font-medium">Subscription</span>
@@ -297,16 +267,8 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
             {/* Logout */}
             <button
               onClick={signOut}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150"
-              style={{ color: colors.text.secondary }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = isDark ? 'rgba(239,68,68,0.08)' : 'rgba(217,48,37,0.05)'
-                e.currentTarget.style.color = colors.error
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent'
-                e.currentTarget.style.color = colors.text.secondary
-              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors duration-150 hover:bg-[var(--nav-hover)] hover:text-[var(--nav-hover-color)]"
+              style={{ color: colors.text.secondary, '--nav-hover': isDark ? 'rgba(239,68,68,0.08)' : 'rgba(217,48,37,0.05)', '--nav-hover-color': colors.error } as React.CSSProperties}
             >
               <LogOut className="w-3.5 h-3.5" />
               <span className="text-[0.78rem] font-medium">Sign out</span>
