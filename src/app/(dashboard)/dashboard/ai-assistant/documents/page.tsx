@@ -808,7 +808,7 @@ function UploadForm({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-[0.95rem]">Upload Document</CardTitle>
-        <button onClick={onClose} className="p-1 rounded-md hover:bg-black/5 dark:hover:bg-white/5">
+        <button onClick={onClose} className="p-1 rounded-md hover:bg-black/5 dark:hover:bg-white/5" aria-label="Close upload form">
           <X className="w-4 h-4" style={{ color: colors.text.muted }} />
         </button>
       </CardHeader>

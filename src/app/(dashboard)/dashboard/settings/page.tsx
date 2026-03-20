@@ -795,6 +795,7 @@ export default function SettingsPage() {
                   className="w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors"
                   style={{ color: colors.text.muted }}
                   title="Duplicate template"
+                  aria-label="Duplicate template"
                 >
                   <Copy className="w-3.5 h-3.5" />
                 </button>
@@ -804,6 +805,7 @@ export default function SettingsPage() {
                     className="w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                     style={{ color: colors.error }}
                     title="Delete template"
+                    aria-label="Delete template"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -828,6 +830,7 @@ export default function SettingsPage() {
                       onClick={() => removeTemplateStep(index)}
                       className="w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                       style={{ color: colors.error }}
+                      aria-label="Remove checklist step"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -894,6 +897,7 @@ export default function SettingsPage() {
               style={{
                 backgroundColor: isDark ? colors.primary : colors.border,
               }}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               <div
                 className="absolute top-1 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm"

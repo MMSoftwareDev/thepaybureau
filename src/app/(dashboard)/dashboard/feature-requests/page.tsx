@@ -333,6 +333,7 @@ function CommentThread({ featureRequestId, colors, isDark, isAdmin, currentUserI
                   disabled={!replyContent.trim() || submitting}
                   className="p-1.5 rounded-md transition-colors disabled:opacity-40"
                   style={{ background: colors.primary, color: '#fff' }}
+                  aria-label="Submit reply"
                 >
                   <Send className="w-3 h-3" />
                 </button>
@@ -340,6 +341,7 @@ function CommentThread({ featureRequestId, colors, isDark, isAdmin, currentUserI
                   onClick={() => { setReplyingTo(null); setReplyContent('') }}
                   className="p-1.5 rounded-md transition-colors"
                   style={{ color: colors.text.muted }}
+                  aria-label="Cancel reply"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -398,6 +400,7 @@ function CommentThread({ featureRequestId, colors, isDark, isAdmin, currentUserI
           disabled={!newComment.trim() || submitting}
           className="self-end p-2 rounded-md transition-colors disabled:opacity-40"
           style={{ background: colors.primary, color: '#fff' }}
+          aria-label="Submit comment"
         >
           <Send className="w-3.5 h-3.5" />
         </button>
@@ -625,7 +628,7 @@ export default function FeatureRequestsPage() {
             <h2 className="text-base font-semibold" style={{ color: colors.text.primary }}>
               {editingRequest ? 'Edit Request' : 'Submit a Feature Request'}
             </h2>
-            <button onClick={closeForm}>
+            <button onClick={closeForm} aria-label="Close form">
               <X className="w-4 h-4" style={{ color: colors.text.muted }} />
             </button>
           </div>
@@ -856,6 +859,7 @@ export default function FeatureRequestsPage() {
                             onClick={() => openEdit(req)}
                             className="p-1.5 rounded-md transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                             title="Edit"
+                            aria-label="Edit feature request"
                           >
                             <Pencil className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                           </button>
@@ -863,6 +867,7 @@ export default function FeatureRequestsPage() {
                             onClick={() => setDeleteTarget(req.id)}
                             className="p-1.5 rounded-md transition-colors hover:bg-red-500/10"
                             title="Delete"
+                            aria-label="Delete feature request"
                           >
                             <Trash2 className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                           </button>

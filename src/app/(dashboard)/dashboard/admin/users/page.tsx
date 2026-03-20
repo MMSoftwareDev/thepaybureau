@@ -158,6 +158,7 @@ export default function AdminUsersPage() {
           <button
             onClick={() => router.back()}
             className="p-1.5 rounded-md transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+            aria-label="Go back"
           >
             <ArrowLeft className="w-4 h-4" style={{ color: colors.text.muted }} />
           </button>
@@ -264,6 +265,7 @@ export default function AdminUsersPage() {
                             disabled={saving}
                             className="p-1 rounded transition-colors"
                             style={{ color: colors.success }}
+                            aria-label="Save title"
                           >
                             <Check className="w-3.5 h-3.5" />
                           </button>
@@ -271,6 +273,7 @@ export default function AdminUsersPage() {
                             onClick={cancelEdit}
                             className="p-1 rounded transition-colors"
                             style={{ color: colors.text.muted }}
+                            aria-label="Cancel editing"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
@@ -316,6 +319,7 @@ export default function AdminUsersPage() {
                           onClick={() => startEdit(user)}
                           className="p-1.5 rounded-md transition-colors hover:bg-black/5 dark:hover:bg-white/5"
                           title="Edit title"
+                          aria-label="Edit user title"
                         >
                           <Pencil className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                         </button>

@@ -852,7 +852,7 @@ export default function PensionDeclarationsPage() {
               style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
             >
               Status: {pensionFilter === 'overdue' ? 'Overdue' : pensionFilter === 'due_soon' ? 'Due Soon' : pensionFilter === 'ready' ? 'Ready' : 'Exempt'}
-              <button onClick={() => setPensionFilter('all')} className="hover:opacity-70"><X className="w-3 h-3" /></button>
+              <button onClick={() => setPensionFilter('all')} className="hover:opacity-70" aria-label="Clear pension status filter"><X className="w-3 h-3" /></button>
             </span>
           )}
           {aeFilter !== 'all' && (
@@ -861,7 +861,7 @@ export default function PensionDeclarationsPage() {
               style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
             >
               AE Status: {AE_LABELS[aeFilter] || aeFilter}
-              <button onClick={() => setAeFilter('all')} className="hover:opacity-70"><X className="w-3 h-3" /></button>
+              <button onClick={() => setAeFilter('all')} className="hover:opacity-70" aria-label="Clear AE status filter"><X className="w-3 h-3" /></button>
             </span>
           )}
           {debouncedSearch && (
@@ -870,7 +870,7 @@ export default function PensionDeclarationsPage() {
               style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
             >
               Search: {debouncedSearch}
-              <button onClick={() => setSearchQuery('')} className="hover:opacity-70"><X className="w-3 h-3" /></button>
+              <button onClick={() => setSearchQuery('')} className="hover:opacity-70" aria-label="Clear search filter"><X className="w-3 h-3" /></button>
             </span>
           )}
         </div>
@@ -1136,6 +1136,7 @@ export default function PensionDeclarationsPage() {
                       disabled={idx === 0}
                       onClick={() => moveColumn(id, 'up')}
                       title="Move up"
+                      aria-label="Move column up"
                     >
                       <ArrowUp className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                     </button>
@@ -1145,6 +1146,7 @@ export default function PensionDeclarationsPage() {
                       disabled={idx === columnPrefs.order.length - 1}
                       onClick={() => moveColumn(id, 'down')}
                       title="Move down"
+                      aria-label="Move column down"
                     >
                       <ArrowDown className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                     </button>

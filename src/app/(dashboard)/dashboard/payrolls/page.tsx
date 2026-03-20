@@ -1197,7 +1197,7 @@ export default function PayrollsPage() {
               style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
             >
               Search: {debouncedSearch}
-              <button onClick={() => setSearchQuery('')} className="ml-0.5 hover:opacity-70 transition-opacity"><X className="w-3 h-3" /></button>
+              <button onClick={() => setSearchQuery('')} className="ml-0.5 hover:opacity-70 transition-opacity" aria-label="Clear search filter"><X className="w-3 h-3" /></button>
             </span>
           )}
           {statusFilter !== 'all' && (
@@ -1206,7 +1206,7 @@ export default function PayrollsPage() {
               style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
             >
               Status: {statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
-              <button onClick={() => setStatusFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity"><X className="w-3 h-3" /></button>
+              <button onClick={() => setStatusFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity" aria-label="Clear status filter"><X className="w-3 h-3" /></button>
             </span>
           )}
           {clientFilter !== 'all' && (
@@ -1215,7 +1215,7 @@ export default function PayrollsPage() {
               style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
             >
               Client: {clientOptions.find(c => c.id === clientFilter)?.name || clientFilter}
-              <button onClick={() => setClientFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity"><X className="w-3 h-3" /></button>
+              <button onClick={() => setClientFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity" aria-label="Clear client filter"><X className="w-3 h-3" /></button>
             </span>
           )}
           {kpiFilter !== 'all' && (
@@ -1224,7 +1224,7 @@ export default function PayrollsPage() {
               style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}30` }}
             >
               {kpiFilter === 'due_today' ? 'Due Today' : kpiFilter === 'this_week' ? 'This Week' : kpiFilter.charAt(0).toUpperCase() + kpiFilter.slice(1).replace('_', ' ')}
-              <button onClick={() => setKpiFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity"><X className="w-3 h-3" /></button>
+              <button onClick={() => setKpiFilter('all')} className="ml-0.5 hover:opacity-70 transition-opacity" aria-label="Clear KPI filter"><X className="w-3 h-3" /></button>
             </span>
           )}
         </div>
@@ -1466,10 +1466,10 @@ export default function PayrollsPage() {
                   <input type="checkbox" checked={isVisible} onChange={() => toggleColumn(id)} className="rounded" />
                   <span className="text-sm font-medium flex-1 font-[family-name:var(--font-inter)]" style={{ color: colors.text.primary }}>{col.label}</span>
                   <div className="flex items-center gap-0.5">
-                    <button onClick={() => moveColumn(id, 'up')} disabled={idx === 0} className="p-1 rounded transition-colors disabled:opacity-30" style={{ color: colors.text.muted }}>
+                    <button onClick={() => moveColumn(id, 'up')} disabled={idx === 0} className="p-1 rounded transition-colors disabled:opacity-30" style={{ color: colors.text.muted }} aria-label="Move column up">
                       <ArrowUp className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => moveColumn(id, 'down')} disabled={idx === columnPrefs.order.length - 1} className="p-1 rounded transition-colors disabled:opacity-30" style={{ color: colors.text.muted }}>
+                    <button onClick={() => moveColumn(id, 'down')} disabled={idx === columnPrefs.order.length - 1} className="p-1 rounded transition-colors disabled:opacity-30" style={{ color: colors.text.muted }} aria-label="Move column down">
                       <ArrowDown className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1601,7 +1601,7 @@ export default function PayrollsPage() {
                     <div key={i} className="flex items-center gap-2">
                       <span className="text-xs w-5 text-center font-[family-name:var(--font-inter)]" style={{ color: colors.text.muted }}>{i + 1}</span>
                       <span className="flex-1 text-sm font-[family-name:var(--font-body)]" style={{ color: colors.text.primary }}>{item.name}</span>
-                      <button type="button" onClick={() => removeChecklistStep(i)} className="p-1 rounded hover:bg-red-50 transition-colors">
+                      <button type="button" onClick={() => removeChecklistStep(i)} className="p-1 rounded hover:bg-red-50 transition-colors" aria-label="Remove checklist step">
                         <X className="w-3 h-3" style={{ color: colors.error }} />
                       </button>
                     </div>

@@ -1358,55 +1358,55 @@ export default function ClientsPage() {
             {statusFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Status: {statusFilter === 'active' ? 'Active' : 'Inactive'}
-                <button onClick={() => setStatusFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setStatusFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear status filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {industryFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Industry: {industryFilter}
-                <button onClick={() => setIndustryFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setIndustryFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear industry filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {companyTypeFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Type: {COMPANY_TYPE_LABELS[companyTypeFilter] || companyTypeFilter}
-                <button onClick={() => setCompanyTypeFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setCompanyTypeFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear company type filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {hmrcAuthFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 HMRC Auth: {hmrcAuthFilter === 'yes' ? 'Yes' : 'No'}
-                <button onClick={() => setHmrcAuthFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setHmrcAuthFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear HMRC filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {aeStatusFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 AE: {AUTO_ENROLMENT_OPTIONS.find(o => o.value === aeStatusFilter)?.label || aeStatusFilter}
-                <button onClick={() => setAeStatusFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setAeStatusFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear AE status filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {paymentMethodFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Payment: {PAYMENT_METHOD_LABELS[paymentMethodFilter] || paymentMethodFilter}
-                <button onClick={() => setPaymentMethodFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setPaymentMethodFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear payment method filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {contractTypeFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Contract: {contractTypeFilter === 'rolling' ? 'Rolling' : 'Fixed Term'}
-                <button onClick={() => setContractTypeFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setContractTypeFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear contract type filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {portalAccessFilter !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Portal: {portalAccessFilter === 'yes' ? 'Enabled' : 'Disabled'}
-                <button onClick={() => setPortalAccessFilter('all')} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => setPortalAccessFilter('all')} className="ml-0.5 hover:opacity-70" aria-label="Clear portal access filter"><X className="w-3 h-3" /></button>
               </span>
             )}
             {(dateFrom || dateTo) && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[0.7rem] font-medium" style={{ backgroundColor: `${colors.primary}12`, color: colors.primary, border: `1px solid ${colors.primary}25` }}>
                 Date: {dateFrom || '...'} – {dateTo || '...'}
-                <button onClick={() => { setDateFrom(''); setDateTo('') }} className="ml-0.5 hover:opacity-70"><X className="w-3 h-3" /></button>
+                <button onClick={() => { setDateFrom(''); setDateTo('') }} className="ml-0.5 hover:opacity-70" aria-label="Clear date filter"><X className="w-3 h-3" /></button>
               </span>
             )}
           </div>
@@ -1760,6 +1760,7 @@ export default function ClientsPage() {
                       disabled={idx === 0}
                       onClick={() => moveColumn(id, 'up')}
                       title="Move up"
+                      aria-label="Move column up"
                     >
                       <ArrowUp className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                     </button>
@@ -1769,6 +1770,7 @@ export default function ClientsPage() {
                       disabled={idx === columnPrefs.order.length - 1}
                       onClick={() => moveColumn(id, 'down')}
                       title="Move down"
+                      aria-label="Move column down"
                     >
                       <ArrowDown className="w-3.5 h-3.5" style={{ color: colors.text.muted }} />
                     </button>
