@@ -76,7 +76,8 @@ export async function POST(request: NextRequest) {
         data: {
           name: validatedData.adminName,
           company: validatedData.companyName,
-          phone: validatedData.phone
+          phone: validatedData.phone,
+          ...(validatedData.utm ? { signup_utm: validatedData.utm } : {}),
         },
         emailRedirectTo: `${origin}/auth/callback`
       }
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
           industry: 'payroll_bureau',
           company_domain: companyDomain,
           setup_completed: false,
+          ...(validatedData.utm ? { signup_utm: validatedData.utm } : {}),
           checklist_templates: [{
             id: crypto.randomUUID(),
             name: 'Standard Payroll',
@@ -162,7 +164,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Send welcome email (must await — Vercel terminates after response)
-    const welcome = welcomeEmail({ userName: validatedData.adminName })
+    const welcome = welcomeEmail({ userName: validatedData.adminName, signupSource: validatedData.utm?.campaign })
     try {
       await sendEmail({ to: validatedData.email, ...welcome })
     } catch (err) {

@@ -1,20 +1,9 @@
 import { z } from 'zod'
 import { isDisposableEmail } from '@/lib/disposable-domains'
 
-const BLOCKED_DOMAINS = [
-  'gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com',
-  'aol.com', 'icloud.com', 'live.com', 'msn.com', 'protonmail.com',
-  'pm.me', 'tutanota.com', 'mail.com', 'yandex.com', 'yandex.ru',
-  'gmx.com', 'gmx.net', 'zoho.com',
-]
-
 export const adminRegistrationSchema = z.object({
   email: z.string()
     .email('Please enter a valid email address')
-    .refine((email) => {
-      const domain = email.split('@')[1]?.toLowerCase()
-      return !BLOCKED_DOMAINS.includes(domain)
-    }, 'Please use your company email address. Personal email providers are not allowed.')
     .refine((email) => {
       return !isDisposableEmail(email)
     }, 'Disposable or temporary email addresses are not allowed.'),
@@ -30,7 +19,12 @@ export const adminRegistrationSchema = z.object({
   adminName: z.string()
     .min(1, 'Your full name is required')
     .max(255, 'Name too long'),
-  phone: z.string().optional()
+  phone: z.string().optional(),
+  utm: z.object({
+    source: z.string().optional(),
+    medium: z.string().optional(),
+    campaign: z.string().optional(),
+  }).optional(),
 })
 
 // ═══════════════════════════════════════════════════

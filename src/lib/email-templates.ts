@@ -53,17 +53,23 @@ function layout(content: string): string {
 
 export function welcomeEmail({
   userName,
+  signupSource,
 }: {
   userName: string
+  signupSource?: string
 }): { subject: string; html: string } {
+  const isBeta = signupSource === 'beta_launch'
+
   return {
-    subject: 'Welcome to ThePayBureau — let\'s get you organised',
+    subject: isBeta
+      ? 'Welcome to the Beta — you\'re one of the first'
+      : 'Welcome to ThePayBureau — let\'s get you organised',
     html: layout(`
                 <!-- Headline -->
                 <tr>
                   <td style="padding-bottom:12px;">
                     <h1 style="margin:0;font-size:22px;font-weight:700;color:#111827;letter-spacing:-0.03em;line-height:1.2;">
-                      Welcome to ThePayBureau
+                      ${isBeta ? 'Welcome to the Beta' : 'Welcome to ThePayBureau'}
                     </h1>
                   </td>
                 </tr>
@@ -71,8 +77,14 @@ export function welcomeEmail({
                 <tr>
                   <td style="padding-bottom:16px;">
                     <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#6b7280;">Hi ${userName},</p>
+                    ${isBeta ? `
                     <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#374151;">
-                      Thanks for signing up! You&rsquo;re about to replace spreadsheets and sticky notes with a system built specifically for payroll professionals.
+                      You&rsquo;re one of our very first users &mdash; and your feedback will directly shape what ThePayBureau becomes. Thank you for joining early.
+                    </p>` : ''}
+                    <p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:#374151;">
+                      ${isBeta
+                        ? 'Your account is ready. When you log in, a guided tutorial will walk you through adding your first client and payroll in under 2 minutes.'
+                        : 'Thanks for signing up! You&rsquo;re about to replace spreadsheets and sticky notes with a system built specifically for payroll professionals.'}
                     </p>
                     <p style="margin:0;font-size:15px;line-height:1.65;color:#374151;">
                       Here&rsquo;s what you can do right away:
@@ -99,6 +111,16 @@ export function welcomeEmail({
                     </table>
                   </td>
                 </tr>
+                ${isBeta ? `
+                <!-- Beta offers -->
+                <tr>
+                  <td style="padding-bottom:16px;">
+                    <p style="margin:0;font-size:15px;line-height:1.65;color:#374151;">
+                      <strong style="color:${BRAND_DEEP};">Interested in the free Unlimited plan or Founding Member status?</strong>
+                      Just reply to this email &mdash; spots are limited.
+                    </p>
+                  </td>
+                </tr>` : ''}
                 <!-- Message -->
                 <tr>
                   <td style="padding-bottom:32px;">

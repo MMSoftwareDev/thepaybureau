@@ -13,12 +13,20 @@ describe('adminRegistrationSchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('rejects personal email providers', () => {
+  it('accepts personal email providers', () => {
     const result = adminRegistrationSchema.safeParse({
       ...validData,
       email: 'user@gmail.com',
     })
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts optional UTM data', () => {
+    const result = adminRegistrationSchema.safeParse({
+      ...validData,
+      utm: { source: 'launch_email', medium: 'email', campaign: 'beta_launch' },
+    })
+    expect(result.success).toBe(true)
   })
 
   it('rejects weak passwords', () => {

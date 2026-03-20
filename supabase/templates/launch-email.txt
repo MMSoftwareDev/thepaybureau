@@ -10,7 +10,7 @@ So I built ThePayBureau Pro — a platform designed specifically for bureau owne
 
 It's completely free. No credit card. No trial that expires. No catch. Sign up, add your clients, and start using it today.
 
->> Sign Up Free: https://app.thepaybureau.com/signup
+>> Sign Up Free: https://app.thepaybureau.com/signup?utm_source=launch_email&utm_medium=email&utm_campaign=beta_launch
 
 
 WHAT YOU GET (RIGHT NOW)
@@ -45,7 +45,7 @@ This isn't another generic business tool trying to bolt on payroll as an afterth
 
 If that sounds like you, I'd love to have you on board.
 
->> Sign Up Free: https://app.thepaybureau.com/signup
+>> Sign Up Free: https://app.thepaybureau.com/signup?utm_source=launch_email&utm_medium=email&utm_campaign=beta_launch
 
 
 Minhaz Moosa

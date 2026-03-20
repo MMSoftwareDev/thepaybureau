@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useCallback, type FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useCallback, type FormEvent } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -28,7 +28,21 @@ interface EmailValidation {
 }
 
 export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupForm />
+    </Suspense>
+  )
+}
+
+function SignupForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Capture UTM params from URL (e.g. from launch email)
+  const utmSource = searchParams.get('utm_source') || undefined
+  const utmMedium = searchParams.get('utm_medium') || undefined
+  const utmCampaign = searchParams.get('utm_campaign') || undefined
 
   const [formData, setFormData] = useState({
     email: '',
@@ -52,7 +66,6 @@ export default function SignupPage() {
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    const personalDomains = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'aol.com']
 
     if (!emailRegex.test(email)) {
       setEmailValidation({ isValid: false, message: 'Please enter a valid email address', suggestion: '' })
@@ -60,15 +73,6 @@ export default function SignupPage() {
     }
 
     const domain = email.split('@')[1]?.toLowerCase()
-
-    if (personalDomains.includes(domain)) {
-      setEmailValidation({
-        isValid: false,
-        message: 'Business email required',
-        suggestion: `Try using your company email instead of ${domain}`
-      })
-      return
-    }
 
     if (isDisposableEmail(email)) {
       setEmailValidation({
@@ -84,13 +88,16 @@ export default function SignupPage() {
       .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
 
+    const personalDomains = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'aol.com', 'live.com', 'msn.com', 'protonmail.com']
+    const isPersonal = personalDomains.includes(domain)
+
     setEmailValidation({
       isValid: true,
-      message: 'Business email verified',
-      suggestion: suggestedCompany && !formData.companyName ? `Company: ${suggestedCompany}?` : ''
+      message: isPersonal ? 'Email verified' : 'Business email verified',
+      suggestion: !isPersonal && suggestedCompany && !formData.companyName ? `Company: ${suggestedCompany}?` : ''
     })
 
-    if (suggestedCompany && !formData.companyName) {
+    if (!isPersonal && suggestedCompany && !formData.companyName) {
       setFormData(prev => ({ ...prev, companyName: suggestedCompany }))
     }
   }, [formData.companyName])
@@ -142,7 +149,12 @@ export default function SignupPage() {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          ...(utmSource || utmMedium || utmCampaign ? {
+            utm: { source: utmSource, medium: utmMedium, campaign: utmCampaign }
+          } : {})
+        })
       })
 
       const data = await response.json()
@@ -315,14 +327,14 @@ export default function SignupPage() {
                 htmlFor="email"
                 className="mb-2 block font-[family-name:var(--font-body)] text-[0.82rem] font-semibold uppercase tracking-[0.03em] text-[var(--brand-text-2)]"
               >
-                Business email
+                Email
               </Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="you@yourcompany.co.uk"
+                placeholder="you@example.com"
                 autoComplete="email"
                 disabled={loading}
                 className={cn(
